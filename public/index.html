@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" onclick="toggleTheme(event)" aria-label="Toggle theme">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+    </button>
+
+    <!-- Theme Transition Circle -->
+    <div class="theme-transition">
+        <div class="theme-transition-circle" id="themeCircle"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>Finance Tracker</h1>
+                    <p class="subtitle" id="userEmail"></p>
+                </div>
+                <div class="header-actions">
+                    <button onclick="openCategoriesModal()" class="btn-secondary">
+                        <span>⚙️</span> Manage Categories
+                    </button>
+                    <button onclick="signOut()" class="btn-danger">Sign Out</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Period Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('daily')">Daily</button>
+            <button class="tab" onclick="switchTab('monthly')">Monthly</button>
+            <button class="tab" onclick="switchTab('yearly')">Yearly</button>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="stats">
+            <div class="stat-card income">
+                <div class="stat-label">Total Income</div>
+                <div class="stat-value" id="totalIncome">₹0</div>
+            </div>
+            <div class="stat-card expense">
+                <div class="stat-label">Total Expenses</div>
+                <div class="stat-value" id="totalExpense">₹0</div>
+            </div>
+            <div class="stat-card balance">
+                <div class="stat-label">Balance</div>
+                <div class="stat-value" id="balance">₹0</div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="chart-section">
+            <div class="chart-container">
+                <canvas id="spendingChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Add Transaction Section -->
+        <div class="add-section">
+            <h2>Add Transaction</h2>
+            <div class="form-grid">
+                <select id="typeInput">
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                </select>
+                <input type="number" id="amountInput" placeholder="Amount (₹)" step="0.01">
+                <select id="categoryInput">
+                    <option value="">Select Category</option>
+                </select>
+                <input type="date" id="dateInput">
+                <input type="text" id="descInput" placeholder="Description (optional)">
+            </div>
+            <button onclick="addTransaction()" class="btn-primary">Add Transaction</button>
+        </div>
+
+        <!-- Transactions List Section -->
+        <div class="transactions">
+            <div class="transactions-header">
+                <h2>Transactions</h2>
+                <div class="filter-info" id="filterInfo"></div>
+            </div>
+            <div id="transactionsList">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categories Management Modal -->
+    <div class="modal" id="categoriesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Manage Categories</h2>
+                <button class="modal-close" onclick="closeCategoriesModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Income Categories -->
+                <div class="categories-section">
+                    <h3 style="color: var(--income);"> Income Categories</h3>
+                    <div class="category-list" id="incomeCategoriesList"></div>
+                    <div class="add-category">
+                        <input type="text" id="newIncomeCategory" placeholder="New income category">
+                        <button onclick="addCategory('income')" class="btn-secondary">Add</button>
+                    </div>
+                </div>
+
+                <!-- Expense Categories -->
+                <div class="categories-section">
+                    <h3 style="color: var(--expense);"> Expense Categories</h3>
+                    <div class="category-list" id="expenseCategoriesList"></div>
+                    <div class="add-category">
+                        <input type="text" id="newExpenseCategory" placeholder="New expense category">
+                        <button onclick="addCategory('expense')" class="btn-secondary">Add</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeCategoriesModal()" class="btn-primary">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Script -->
+    <script type="module" src="theme.js"></script>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Finance Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle" onclick="toggleTheme(event)" aria-label="Toggle theme">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+    </button>
+
+    <!-- Theme Transition Circle -->
+    <div class="theme-transition">
+        <div class="theme-transition-circle" id="themeCircle"></div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="page-loader" id="pageLoader">
+        <div>
+            <div class="spinner"></div>
+            <div class="spinner-text">Loading...</div>
+        </div>
+    </div>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <h1>💰 Finance Tracker</h1>
+            <p class="auth-subtitle">Track your income and expenses effortlessly</p>
+
+            <!-- Sign In Form (Default) -->
+            <div id="signInForm" class="auth-form">
+                <input type="email" id="signInEmail" placeholder="Email">
+                <input type="password" id="signInPassword" placeholder="Password">
+                
+                <button onclick="signIn()" class="btn-primary" id="signInBtn">Sign In</button>
+
+                <div class="divider">
+                    <span>OR</span>
+                </div>
+
+                <button onclick="signInWithGoogle()" class="btn-google" id="googleSignInBtn">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+                        <path d="M9.003 18c2.43 0 4.467-.806 5.956-2.18L12.05 13.56c-.806.54-1.836.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.96v2.332C2.44 15.983 5.485 18 9.003 18z" fill="#34A853"/>
+                        <path d="M3.964 10.712c-.18-.54-.282-1.117-.282-1.71 0-.593.102-1.17.282-1.71V4.96H.957C.347 6.175 0 7.55 0 9.002c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                        <path d="M9.003 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.464.891 11.426 0 9.003 0 5.485 0 2.44 2.017.96 4.958L3.967 7.29c.708-2.127 2.692-3.71 5.036-3.71z" fill="#EA4335"/>
+                    </svg>
+                    Sign in with Google
+                </button>
+
+                <p class="auth-toggle">
+                    Don't have an account? <a href="#" onclick="showSignUp(); return false;">Sign up</a>
+                </p>
+            </div>
+
+            <!-- Sign Up Form (Hidden by default) -->
+            <div id="signUpForm" class="auth-form hidden">
+                <input type="email" id="signUpEmail" placeholder="Email">
+                <input type="password" id="signUpPassword" placeholder="Password (min 6 characters)">
+                
+                <button onclick="signUp()" class="btn-primary" id="signUpBtn">Create Account</button>
+
+                <div class="divider">
+                    <span>OR</span>
+                </div>
+
+                <button onclick="signInWithGoogle()" class="btn-google" id="googleSignUpBtn">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+                        <path d="M9.003 18c2.43 0 4.467-.806 5.956-2.18L12.05 13.56c-.806.54-1.836.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.96v2.332C2.44 15.983 5.485 18 9.003 18z" fill="#34A853"/>
+                        <path d="M3.964 10.712c-.18-.54-.282-1.117-.282-1.71 0-.593.102-1.17.282-1.71V4.96H.957C.347 6.175 0 7.55 0 9.002c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                        <path d="M9.003 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.464.891 11.426 0 9.003 0 5.485 0 2.44 2.017.96 4.958L3.967 7.29c.708-2.127 2.692-3.71 5.036-3.71z" fill="#EA4335"/>
+                    </svg>
+                    Sign up with Google
+                </button>
+
+                <p class="auth-toggle">
+                    Already have an account? <a href="#" onclick="showSignIn(); return false;">Sign in</a>
+                </p>
+            </div>
+
+            <p class="auth-note">Your data is securely stored and only accessible by you</p>
+        </div>
+    </div>
+
+    <!-- Theme Script -->
+    <script src="theme.js"></script>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="firebase-config.js"></script>
+    <script src="auth.js"></script>
+</body>
+</html>
