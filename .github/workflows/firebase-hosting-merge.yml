@@ -9,22 +9,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Create firebase-config.js from secrets
+        env:
+          API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          MEASUREMENT_ID: ${{ secrets.FIREBASE_MEASUREMENT_ID }}
         run: |
           mkdir -p public
-          cat > public/firebase-config.js << 'FIREBASEEOF'
+          cat > public/firebase-config.js << 'EOF'
           // Firebase Configuration and Initialization
           import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
           import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
           import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc, serverTimestamp, setDoc, getDoc, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
           const firebaseConfig = {
-            apiKey: "${{ secrets.FIREBASE_API_KEY }}",
-            authDomain: "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
-            projectId: "${{ secrets.FIREBASE_PROJECT_ID }}",
-            storageBucket: "${{ secrets.FIREBASE_STORAGE_BUCKET }}",
-            messagingSenderId: "${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}",
-            appId: "${{ secrets.FIREBASE_APP_ID }}",
-            measurementId: "${{ secrets.FIREBASE_MEASUREMENT_ID }}"
+            apiKey: "$API_KEY",
+            authDomain: "$AUTH_DOMAIN",
+            projectId: "$PROJECT_ID",
+            storageBucket: "$STORAGE_BUCKET",
+            messagingSenderId: "$MESSAGING_SENDER_ID",
+            appId: "$APP_ID",
+            measurementId: "$MEASUREMENT_ID"
           };
 
           // Initialize Firebase
@@ -99,9 +107,9 @@ jobs:
                   }
               }
           });
-          FIREBASEEOF
-          echo "firebase-config.js created successfully"
-          ls -la public/firebase-config.js
+          EOF
+          echo "firebase-config.js created"
+          test -f public/firebase-config.js && echo "File exists" || echo "File does not exist"
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
