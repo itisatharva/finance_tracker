@@ -10,7 +10,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Create firebase-config.js from secrets
         run: |
-          cat > public/firebase-config.js << 'EOF'
+          mkdir -p public
+          cat > public/firebase-config.js << 'FIREBASEEOF'
           // Firebase Configuration and Initialization
           import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
           import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
@@ -98,7 +99,9 @@ jobs:
                   }
               }
           });
-          EOF
+          FIREBASEEOF
+          echo "firebase-config.js created successfully"
+          ls -la public/firebase-config.js
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
