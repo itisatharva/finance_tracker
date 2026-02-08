@@ -99,12 +99,25 @@ window.signOutFirebase = signOut;
 window.onAuthStateChanged = onAuthStateChanged;
 window.signInWithPopup = signInWithPopup;
 
-// Auth state observer - redirects to appropriate page
+// Auth state observer - redirects to appropriate page and protects routes
+let authInitialized = false;
+
 onAuthStateChanged(auth, async (user) => {
     const currentPage = window.location.pathname;
+    authInitialized = true;
+    
+    // Log for debugging on mobile
+    console.log('Auth state changed:', user ? 'User logged in' : 'User logged out', 'Page:', currentPage);
     
     if (user) {
         // User is logged in
+        // Show page content (hide loader)
+        const pageLoader = document.getElementById('pageLoader');
+        if (pageLoader) pageLoader.classList.remove('active');
+        
+        // Remove the page-locked class to show content
+        document.documentElement.classList.remove('page-locked');
+        
         if (currentPage.includes('login.html')) {
             // Check if user has completed category setup
             try {
@@ -112,9 +125,11 @@ onAuthStateChanged(auth, async (user) => {
                 
                 if (categoriesDoc.exists() && categoriesDoc.data().setupCompleted) {
                     // Setup completed, go to main app
+                    console.log('Setup completed, redirecting to index.html');
                     window.location.href = 'index.html';
                 } else {
                     // Setup not completed, go to category setup
+                    console.log('Setup not completed, redirecting to category-setup.html');
                     window.location.href = 'category-setup.html';
                 }
             } catch (error) {
@@ -127,6 +142,7 @@ onAuthStateChanged(auth, async (user) => {
             try {
                 const categoriesDoc = await getDoc(doc(db, 'users', user.uid, 'settings', 'categories'));
                 if (categoriesDoc.exists() && categoriesDoc.data().setupCompleted) {
+                    console.log('Setup already completed, redirecting to index.html');
                     window.location.href = 'index.html';
                 }
             } catch (error) {
@@ -136,7 +152,14 @@ onAuthStateChanged(auth, async (user) => {
     } else {
         // User is not logged in
         if (!currentPage.includes('login.html')) {
+            // Redirect to login for protected pages
+            console.log('User not authenticated, redirecting to login.html');
             window.location.href = 'login.html';
+        } else {
+            // Login page is allowed, show content
+            const pageLoader = document.getElementById('pageLoader');
+            if (pageLoader) pageLoader.classList.remove('active');
+            document.documentElement.classList.remove('page-locked');
         }
     }
 });
