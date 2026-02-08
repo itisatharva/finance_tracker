@@ -147,28 +147,33 @@ async function signOut() {
         return;
     }
 
-    // Wait for Firebase to be ready before attempting sign out
-    await new Promise(resolve => {
-        function checkFirebase() {
-            if (window.auth && window.signOutFirebase) {
-                resolve();
-            } else {
-                setTimeout(checkFirebase, 50);
-            }
-        }
-        checkFirebase();
-    });
-
-    const btn = event.target;
-    btn.classList.add('btn-loading');
-    btn.textContent = '';
-
     try {
+        // Wait for Firebase to be ready
+        console.log('Waiting for Firebase to be ready...');
+        await window.firebaseReady;
+        console.log('Firebase is ready, proceeding with sign out');
+
+        const btn = event.target;
+        btn.classList.add('btn-loading');
+        btn.textContent = '';
+
+        console.log('Checking signOutFirebase:', typeof window.signOutFirebase);
+        if (!window.signOutFirebase || typeof window.signOutFirebase !== 'function') {
+            throw new Error('signOutFirebase is not available. Type: ' + typeof window.signOutFirebase);
+        }
+
         if (unsubscribe) unsubscribe();
+        
+        console.log('Calling signOutFirebase...');
         await window.signOutFirebase(window.auth);
+        console.log('Sign out successful');
     } catch (error) {
-        btn.classList.remove('btn-loading');
-        btn.textContent = 'Sign Out';
+        console.error('Sign out error:', error);
+        const btn = event.target;
+        if (btn) {
+            btn.classList.remove('btn-loading');
+            btn.textContent = 'Sign Out';
+        }
         alert('Error signing out: ' + error.message);
     }
 }

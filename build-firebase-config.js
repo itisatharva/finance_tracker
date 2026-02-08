@@ -99,6 +99,29 @@ window.signOutFirebase = signOut;
 window.onAuthStateChanged = onAuthStateChanged;
 window.signInWithPopup = signInWithPopup;
 
+// Create a promise that resolves when Firebase is ready
+window.firebaseReady = new Promise((resolve) => {
+    if (window.auth && window.signOutFirebase && window.db) {
+        resolve(true);
+    } else {
+        // Check periodically
+        const interval = setInterval(() => {
+            if (window.auth && window.signOutFirebase && window.db && typeof window.signOutFirebase === 'function') {
+                clearInterval(interval);
+                resolve(true);
+            }
+        }, 10);
+        // Safety timeout
+        setTimeout(() => {
+            clearInterval(interval);
+            console.warn('Firebase initialization timed out');
+            resolve(true); // Resolve anyway to prevent hanging
+        }, 5000);
+    }
+});
+
+console.log('Firebase exports initialized, firebaseReady promise created');
+
 // Auth state observer - redirects to appropriate page and protects routes
 let authInitialized = false;
 
