@@ -147,29 +147,53 @@ async function signOut() {
         return;
     }
 
+    const btn = event.target;
+    
     try {
-        // Wait for Firebase to be ready
-        console.log('Waiting for Firebase to be ready...');
-        await window.firebaseReady;
-        console.log('Firebase is ready, proceeding with sign out');
-
-        const btn = event.target;
+        console.log('=== Sign Out Started ===');
+        console.log('window.firebaseReady exists:', !!window.firebaseReady);
+        console.log('window.firebaseInitialized:', window.firebaseInitialized);
+        console.log('window.signOutFirebase type:', typeof window.signOutFirebase);
+        console.log('window.auth exists:', !!window.auth);
+        
         btn.classList.add('btn-loading');
         btn.textContent = '';
 
-        console.log('Checking signOutFirebase:', typeof window.signOutFirebase);
+        // Wait for Firebase with timeout
+        console.log('Waiting for Firebase to be ready...');
+        const timeoutPromise = new Promise(resolve => setTimeout(resolve, 3000));
+        
+        if (window.firebaseReady) {
+            await Promise.race([window.firebaseReady, timeoutPromise]);
+        }
+        
+        console.log('Firebase check complete');
+        console.log('Window.signOutFirebase after wait:', typeof window.signOutFirebase);
+        
+        // Verify firebase is available
+        if (!window.auth) {
+            throw new Error('Firebase auth not initialized');
+        }
+        
         if (!window.signOutFirebase || typeof window.signOutFirebase !== 'function') {
-            throw new Error('signOutFirebase is not available. Type: ' + typeof window.signOutFirebase);
+            console.error('signOutFirebase not available:', {
+                exists: !!window.signOutFirebase,
+                type: typeof window.signOutFirebase,
+                isFunction: typeof window.signOutFirebase === 'function'
+            });
+            throw new Error('signOutFirebase function not available');
         }
 
-        if (unsubscribe) unsubscribe();
+        if (unsubscribe) {
+            console.log('Unsubscribing from real-time listeners...');
+            unsubscribe();
+        }
         
-        console.log('Calling signOutFirebase...');
+        console.log('Calling window.signOutFirebase(window.auth)...');
         await window.signOutFirebase(window.auth);
-        console.log('Sign out successful');
+        console.log('✓ Sign out successful');
     } catch (error) {
-        console.error('Sign out error:', error);
-        const btn = event.target;
+        console.error('❌ Sign out error:', error);
         if (btn) {
             btn.classList.remove('btn-loading');
             btn.textContent = 'Sign Out';
