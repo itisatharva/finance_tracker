@@ -52,6 +52,12 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Lock page content until auth is verified */
+html.page-locked > body > *:not(.page-loader):not(.theme-toggle):not(.theme-transition) {
+    opacity: 0;
+    pointer-events: none;
+}
+
 .container {
     max-width: 960px;
     margin: 0 auto;
