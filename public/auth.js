@@ -193,3 +193,11 @@ waitForFirebase(() => {
         });
     });
 });
+
+// Export functions to window for HTML onclick handlers
+window.signIn = signIn;
+window.signUp = signUp;
+window.signInWithGoogle = signInWithGoogle;
+window.showSignUp = showSignUp;
+window.showSignIn = showSignIn;
+

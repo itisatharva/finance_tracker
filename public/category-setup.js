@@ -140,3 +140,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') addCustomCategory('expense');
     });
 });
+
+// Export functions to window for HTML onclick handlers
+window.toggleCategory = toggleCategory;
+window.addCustomCategory = addCustomCategory;
+window.saveCategories = saveCategories;
+window.skipSetup = skipSetup;
+

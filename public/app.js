@@ -540,3 +540,5 @@ window.deleteTransaction = deleteTransaction;
 window.addCategory = addCategory;
 window.removeCategory = removeCategory;
 window.updateCategoryDropdown = updateCategoryDropdown;
+window.loadCategoriesInModal = loadCategoriesInModal;
+
