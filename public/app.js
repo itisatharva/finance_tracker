@@ -147,6 +147,18 @@ async function signOut() {
         return;
     }
 
+    // Wait for Firebase to be ready before attempting sign out
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.signOutFirebase) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
+
     const btn = event.target;
     btn.classList.add('btn-loading');
     btn.textContent = '';
@@ -163,6 +175,18 @@ async function signOut() {
 
 // Add Transaction function
 async function addTransaction() {
+    // Wait for Firebase to be ready
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.auth.currentUser && window.addDoc && window.collection && window.db) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
+
     const type = document.getElementById('typeInput').value;
     const amount = parseFloat(document.getElementById('amountInput').value);
     const category = document.getElementById('categoryInput').value;
@@ -370,6 +394,18 @@ async function deleteTransaction(transactionId) {
         return;
     }
 
+    // Wait for Firebase to be ready
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.auth.currentUser && window.deleteDoc && window.doc && window.db) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
+
     const btn = event.target;
     const originalText = btn.textContent;
     btn.classList.add('btn-loading');
@@ -406,7 +442,19 @@ function loadCategoriesInModal() {
             <button onclick="removeCategory('income', '${cat}')" class="remove-btn">×</button>
         </div>
     `).join('');
+// Wait for Firebase to be ready
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.auth.currentUser && window.setDoc && window.doc && window.db) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
 
+    
     // Load expense categories
     const expenseList = document.getElementById('expenseCategoriesList');
     expenseList.innerHTML = userCategories.expense.map(cat => `
@@ -453,6 +501,18 @@ async function removeCategory(type, category) {
     if (!confirm(`Remove "${category}" from ${type} categories?`)) {
         return;
     }
+
+    // Wait for Firebase to be ready
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.auth.currentUser && window.setDoc && window.doc && window.db) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
 
     try {
         const user = window.auth.currentUser;

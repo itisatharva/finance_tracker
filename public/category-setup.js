@@ -53,6 +53,18 @@ async function saveCategories() {
         return;
     }
 
+    // Wait for Firebase to be ready
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.auth.currentUser && window.setDoc && window.doc && window.db) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
+
     document.getElementById('pageLoader').classList.add('active');
 
     try {
@@ -83,6 +95,18 @@ async function skipSetup() {
         income: ['Salary', 'Other'],
         expense: ['Food & Dining', 'Transport', 'Shopping', 'Bills & Utilities', 'Other']
     };
+
+    // Wait for Firebase to be ready
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.auth.currentUser && window.setDoc && window.doc && window.db) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
 
     document.getElementById('pageLoader').classList.add('active');
 

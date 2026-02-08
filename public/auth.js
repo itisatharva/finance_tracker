@@ -32,6 +32,18 @@ function showSignIn() {
 
 // Sign In with Email/Password
 async function signIn() {
+    // Wait for Firebase to be ready before attempting login
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.signInWithEmailAndPassword) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
+
     const email = document.getElementById('signInEmail').value;
     const password = document.getElementById('signInPassword').value;
     const btn = document.getElementById('signInBtn');
@@ -71,6 +83,18 @@ async function signIn() {
 
 // Sign Up with Email/Password
 async function signUp() {
+    // Wait for Firebase to be ready before attempting signup
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.createUserWithEmailAndPassword) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
+
     const email = document.getElementById('signUpEmail').value;
     const password = document.getElementById('signUpPassword').value;
     const btn = document.getElementById('signUpBtn');
@@ -113,6 +137,18 @@ async function signUp() {
 
 // Sign In with Google
 async function signInWithGoogle() {
+    // Wait for Firebase to be ready before attempting Google sign-in
+    await new Promise(resolve => {
+        function checkFirebase() {
+            if (window.auth && window.signInWithPopup && window.googleProvider) {
+                resolve();
+            } else {
+                setTimeout(checkFirebase, 50);
+            }
+        }
+        checkFirebase();
+    });
+
     // Show loading
     showLoading();
 
