@@ -2,3 +2,6 @@ node_modules/
 .DS_Store
 *.env
 .env.local
+
+# Firebase config generated from .env - DO NOT COMMIT
+public/firebase-config.js

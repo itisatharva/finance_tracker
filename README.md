@@ -86,25 +86,47 @@ service cloud.firestore {
 
 ### 4. Configure Your App
 
-Open `firebase-config.js` and replace the configuration (lines 7-13):
+**Security Note:** Firebase credentials are kept private using environment variables.
 
-```javascript
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
-```
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
 
-With your actual Firebase config from the Firebase Console.
+2. Open `.env` and replace the placeholder values with your Firebase config from [Firebase Console](https://console.firebase.google.com/) → Project Settings → Web App:
+   ```
+   VITE_FIREBASE_API_KEY=YOUR_API_KEY
+   VITE_FIREBASE_AUTH_DOMAIN=YOUR_AUTH_DOMAIN
+   VITE_FIREBASE_PROJECT_ID=YOUR_PROJECT_ID
+   VITE_FIREBASE_STORAGE_BUCKET=YOUR_STORAGE_BUCKET
+   VITE_FIREBASE_MESSAGING_SENDER_ID=YOUR_MESSAGING_SENDER_ID
+   VITE_FIREBASE_APP_ID=YOUR_APP_ID
+   VITE_FIREBASE_MEASUREMENT_ID=YOUR_MEASUREMENT_ID
+   ```
+
+3. Install Node.js if not already installed from [nodejs.org](https://nodejs.org/)
+
+4. Install dependencies:
+   ```bash
+   npm install
+   ```
 
 ### 5. Run the App
 
+**First, generate the Firebase config from your .env file:**
+```bash
+npm run build
+```
+
+This will create `public/firebase-config.js` from your `.env` file. *(This file is auto-generated and not committed to the repository for security.)*
+
 #### Option A: Local Server (Recommended)
 You need a local server because Firebase modules use ES6 imports.
+
+**Using Node.js:**
+```bash
+npx serve
+```
 
 **Using Python:**
 ```bash
@@ -115,23 +137,17 @@ python -m http.server 8000
 python -m SimpleHTTPServer 8000
 ```
 
-**Using Node.js:**
-```bash
-npx serve
-```
-
 **Using VS Code:**
 Install "Live Server" extension and click "Go Live"
 
 Then open: `http://localhost:8000/login.html`
 
-#### Option B: Deploy to Firebase Hosting (Optional)
+#### Option B: Deploy to Firebase Hosting
 ```bash
-npm install -g firebase-tools
-firebase login
-firebase init hosting
-firebase deploy
+npm run deploy
 ```
+
+This will build the Firebase config and deploy to your Firebase Hosting URL.
 
 ## Usage
 

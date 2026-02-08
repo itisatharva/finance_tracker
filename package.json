@@ -1,0 +1,21 @@
+{
+  "name": "finance-tracker",
+  "version": "1.0.0",
+  "description": "Track your income and expenses effortlessly",
+  "main": "public/index.html",
+  "scripts": {
+    "build": "node build-firebase-config.js",
+    "deploy": "npm run build && firebase deploy",
+    "dev": "npm run build && firebase emulators:start"
+  },
+  "keywords": [
+    "finance",
+    "tracker",
+    "firebase",
+    "budget"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}

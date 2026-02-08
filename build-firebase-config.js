@@ -1,17 +1,71 @@
-// Firebase Configuration and Initialization
+#!/usr/bin/env node
+
+/**
+ * Build script to generate firebase-config.js from .env file
+ * This ensures Firebase credentials are not committed to the repository
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+// Load environment variables from .env file
+const envPath = path.join(__dirname, '.env');
+if (!fs.existsSync(envPath)) {
+    console.error('Error: .env file not found!');
+    console.error('Please copy .env.example to .env and fill in your Firebase credentials.');
+    process.exit(1);
+}
+
+// Parse .env file
+const envContent = fs.readFileSync(envPath, 'utf-8');
+const envVars = {};
+
+envContent.split('\n').forEach(line => {
+    const trimmedLine = line.trim();
+    if (trimmedLine && !trimmedLine.startsWith('#')) {
+        const [key, value] = trimmedLine.split('=');
+        if (key && value) {
+            // Remove quotes if present
+            envVars[key.trim()] = value.trim().replace(/^["']|["']$/g, '');
+        }
+    }
+});
+
+// Required Firebase config keys
+const requiredKeys = [
+    'VITE_FIREBASE_API_KEY',
+    'VITE_FIREBASE_AUTH_DOMAIN',
+    'VITE_FIREBASE_PROJECT_ID',
+    'VITE_FIREBASE_STORAGE_BUCKET',
+    'VITE_FIREBASE_MESSAGING_SENDER_ID',
+    'VITE_FIREBASE_APP_ID',
+    'VITE_FIREBASE_MEASUREMENT_ID'
+];
+
+// Validate all required keys are present
+const missingKeys = requiredKeys.filter(key => !envVars[key]);
+if (missingKeys.length > 0) {
+    console.error('Error: Missing required Firebase credentials in .env:');
+    missingKeys.forEach(key => console.error(`  - ${key}`));
+    process.exit(1);
+}
+
+// Generate firebase-config.js
+const configContent = `// Firebase Configuration and Initialization
+// DO NOT COMMIT THIS FILE - It is generated from .env
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc, serverTimestamp, setDoc, getDoc, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
 
 const firebaseConfig = {
-  apiKey: "REDACTED",
-  authDomain: "itisatharva-ft.firebaseapp.com",
-  projectId: "itisatharva-ft",
-  storageBucket: "itisatharva-ft.firebasestorage.app",
-  messagingSenderId: "1038076060696",
-  appId: "1:1038076060696:web:4eabd0a57666554e7d4f6d",
-  measurementId: "G-4T05PGMBCK"
+  apiKey: "${envVars['VITE_FIREBASE_API_KEY']}",
+  authDomain: "${envVars['VITE_FIREBASE_AUTH_DOMAIN']}",
+  projectId: "${envVars['VITE_FIREBASE_PROJECT_ID']}",
+  storageBucket: "${envVars['VITE_FIREBASE_STORAGE_BUCKET']}",
+  messagingSenderId: "${envVars['VITE_FIREBASE_MESSAGING_SENDER_ID']}",
+  appId: "${envVars['VITE_FIREBASE_APP_ID']}",
+  measurementId: "${envVars['VITE_FIREBASE_MEASUREMENT_ID']}"
 };
 
 // Initialize Firebase
@@ -86,3 +140,9 @@ onAuthStateChanged(auth, async (user) => {
         }
     }
 });
+`;
+
+// Write firebase-config.js
+const outputPath = path.join(__dirname, 'public', 'firebase-config.js');
+fs.writeFileSync(outputPath, configContent);
+console.log(`✓ firebase-config.js generated successfully at ${outputPath}`);
