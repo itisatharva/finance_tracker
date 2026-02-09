@@ -50,7 +50,7 @@ if (missingKeys.length > 0) {
     process.exit(1);
 }
 
-// Generate firebase-config.js
+// Generate firebase-config.js with SAFETY TIMEOUT
 const configContent = `// Firebase Configuration and Initialization
 // DO NOT COMMIT THIS FILE - It is generated from .env
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
@@ -143,14 +143,36 @@ window.firebaseReady = new Promise((resolve) => {
 
 console.log('Firebase exports initialized, firebaseReady promise created');
 
+// CRITICAL FIX: Safety fallback - unlock page after 5 seconds if auth hasn't responded
+let authStateReceived = false;
+setTimeout(() => {
+    if (!authStateReceived) {
+        console.warn('⚠️ Auth state not received after 5 seconds - unlocking page');
+        const html = document.documentElement;
+        if (html.classList.contains('page-locked')) {
+            html.classList.remove('page-locked');
+            const loader = document.getElementById('pageLoader');
+            if (loader) loader.classList.remove('active');
+            
+            // Only show error if not on login page
+            const currentPage = window.location.pathname;
+            if (!currentPage.includes('login.html')) {
+                console.error('Firebase may have failed to initialize. Redirecting to login...');
+                window.location.href = 'login.html';
+            }
+        }
+    }
+}, 5000);
+
 // Auth state observer - redirects to appropriate page and protects routes
 let authInitialized = false;
 
 onAuthStateChanged(auth, async (user) => {
+    authStateReceived = true; // Mark that we received auth state
     const currentPage = window.location.pathname;
     authInitialized = true;
     
-    // Log for debugging on mobile
+    // Log for debugging
     console.log('Auth state changed:', user ? 'User logged in' : 'User logged out', 'Page:', currentPage);
     
     if (user) {
@@ -213,3 +235,5 @@ onAuthStateChanged(auth, async (user) => {
 const outputPath = path.join(__dirname, 'public', 'firebase-config.js');
 fs.writeFileSync(outputPath, configContent);
 console.log(`✓ firebase-config.js generated successfully at ${outputPath}`);
+console.log('✓ Firebase credentials are secure (from .env file)');
+console.log('✓ Safety timeout added for blank page fix');

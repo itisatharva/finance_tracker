@@ -1,7 +1,41 @@
-node_modules/
-.DS_Store
-*.env
-.env.local
-
-# Firebase config generated from .env - DO NOT COMMIT
+# Firebase Configuration (generated from .env)
 public/firebase-config.js
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Firebase cache and logs
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Node modules
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Firebase hosting cache
+.firebase/hosting.*.cache
