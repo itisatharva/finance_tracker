@@ -83,6 +83,15 @@ async function signIn() {
             } else {
                 alert('Error: ' + error.message);
             }
+        }
+    } catch (error) {
+        console.error('Sign in setup error:', error);
+        alert('Firebase not ready. Please try again.');
+    }
+}
+
+// Sign Up with Email/Password
+async function signUp() {
     try {
         // Wait for Firebase to be ready before attempting signup
         await new Promise(resolve => {
@@ -144,8 +153,8 @@ async function signIn() {
     }
 }
 
-    try {
-        await window.createUserWithEmailAndPassword(window.auth, email, password);
+// Sign In with Google
+async function signInWithGoogle() {
     try {
         // Wait for Firebase to be ready before attempting Google sign-in
         await new Promise(resolve => {
@@ -185,28 +194,7 @@ async function signIn() {
         }
     } catch (error) {
         console.error('Google sign-in setup error:', error);
-        alert('Firebase not ready. Please try again.');heckFirebase();
-    });
-
-    // Show loading
-    showLoading();
-
-    try {
-        await window.signInWithPopup(window.auth, window.googleProvider);
-        // User will be automatically redirected by onAuthStateChanged in firebase-config.js
-    } catch (error) {
-        // Hide loading on error
-        hideLoading();
-
-        if (error.code === 'auth/popup-closed-by-user') {
-            // User closed the popup, do nothing
-            return;
-        } else if (error.code === 'auth/cancelled-popup-request') {
-            // Another popup was already open, do nothing
-            return;
-        } else {
-            alert('Error signing in with Google: ' + error.message);
-        }
+        alert('Firebase not ready. Please try again.');
     }
 }
 

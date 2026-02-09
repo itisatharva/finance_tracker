@@ -471,19 +471,7 @@ function loadCategoriesInModal() {
             <button onclick="removeCategory('income', '${cat}')" class="remove-btn">×</button>
         </div>
     `).join('');
-// Wait for Firebase to be ready
-    await new Promise(resolve => {
-        function checkFirebase() {
-            if (window.auth && window.auth.currentUser && window.setDoc && window.doc && window.db) {
-                resolve();
-            } else {
-                setTimeout(checkFirebase, 50);
-            }
-        }
-        checkFirebase();
-    });
 
-    
     // Load expense categories
     const expenseList = document.getElementById('expenseCategoriesList');
     expenseList.innerHTML = userCategories.expense.map(cat => `
