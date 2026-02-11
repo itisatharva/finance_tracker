@@ -17,11 +17,11 @@
         .setup-card {
             background: var(--bg-card);
             padding: 48px;
-            border-radius: 20px;
-            max-width: 700px;
+            border-radius: 24px;
+            max-width: 800px;
             width: 100%;
             border: 1px solid var(--border);
-            box-shadow: 0 4px 24px var(--shadow-lg);
+            box-shadow: 0 20px 60px var(--shadow-lg);
         }
 
         .setup-header {
@@ -62,46 +62,56 @@
         .category-pill {
             padding: 10px 18px;
             border-radius: 20px;
-            border: 1.5px solid var(--border);
+            border: 2px solid var(--border);
             background: var(--bg-secondary);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             font-size: 0.9rem;
             font-weight: 500;
             user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .category-pill:hover {
-            border-color: var(--text-tertiary);
+            border-color: var(--accent);
+            transform: translateY(-2px);
         }
 
         .category-pill.selected {
-            background: var(--text-primary);
-            color: var(--bg-card);
-            border-color: var(--text-primary);
+            border-width: 2px;
+            transform: scale(1.05);
         }
 
-        .category-pill.income.selected {
-            background: var(--income);
-            border-color: var(--income);
-        }
-
-        .category-pill.expense.selected {
-            background: var(--expense);
-            border-color: var(--expense);
+        .category-color-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,0,0,0.1);
         }
 
         .custom-category {
             display: flex;
             gap: 8px;
+            margin-top: 12px;
         }
 
-        .custom-category input {
+        .custom-category input[type="text"] {
             flex: 1;
+        }
+
+        .custom-category input[type="color"] {
+            width: 50px;
+            height: 44px;
+            padding: 4px;
+            border-radius: 8px;
+            cursor: pointer;
         }
 
         .custom-category button {
             padding: 12px 20px;
+            white-space: nowrap;
         }
 
         .setup-actions {
@@ -119,63 +129,53 @@
             color: var(--text-secondary);
             border: 1.5px solid var(--border);
         }
+
+        .skip-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
     </style>
 </head>
 <body>
     <div class="setup-container">
         <div class="setup-card">
             <div class="setup-header">
-                <h1>🎯 Setup Your Categories</h1>
-                <p>Select or add categories to organize your income and expenses</p>
+                <h1>Setup Your Categories</h1>
+                <p>Select categories and customize their colors for better visualization</p>
             </div>
 
             <!-- Income Categories -->
             <div class="categories-section">
                 <h3>
-                    <span style="color: var(--income);"></span>
+                    <span style="color: var(--income);">💚</span>
                     Income Categories
                 </h3>
-                <div class="category-pills" id="incomePills">
-                    <div class="category-pill income" onclick="toggleCategory(this, 'income', 'Salary')">Salary</div>
-                    <div class="category-pill income" onclick="toggleCategory(this, 'income', 'Freelance')">Freelance</div>
-                    <div class="category-pill income" onclick="toggleCategory(this, 'income', 'Business')">Business</div>
-                    <div class="category-pill income" onclick="toggleCategory(this, 'income', 'Investment')">Investment</div>
-                    <div class="category-pill income" onclick="toggleCategory(this, 'income', 'Gift')">Gift</div>
-                    <div class="category-pill income" onclick="toggleCategory(this, 'income', 'Other')">Other</div>
-                </div>
+                <div class="category-pills" id="incomePills"></div>
                 <div class="custom-category">
-                    <input type="text" id="customIncome" placeholder="Add custom income category">
-                    <button onclick="addCustomCategory('income')" class="btn-secondary">Add</button>
+                    <input type="text" id="customIncome" placeholder="Add custom category">
+                    <input type="color" id="customIncomeColor" value="#10b981">
+                    <button onclick="addCustomCategory('income')" class="btn-secondary">+ Add</button>
                 </div>
             </div>
 
             <!-- Expense Categories -->
             <div class="categories-section">
                 <h3>
-                    <span style="color: var(--expense);"></span>
+                    <span style="color: var(--expense);">💸</span>
                     Expense Categories
                 </h3>
-                <div class="category-pills" id="expensePills">
-                    <div class="category-pill expense" onclick="toggleCategory(this, 'expense', 'Food & Dining')">Food & Dining</div>
-                    <div class="category-pill expense" onclick="toggleCategory(this, 'expense', 'Transport')">Transport</div>
-                    <div class="category-pill expense" onclick="toggleCategory(this, 'expense', 'Shopping')">Shopping</div>
-                    <div class="category-pill expense" onclick="toggleCategory(this, 'expense', 'Bills & Utilities')">Bills & Utilities</div>
-                    <div class="category-pill expense" onclick="toggleCategory(this, 'expense', 'Entertainment')">Entertainment</div>
-                    <div class="category-pill expense" onclick="toggleCategory(this, 'expense', 'Healthcare')">Healthcare</div>
-                    <div class="category-pill expense" onclick="toggleCategory(this, 'expense', 'Education')">Education</div>
-                    <div class="category-pill expense" onclick="toggleCategory(this, 'expense', 'Travel')">Travel</div>
-                    <div class="category-pill expense" onclick="toggleCategory(this, 'expense', 'Other')">Other</div>
-                </div>
+                <div class="category-pills" id="expensePills"></div>
                 <div class="custom-category">
-                    <input type="text" id="customExpense" placeholder="Add custom expense category">
-                    <button onclick="addCustomCategory('expense')" class="btn-secondary">Add</button>
+                    <input type="text" id="customExpense" placeholder="Add custom category">
+                    <input type="color" id="customExpenseColor" value="#FF6B6B">
+                    <button onclick="addCustomCategory('expense')" class="btn-secondary">+ Add</button>
                 </div>
             </div>
 
             <!-- Actions -->
             <div class="setup-actions">
                 <button onclick="skipSetup()" class="skip-btn">Skip for Now</button>
-                <button onclick="saveCategories()" class="btn-primary">Continue</button>
+                <button onclick="saveCategories()" class="btn-primary">Continue →</button>
             </div>
         </div>
     </div>
