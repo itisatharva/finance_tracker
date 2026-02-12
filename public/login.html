@@ -1,106 +1,61 @@
 <!DOCTYPE html>
-<html lang="en" class="page-locked">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Finance Tracker</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Tracker</title>
+  <!-- Apply saved theme instantly (prevents flash) -->
+  <script>
+    (function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light'); })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle" onclick="toggleTheme(event)" aria-label="Toggle theme">
-        <svg id="themeIcon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="4"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
+
+<div class="auth-page">
+  <div class="auth-card">
+    <h1>Finance Tracker</h1>
+    <p id="authSubtitle">Sign in to your account</p>
+
+    <div class="auth-err" id="authErr"></div>
+
+    <form class="auth-form" id="authForm">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="emailInput" placeholder="you@email.com" required autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="passwordInput" placeholder="••••••••" required autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn btn-primary w-full" id="authBtn">
+        <span id="authBtnText">Sign In</span>
+      </button>
+    </form>
+
+    <div class="auth-divider"><span>or</span></div>
+
+    <button class="btn-google" id="googleBtn" type="button">
+      <svg width="18" height="18" viewBox="0 0 18 18">
+        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+        <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/>
+      </svg>
+      Continue with Google
     </button>
 
-    <!-- Theme Transition Circle -->
-    <div class="theme-transition">
-        <div class="theme-transition-circle" id="themeCircle"></div>
-    </div>
+    <p class="auth-toggle">
+      <span id="toggleMsg">Don't have an account?</span>
+      <a href="#" id="toggleLink"> Sign Up</a>
+    </p>
+  </div>
+</div>
 
-    <!-- Loading Overlay -->
-    <div class="page-loader" id="pageLoader">
-        <div>
-            <div class="spinner"></div>
-            <div class="spinner-text">Loading...</div>
-        </div>
-    </div>
-
-    <div class="auth-container">
-        <div class="auth-card">
-            <h1>💰 Finance Tracker</h1>
-            <p class="auth-subtitle">Track your income and expenses effortlessly</p>
-
-            <!-- Sign In Form (Default) -->
-            <div id="signInForm" class="auth-form">
-                <input type="email" id="signInEmail" placeholder="Email">
-                <input type="password" id="signInPassword" placeholder="Password">
-                
-                <button onclick="signIn()" class="btn-primary" id="signInBtn">Sign In</button>
-
-                <div class="divider">
-                    <span>OR</span>
-                </div>
-
-                <button onclick="signInWithGoogle()" class="btn-google" id="googleSignInBtn">
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
-                        <path d="M9.003 18c2.43 0 4.467-.806 5.956-2.18L12.05 13.56c-.806.54-1.836.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.96v2.332C2.44 15.983 5.485 18 9.003 18z" fill="#34A853"/>
-                        <path d="M3.964 10.712c-.18-.54-.282-1.117-.282-1.71 0-.593.102-1.17.282-1.71V4.96H.957C.347 6.175 0 7.55 0 9.002c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-                        <path d="M9.003 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.464.891 11.426 0 9.003 0 5.485 0 2.44 2.017.96 4.958L3.967 7.29c.708-2.127 2.692-3.71 5.036-3.71z" fill="#EA4335"/>
-                    </svg>
-                    Sign in with Google
-                </button>
-
-                <p class="auth-toggle">
-                    Don't have an account? <a href="#" onclick="showSignUp(); return false;">Sign up</a>
-                </p>
-            </div>
-
-            <!-- Sign Up Form (Hidden by default) -->
-            <div id="signUpForm" class="auth-form hidden">
-                <input type="email" id="signUpEmail" placeholder="Email">
-                <input type="password" id="signUpPassword" placeholder="Password (min 6 characters)">
-                
-                <button onclick="signUp()" class="btn-primary" id="signUpBtn">Create Account</button>
-
-                <div class="divider">
-                    <span>OR</span>
-                </div>
-
-                <button onclick="signInWithGoogle()" class="btn-google" id="googleSignUpBtn">
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
-                        <path d="M9.003 18c2.43 0 4.467-.806 5.956-2.18L12.05 13.56c-.806.54-1.836.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.96v2.332C2.44 15.983 5.485 18 9.003 18z" fill="#34A853"/>
-                        <path d="M3.964 10.712c-.18-.54-.282-1.117-.282-1.71 0-.593.102-1.17.282-1.71V4.96H.957C.347 6.175 0 7.55 0 9.002c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-                        <path d="M9.003 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.464.891 11.426 0 9.003 0 5.485 0 2.44 2.017.96 4.958L3.967 7.29c.708-2.127 2.692-3.71 5.036-3.71z" fill="#EA4335"/>
-                    </svg>
-                    Sign up with Google
-                </button>
-
-                <p class="auth-toggle">
-                    Already have an account? <a href="#" onclick="showSignIn(); return false;">Sign in</a>
-                </p>
-            </div>
-
-            <p class="auth-note">Your data is securely stored and only accessible by you</p>
-        </div>
-    </div>
-
-    <!-- Theme Script -->
-    <script src="theme.js"></script>
-
-    <!-- Firebase SDK -->
-    <script type="module" src="firebase-config.js"></script>
-    <script type="module" src="auth.js"></script>
+<script type="module" src="firebase-config.js"></script>
+<script type="module" src="auth.js"></script>
 </body>
 </html>

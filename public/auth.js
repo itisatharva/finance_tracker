@@ -1,230 +1,98 @@
-// Authentication functions for login page
+// auth.js — Login / Sign-up logic
+let isSignUp = false;
 
-// Wait for Firebase to be ready
-function waitForFirebase(callback) {
-    if (window.auth && window.createUserWithEmailAndPassword) {
-        callback();
+window.firebaseReady.then(() => {
+  const form     = document.getElementById('authForm');
+  const emailEl  = document.getElementById('emailInput');
+  const passEl   = document.getElementById('passwordInput');
+  const btn      = document.getElementById('authBtn');
+  const btnText  = document.getElementById('authBtnText');
+  const errEl    = document.getElementById('authErr');
+  const subtitle = document.getElementById('authSubtitle');
+  const toggleMsg  = document.getElementById('toggleMsg');
+  const toggleLink = document.getElementById('toggleLink');
+  const googleBtn  = document.getElementById('googleBtn');
+
+  function setError(msg) {
+    errEl.textContent = msg;
+    errEl.classList.toggle('show', !!msg);
+  }
+
+  function setLoading(on) {
+    btn.disabled = on;
+    btnText.textContent = on ? 'Please wait…' : (isSignUp ? 'Sign Up' : 'Sign In');
+  }
+
+  // Toggle mode
+  toggleLink.addEventListener('click', e => {
+    e.preventDefault();
+    isSignUp = !isSignUp;
+    setError('');
+    if (isSignUp) {
+      subtitle.textContent   = 'Create a new account';
+      btnText.textContent    = 'Sign Up';
+      toggleMsg.textContent  = 'Already have an account?';
+      toggleLink.textContent = ' Sign In';
     } else {
-        setTimeout(() => waitForFirebase(callback), 100);
+      subtitle.textContent   = 'Sign in to your account';
+      btnText.textContent    = 'Sign In';
+      toggleMsg.textContent  = "Don't have an account?";
+      toggleLink.textContent = ' Sign Up';
     }
-}
+  });
 
-// Show loading
-function showLoading() {
-    document.getElementById('pageLoader').classList.add('active');
-}
-
-// Hide loading
-function hideLoading() {
-    document.getElementById('pageLoader').classList.remove('active');
-}
-
-// Toggle between Sign In and Sign Up forms
-function showSignUp() {
-    document.getElementById('signInForm').classList.add('hidden');
-    document.getElementById('signUpForm').classList.remove('hidden');
-}
-
-function showSignIn() {
-    document.getElementById('signUpForm').classList.add('hidden');
-    document.getElementById('signInForm').classList.remove('hidden');
-}
-
-// Sign In with Email/Password
-async function signIn() {
+  // Google sign-in
+  googleBtn.addEventListener('click', async () => {
+    setError('');
+    googleBtn.disabled = true;
+    googleBtn.textContent = 'Signing in…';
     try {
-        // Wait for Firebase to be ready before attempting login
-        await new Promise(resolve => {
-            function checkFirebase() {
-                if (window.auth && window.signInWithEmailAndPassword) {
-                    resolve();
-                } else {
-                    setTimeout(checkFirebase, 50);
-                }
-            }
-            checkFirebase();
-        });
-
-        const email = document.getElementById('signInEmail').value;
-        const password = document.getElementById('signInPassword').value;
-        const btn = document.getElementById('signInBtn');
-
-        if (!email || !password) {
-            alert('Please enter both email and password');
-            return;
-        }
-
-        console.log('Attempting sign in for:', email);
-
-        // Show loading
-        btn.classList.add('btn-loading');
-        btn.textContent = '';
-        showLoading();
-
-        try {
-            const result = await window.signInWithEmailAndPassword(window.auth, email, password);
-            console.log('Sign in successful:', result.user.email);
-            // User will be automatically redirected by onAuthStateChanged in firebase-config.js
-        } catch (error) {
-            console.error('Sign in error:', error.code, error.message);
-            // Hide loading on error
-            btn.classList.remove('btn-loading');
-            btn.textContent = 'Sign In';
-            hideLoading();
-
-            if (error.code === 'auth/user-not-found') {
-                alert('No account found with this email');
-            } else if (error.code === 'auth/wrong-password') {
-                alert('Incorrect password');
-            } else if (error.code === 'auth/invalid-email') {
-                alert('Invalid email address');
-            } else if (error.code === 'auth/invalid-credential') {
-                alert('Invalid email or password');
-            } else {
-                alert('Error: ' + error.message);
-            }
-        }
-    } catch (error) {
-        console.error('Sign in setup error:', error);
-        alert('Firebase not ready. Please try again.');
+      const provider = new window.GoogleAuthProvider();
+      await window.signInWithPopup(window.auth, provider);
+      // firebase-config.js auth guard will redirect
+    } catch (err) {
+      console.error(err);
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError('Google sign-in failed. Please try again.');
+      }
+      googleBtn.disabled = false;
+      googleBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg> Continue with Google`;
     }
-}
+  });
 
-// Sign Up with Email/Password
-async function signUp() {
+  // Email/password submit
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    setError('');
+    const email = emailEl.value.trim();
+    const pass  = passEl.value;
+
+    if (!email || !pass) { setError('Please fill in all fields.'); return; }
+
+    setLoading(true);
     try {
-        // Wait for Firebase to be ready before attempting signup
-        await new Promise(resolve => {
-            function checkFirebase() {
-                if (window.auth && window.createUserWithEmailAndPassword) {
-                    resolve();
-                } else {
-                    setTimeout(checkFirebase, 50);
-                }
-            }
-            checkFirebase();
-        });
-
-        const email = document.getElementById('signUpEmail').value;
-        const password = document.getElementById('signUpPassword').value;
-        const btn = document.getElementById('signUpBtn');
-
-        if (!email || !password) {
-            alert('Please enter both email and password');
-            return;
-        }
-
-        if (password.length < 6) {
-            alert('Password must be at least 6 characters');
-            return;
-        }
-
-        console.log('Attempting sign up for:', email);
-
-        // Show loading
-        btn.classList.add('btn-loading');
-        btn.textContent = '';
-        showLoading();
-
-        try {
-            const result = await window.createUserWithEmailAndPassword(window.auth, email, password);
-            console.log('Sign up successful:', result.user.email);
-            // User is automatically signed in and will be redirected by onAuthStateChanged
-        } catch (error) {
-            console.error('Sign up error:', error.code, error.message);
-            // Hide loading on error
-            btn.classList.remove('btn-loading');
-            btn.textContent = 'Create Account';
-            hideLoading();
-
-            if (error.code === 'auth/email-already-in-use') {
-                alert('Email already in use. Try signing in instead.');
-            } else if (error.code === 'auth/invalid-email') {
-                alert('Invalid email address');
-            } else if (error.code === 'auth/weak-password') {
-                alert('Password is too weak');
-            } else {
-                alert('Error: ' + error.message);
-            }
-        }
-    } catch (error) {
-        console.error('Sign up setup error:', error);
-        alert('Firebase not ready. Please try again.');
+      if (isSignUp) {
+        await window.createUserWithEmailAndPassword(window.auth, email, pass);
+      } else {
+        await window.signInWithEmailAndPassword(window.auth, email, pass);
+      }
+    } catch (err) {
+      const msgs = {
+        'auth/email-already-in-use': 'That email is already registered.',
+        'auth/invalid-email':        'Please enter a valid email.',
+        'auth/weak-password':        'Password must be at least 6 characters.',
+        'auth/user-not-found':       'No account found with that email.',
+        'auth/wrong-password':       'Incorrect password.',
+        'auth/invalid-credential':   'Incorrect email or password.',
+        'auth/too-many-requests':    'Too many attempts — try again later.',
+      };
+      setError(msgs[err.code] || 'Something went wrong. Please try again.');
+      setLoading(false);
     }
-}
+  });
 
-// Sign In with Google
-async function signInWithGoogle() {
-    try {
-        // Wait for Firebase to be ready before attempting Google sign-in
-        await new Promise(resolve => {
-            function checkFirebase() {
-                if (window.auth && window.signInWithPopup && window.googleProvider) {
-                    resolve();
-                } else {
-                    setTimeout(checkFirebase, 50);
-                }
-            }
-            checkFirebase();
-        });
-
-        console.log('Attempting Google sign-in');
-
-        // Show loading
-        showLoading();
-
-        try {
-            const result = await window.signInWithPopup(window.auth, window.googleProvider);
-            console.log('Google sign-in successful:', result.user.email);
-            // User will be automatically redirected by onAuthStateChanged in firebase-config.js
-        } catch (error) {
-            console.error('Google sign-in error:', error.code, error.message);
-            // Hide loading on error
-            hideLoading();
-
-            if (error.code === 'auth/popup-closed-by-user') {
-                // User closed the popup, do nothing
-                return;
-            } else if (error.code === 'auth/cancelled-popup-request') {
-                // Another popup was already open, do nothing
-                return;
-            } else {
-                alert('Error signing in with Google: ' + error.message);
-            }
-        }
-    } catch (error) {
-        console.error('Google sign-in setup error:', error);
-        alert('Firebase not ready. Please try again.');
-    }
-}
-
-// Allow Enter key to submit
-waitForFirebase(() => {
-    // Sign In form Enter key
-    const signInInputs = document.querySelectorAll('#signInEmail, #signInPassword');
-    signInInputs.forEach(input => {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                signIn();
-            }
-        });
-    });
-
-    // Sign Up form Enter key
-    const signUpInputs = document.querySelectorAll('#signUpEmail, #signUpPassword');
-    signUpInputs.forEach(input => {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                signUp();
-            }
-        });
-    });
+  // Check auth state
+  window.onAuthStateChanged(window.auth, (user) => {
+    if (user) window.location.replace('index.html');
+  });
 });
-
-// Export functions to window for HTML onclick handlers
-window.signIn = signIn;
-window.signUp = signUp;
-window.signInWithGoogle = signInWithGoogle;
-window.showSignUp = showSignUp;
-window.showSignIn = showSignIn;
-

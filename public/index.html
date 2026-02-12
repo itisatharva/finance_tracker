@@ -1,247 +1,343 @@
 <!DOCTYPE html>
 <html lang="en" class="page-locked">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker - Dashboard</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Tracker</title>
+  <!-- Apply saved theme BEFORE styles load (no flash) -->
+  <script>
+    (function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light'); })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle" onclick="toggleTheme(event)" aria-label="Toggle theme">
-        <svg id="themeIcon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="4"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-        </svg>
-    </button>
 
-    <!-- Theme Transition Circle -->
-    <div class="theme-transition">
-        <div class="theme-transition-circle" id="themeCircle"></div>
+<!-- ─────────────────────────────────────────
+     SETTINGS BUTTON (⚙)
+     ───────────────────────────────────────── -->
+<button class="btn-settings" id="btnSettings" aria-label="Settings">
+  <svg viewBox="0 0 24 24" stroke-width="1.8">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+</button>
+
+<!-- ─────────────────────────────────────────
+     SETTINGS DRAWER
+     ───────────────────────────────────────── -->
+<div class="settings-backdrop" id="settingsBackdrop"></div>
+<aside class="settings-drawer" id="settingsDrawer">
+  <div class="settings-top">
+    <h2>Settings</h2>
+    <button class="btn-close-settings" id="btnCloseSettings">×</button>
+  </div>
+  <div class="settings-body">
+
+    <!-- Account -->
+    <div class="settings-group">
+      <h3>Account</h3>
+      <div class="account-block">
+        <div class="acct-email" id="acctEmail">—</div>
+        <div class="acct-meta">Joined: <span id="acctJoined">—</span></div>
+      </div>
     </div>
 
-    <div class="container">
-        <header>
-            <div class="header-content">
-                <div>
-                    <h1>Finance Dashboard</h1>
-                    <p class="subtitle" id="userEmail"></p>
-                </div>
-            </div>
-        </header>
+    <!-- Appearance -->
+    <div class="settings-group">
+      <h3>Appearance</h3>
+      <button class="settings-row" onclick="toggleTheme()">
+        <span>Toggle Dark Mode</span>
+        <span class="row-icon">◑</span>
+      </button>
+    </div>
 
-        <!-- Stats Section -->
-        <div class="stats">
-            <div class="stat-card income">
-                <div class="stat-label">Total Income</div>
-                <div class="stat-value" id="totalIncome">₹0</div>
-            </div>
-            <div class="stat-card expense">
-                <div class="stat-label">Total Expenses</div>
-                <div class="stat-value" id="totalExpense">₹0</div>
-            </div>
-            <div class="stat-card balance">
-                <div class="stat-label">Net Balance</div>
-                <div class="stat-value" id="balance">₹0</div>
-            </div>
-            <div class="stat-card pending">
-                <div class="stat-label">Pending Amount</div>
-                <div class="stat-value" id="totalPending">₹0</div>
-            </div>
-        </div>
+    <!-- Categories -->
+    <div class="settings-group">
+      <h3>Data</h3>
+      <button class="settings-row" id="btnOpenCats">
+        <span>Manage Categories</span>
+        <span class="row-icon">→</span>
+      </button>
+    </div>
 
-        <!-- Period Filter Section -->
-        <div class="period-filter-section">
-            <h2>Filter by Period</h2>
-            <div class="tabs">
-                <button class="tab active" onclick="switchTab('daily')">Daily</button>
-                <button class="tab" onclick="switchTab('monthly')">Monthly</button>
-                <button class="tab" onclick="switchTab('yearly')">Yearly</button>
-            </div>
-            
-            <!-- Date Selectors -->
-            <div class="date-selectors">
-                <div class="date-selector" id="dailySelector">
-                    <label>Select Date:</label>
-                    <input type="date" id="dailyDate" onchange="applyPeriodFilter()">
-                </div>
-                <div class="date-selector hidden" id="monthlySelector">
-                    <label>Select Month:</label>
-                    <input type="month" id="monthlyDate" onchange="applyPeriodFilter()">
-                </div>
-                <div class="date-selector hidden" id="yearlySelector">
-                    <label>Select Year:</label>
-                    <input type="number" id="yearlyDate" min="2000" max="2100" placeholder="YYYY" onchange="applyPeriodFilter()">
-                </div>
-            </div>
-            <div class="filter-info" id="filterInfo"></div>
-        </div>
+    <!-- Sign Out -->
+    <div class="settings-group">
+      <h3>Session</h3>
+      <button class="settings-row danger" id="btnSignOut">
+        <span>Sign Out</span>
+      </button>
+    </div>
 
-        <!-- Dashboard Grid -->
-        <div class="dashboard">
-            <!-- Chart Section -->
-            <div class="chart-section">
-                <h2>Expense Breakdown</h2>
-                <div class="chart-container">
-                    <canvas id="spendingChart"></canvas>
-                </div>
-            </div>
+  </div>
+</aside>
 
-            <!-- Pending Transactions -->
-            <div class="pending-section">
-                <h2>Pending Amounts</h2>
-                <div style="margin-bottom: 16px;">
-                    <input type="text" id="pendingNameInput" placeholder="Person's name" style="margin-bottom: 8px;">
-                    <input type="number" id="pendingAmountInput" placeholder="Amount (₹)" step="0.01" style="margin-bottom: 8px;">
-                    <button onclick="addPendingAmount()" class="btn-primary" style="width: 100%;">Add Pending</button>
-                </div>
-                <div class="pending-list" id="pendingList">
-                    <div class="loading">No pending amounts</div>
-                </div>
-            </div>
-        </div>
+<!-- ─────────────────────────────────────────
+     MAIN CONTENT
+     ───────────────────────────────────────── -->
+<div class="container">
 
-        <!-- Add Transaction Section -->
-        <div class="add-section">
-            <h2>Add Transaction</h2>
-            <div class="form-grid-ordered">
-                <div class="form-group">
-                    <label>Date</label>
-                    <input type="date" id="dateInput">
-                </div>
-                <div class="form-group">
-                    <label>Category</label>
-                    <select id="categoryInput">
-                        <option value="">Select Category</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Amount (₹)</label>
-                    <input type="number" id="amountInput" placeholder="0.00" step="0.01">
-                </div>
-                <div class="form-group full-width">
-                    <label>Note (Optional)</label>
-                    <input type="text" id="descInput" placeholder="Add a note...">
-                </div>
+  <!-- Top Nav -->
+  <nav class="nav">
+    <button class="nav-tab active" id="tabDash" onclick="showView('dashboard')">Dashboard</button>
+    <button class="nav-tab"        id="tabAnalytics" onclick="showView('analytics')">Analytics</button>
+  </nav>
+
+  <!-- ══════════════════════════════════════
+       DASHBOARD VIEW
+       ══════════════════════════════════════ -->
+  <div id="viewDashboard">
+
+    <div class="view-header">
+      <h1>Dashboard</h1>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card income">  <div class="lbl">Income</div>  <div class="val" id="sIncome">₹0</div></div>
+      <div class="stat-card expense"> <div class="lbl">Expenses</div> <div class="val" id="sExpense">₹0</div></div>
+      <div class="stat-card">         <div class="lbl">Balance</div>  <div class="val" id="sBalance">₹0</div></div>
+      <div class="stat-card pending"> <div class="lbl">Pending</div>  <div class="val" id="sPending">₹0</div></div>
+    </div>
+
+    <!-- Add Transaction -->
+    <div class="dash-main">
+      <div class="dash-left">
+        <div class="card">
+          <h2>Add Transaction</h2>
+          <form id="addTxForm">
+            <div class="form-grid">
+              <div class="field">
+                <label>Date</label>
+                <input type="date" id="txDate" required />
+              </div>
+              <div class="field">
+                <label>Category</label>
+                <select id="txCategory" required>
+                  <option value="">Select category</option>
+                </select>
+              </div>
             </div>
-            <button onclick="addTransaction()" class="btn-primary" id="addTransactionBtn">
-                <span id="addBtnText">Add Transaction</span>
-                <span id="addBtnSuccess" class="hidden">✓ Added!</span>
+            <div class="form-grid">
+              <div class="field">
+                <label>Amount (₹)</label>
+                <input type="number" id="txAmount" placeholder="0.00" step="0.01" min="0.01" required />
+              </div>
+              <div class="field">
+                <label>Note <span style="text-transform:none;letter-spacing:0;color:var(--text-3)">(optional)</span></label>
+                <input type="text" id="txNote" placeholder="e.g. Grocery run" />
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-full" id="addTxBtn" style="margin-top:4px;">
+              <span id="addTxLabel">Add Transaction</span>
+              <span id="addTxSpinner" class="btn-spinner hidden"></span>
+              <span id="addTxDone"   class="hidden">✓ Added!</span>
             </button>
+          </form>
         </div>
 
-        <!-- Transactions List Section -->
-        <div class="transactions">
-            <div class="transactions-header">
-                <h2>Recent Transactions</h2>
-            </div>
-            <div id="transactionsList">
-                <div class="loading">Loading transactions...</div>
-            </div>
+        <!-- Pending Amounts -->
+        <div class="card">
+          <h2>Pending Amounts</h2>
+          <div class="pending-form">
+            <input type="text"   id="pendingName"   placeholder="Person / description" />
+            <input type="number" id="pendingAmt"    placeholder="Amount (₹)" step="0.01" min="0.01" />
+            <button class="btn btn-secondary" id="addPendingBtn">Add</button>
+          </div>
+          <div class="pending-list" id="pendingList">
+            <div class="empty">No pending amounts</div>
+          </div>
         </div>
+      </div><!-- /dash-left -->
 
-        <!-- Bottom Actions -->
-        <div class="bottom-actions">
-            <button onclick="openCategoriesModal()" class="btn-secondary">
-                Manage Categories
-            </button>
-            <button onclick="signOut()" class="btn-danger">Sign Out</button>
+      <div class="dash-right">
+        <!-- Recent Transactions -->
+        <div class="card">
+          <h2>Recent Transactions</h2>
+          <div class="tx-list" id="txList">
+            <div class="empty">Loading…</div>
+          </div>
         </div>
+      </div><!-- /dash-right -->
+    </div><!-- /dash-main -->
+
+  </div><!-- /viewDashboard -->
+
+  <!-- ══════════════════════════════════════
+       ANALYTICS VIEW
+       ══════════════════════════════════════ -->
+  <div id="viewAnalytics" class="hidden">
+
+    <div class="view-header">
+      <h1>Analytics</h1>
     </div>
 
-    <!-- Edit Transaction Modal -->
-    <div class="modal" id="editModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Edit Transaction</h2>
-                <button class="modal-close" onclick="closeEditModal()">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-grid-ordered">
-                    <div class="form-group">
-                        <label>Date</label>
-                        <input type="date" id="editDateInput">
-                    </div>
-                    <div class="form-group">
-                        <label>Category</label>
-                        <select id="editCategoryInput">
-                            <option value="">Select Category</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Amount (₹)</label>
-                        <input type="number" id="editAmountInput" step="0.01">
-                    </div>
-                    <div class="form-group full-width">
-                        <label>Note</label>
-                        <input type="text" id="editDescInput">
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button onclick="closeEditModal()" class="btn-secondary">Cancel</button>
-                <button onclick="saveEditTransaction()" class="btn-primary">Save Changes</button>
-            </div>
-        </div>
+    <!-- Period tabs -->
+    <div class="period-tabs">
+      <button class="period-tab active" id="ptDaily"   onclick="showPeriod('daily')">Daily</button>
+      <button class="period-tab"        id="ptMonthly" onclick="showPeriod('monthly')">Monthly</button>
+      <button class="period-tab"        id="ptYearly"  onclick="showPeriod('yearly')">Yearly</button>
     </div>
 
-    <!-- Categories Management Modal -->
-    <div class="modal" id="categoriesModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Manage Categories</h2>
-                <button class="modal-close" onclick="closeCategoriesModal()">×</button>
+    <!-- ──────── DAILY ──────── -->
+    <div id="periodDaily">
+      <div class="analytics-main">
+        <div class="analytics-left">
+          <div class="date-row">
+            <label>Date</label>
+            <input type="date" id="dailyDate" />
+          </div>
+          <!-- Comparison -->
+          <div class="cmp-card">
+            <div class="cmp-stat">
+              <div class="cmp-lbl">Selected Day</div>
+              <div class="cmp-val" id="cmpToday">₹0</div>
             </div>
-            <div class="modal-body">
-                <!-- Income Categories -->
-                <div class="categories-section">
-                    <h3 style="color: var(--income);">Income Categories</h3>
-                    <div class="category-list" id="incomeCategoriesList"></div>
-                    <div class="add-category">
-                        <input type="text" id="newIncomeCategory" placeholder="New category name">
-                        <input type="color" id="newIncomeCategoryColor" value="#10b981">
-                        <button onclick="addCategory('income')" class="btn-secondary">Add</button>
-                    </div>
-                </div>
-
-                <!-- Expense Categories -->
-                <div class="categories-section">
-                    <h3 style="color: var(--expense);">Expense Categories</h3>
-                    <div class="category-list" id="expenseCategoriesList"></div>
-                    <div class="add-category">
-                        <input type="text" id="newExpenseCategory" placeholder="New category name">
-                        <input type="color" id="newExpenseCategoryColor" value="#FF6B6B">
-                        <button onclick="addCategory('expense')" class="btn-secondary">Add</button>
-                    </div>
-                </div>
+            <div class="cmp-arrow" id="cmpArrow">→</div>
+            <div class="cmp-stat">
+              <div class="cmp-lbl">Previous Day</div>
+              <div class="cmp-val muted" id="cmpYesterday">₹0</div>
             </div>
-            <div class="modal-footer">
-                <button onclick="closeCategoriesModal()" class="btn-primary">Done</button>
-            </div>
+            <div class="cmp-result" id="cmpResult">Select a date to see comparison</div>
+          </div>
         </div>
+        <div class="analytics-right">
+          <!-- Chart -->
+          <div class="chart-wrap" id="dailyChartWrap">
+            <div class="empty">No expenses for this day</div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Loading Overlay -->
-    <div class="page-loader" id="pageLoader">
-        <div>
-            <div class="spinner"></div>
-            <div class="spinner-text">Loading...</div>
+    <!-- ──────── MONTHLY ──────── -->
+    <div id="periodMonthly" class="hidden">
+      <div class="analytics-main">
+        <div class="analytics-left">
+          <div class="date-row">
+            <label>Month</label>
+            <input type="month" id="monthlyDate" />
+          </div>
+          <div class="chart-wrap" id="monthlyChartWrap">
+            <div class="empty">No expenses for this month</div>
+          </div>
         </div>
+        <div class="analytics-right">
+          <div class="card">
+            <h2>Category Breakdown</h2>
+            <div class="breakdown-list" id="breakdownList">
+              <div class="empty">No data</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Theme Script -->
-    <script type="module" src="theme.js"></script>
+    <!-- ──────── YEARLY ──────── -->
+    <div id="periodYearly" class="hidden">
+      <div class="date-row" style="margin-bottom:20px;">
+        <label>Year</label>
+        <input type="number" id="yearlyYear" min="2000" max="2100" placeholder="2025" style="max-width:130px;" />
+      </div>
+      <div class="yearly-wrap">
+        <div class="yearly-title">Monthly Expenses</div>
+        <div class="yearly-scroll">
+          <table class="yearly-tbl">
+            <thead>
+              <tr>
+                <th style="text-align:left">Category</th>
+                <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th>
+                <th>May</th><th>Jun</th><th>Jul</th><th>Aug</th>
+                <th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+                <th class="total-col">Total</th>
+                <th class="avg-col">Average</th>
+              </tr>
+            </thead>
+            <tbody id="yearlyBody">
+              <tr><td colspan="15" class="empty">Enter a year above</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-    <!-- Firebase SDK -->
-    <script type="module" src="firebase-config.js"></script>
-    <script type="module" src="app.js"></script>
+  </div><!-- /viewAnalytics -->
+
+</div><!-- /container -->
+
+<!-- ─────────────────────────────────────────
+     EDIT TRANSACTION MODAL
+     ───────────────────────────────────────── -->
+<div class="modal-backdrop" id="editModalBg">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Edit Transaction</h2>
+      <button class="btn-close-settings" onclick="closeEditModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="field"><label>Date</label>      <input type="date"   id="editDate" /></div>
+        <div class="field"><label>Category</label>  <select id="editCategory"><option value="">Select</option></select></div>
+      </div>
+      <div class="form-grid" style="margin-top:14px;">
+        <div class="field"><label>Amount (₹)</label><input type="number" id="editAmount" step="0.01" /></div>
+        <div class="field"><label>Note</label>       <input type="text"   id="editNote" /></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      <button class="btn btn-primary"   onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────
+     CATEGORIES MODAL
+     ───────────────────────────────────────── -->
+<div class="modal-backdrop" id="catsModalBg">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Manage Categories</h2>
+      <button class="btn-close-settings" onclick="closeCatsModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="section-label" style="color:var(--green)">Income</p>
+      <div id="incomeList"></div>
+      <div class="add-cat-row">
+        <input type="text" id="newIncName" placeholder="Category name" />
+        <div class="add-cat-color-wrap" title="Pick color">
+          <input type="color" id="newIncColor" value="#0FA974" oninput="syncSwatch('newIncColor','newIncSwatch')">
+          <span class="add-cat-color-swatch" id="newIncSwatch" style="background:#0FA974"></span>
+        </div>
+        <button class="btn btn-secondary" onclick="addCat('income')">Add</button>
+      </div>
+
+      <p class="section-label" style="color:var(--red);margin-top:24px">Expense</p>
+      <div id="expenseList"></div>
+      <div class="add-cat-row">
+        <input type="text" id="newExpName" placeholder="Category name" />
+        <div class="add-cat-color-wrap" title="Pick color">
+          <input type="color" id="newExpColor" value="#E84545" oninput="syncSwatch('newExpColor','newExpSwatch')">
+          <span class="add-cat-color-swatch" id="newExpSwatch" style="background:#E84545"></span>
+        </div>
+        <button class="btn btn-secondary" onclick="addCat('expense')">Add</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="closeCatsModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Apply theme script in-page (belt-and-suspenders)
+  (function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light'); })();
+</script>
+<script type="module" src="theme.js"></script>
+<script type="module" src="firebase-config.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>

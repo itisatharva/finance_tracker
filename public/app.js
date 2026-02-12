@@ -1,839 +1,663 @@
-// Enhanced Finance Tracker - Main Application Logic
+// app.js — Finance Tracker main logic
 
-let currentUser = null;
-let currentPeriod = 'daily';
-let selectedDate = new Date();
-let categories = { income: [], expense: [] };
-let transactions = [];
+// ─── State ─────────────────────────────────────────────────────────────────
+let uid            = null;
+let transactions   = [];
 let pendingAmounts = [];
-let chart = null;
-let editingTransactionId = null;
+let categories     = { income: [], expense: [] };
+let editTxId       = null;
+let activeView     = 'dashboard';
+let activePeriod   = 'daily';
+let dailyChartInst = null;
+let monthlyChartInst = null;
 
-// Haptic feedback for mobile devices
-function triggerHaptic() {
-    if ('vibrate' in navigator) {
-        navigator.vibrate(50); // 50ms vibration
-    }
-}
+// ─── Init ───────────────────────────────────────────────────────────────────
+window.firebaseReady.then(() => {
+  window.onAuthStateChanged(window.auth, async user => {
+    if (!user) return; // firebase-config.js handles redirect
 
-// Visual feedback for button
-function showButtonSuccess(buttonId, duration = 2000) {
-    const btn = document.getElementById(buttonId);
-    const textSpan = document.getElementById('addBtnText');
-    const successSpan = document.getElementById('addBtnSuccess');
-    
-    if (textSpan && successSpan) {
-        textSpan.classList.add('hidden');
-        successSpan.classList.remove('hidden');
-        btn.style.background = 'var(--income)';
-        
-        triggerHaptic();
-        
-        setTimeout(() => {
-            textSpan.classList.remove('hidden');
-            successSpan.classList.add('hidden');
-            btn.style.background = '';
-        }, duration);
-    }
-}
+    uid = user.uid;
 
-// Generate a random color for new categories
-function generateRandomColor() {
-    const hue = Math.floor(Math.random() * 360);
-    return `hsl(${hue}, 70%, 60%)`;
-}
+    // Account info in settings
+    document.getElementById('acctEmail').textContent  = user.email;
+    const ts = user.metadata.creationTime;
+    if (ts) document.getElementById('acctJoined').textContent =
+      new Date(ts).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
 
-// Get category type (income or expense)
-function getCategoryType(categoryName) {
-    if (categories.income.find(cat => (typeof cat === 'string' ? cat : cat.name) === categoryName)) {
-        return 'income';
-    }
-    if (categories.expense.find(cat => (typeof cat === 'string' ? cat : cat.name) === categoryName)) {
-        return 'expense';
-    }
-    return null;
-}
+    // Default dates
+    const today = new Date();
+    document.getElementById('txDate').valueAsDate   = today;
+    document.getElementById('dailyDate').value      = toInputDate(today);
+    document.getElementById('monthlyDate').value    = today.toISOString().slice(0,7);
+    document.getElementById('yearlyYear').value     = today.getFullYear();
 
-// Wait for Firebase and user authentication
-window.firebaseReady.then(async () => {
-    window.onAuthStateChanged(window.auth, async (user) => {
-        if (user) {
-            currentUser = user;
-            document.getElementById('userEmail').textContent = user.email;
-            
-            // Set default dates
-            const today = new Date();
-            document.getElementById('dateInput').valueAsDate = today;
-            document.getElementById('dailyDate').valueAsDate = today;
-            document.getElementById('monthlyDate').value = today.toISOString().slice(0, 7);
-            document.getElementById('yearlyDate').value = today.getFullYear();
-            
-            // Load categories
-            await loadCategories();
-            
-            // Load pending amounts
-            loadPendingAmounts();
-            
-            // Load transactions
-            loadTransactions();
-            
-            // Update date selector visibility
-            updateDateSelectorVisibility();
-        }
-    });
+    await loadCategories();
+    listenPending();
+    listenTransactions();
+    wireSettingsDrawer();
+    wireAddTxForm();
+    wireAddPending();
+  });
 });
 
-// ===============================
-// CATEGORY MANAGEMENT
-// ===============================
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function toInputDate(d) {
+  return d.toISOString().split('T')[0];
+}
+function toDate(v) {
+  return v && v.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v));
+}
+function fmt(n) {
+  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+function vibrate() { if (navigator.vibrate) navigator.vibrate(40); }
 
+// ─── Settings Drawer ────────────────────────────────────────────────────────
+function wireSettingsDrawer() {
+  const btn      = document.getElementById('btnSettings');
+  const backdrop = document.getElementById('settingsBackdrop');
+  const drawer   = document.getElementById('settingsDrawer');
+  const close    = document.getElementById('btnCloseSettings');
+  const signOut  = document.getElementById('btnSignOut');
+  const openCats = document.getElementById('btnOpenCats');
+
+  function open()  { drawer.classList.add('open'); backdrop.classList.add('open'); }
+  function close_() { drawer.classList.remove('open'); backdrop.classList.remove('open'); }
+
+  btn.addEventListener('click', open);
+  close.addEventListener('click', close_);
+  backdrop.addEventListener('click', close_);
+  signOut.addEventListener('click', async () => {
+    if (!confirm('Sign out?')) return;
+    await window.fbSignOut(window.auth).catch(console.error);
+  });
+  openCats.addEventListener('click', () => { close_(); openCatsModal(); });
+}
+
+// ─── View switching ──────────────────────────────────────────────────────────
+window.showView = function(v) {
+  activeView = v;
+  document.getElementById('viewDashboard').classList.toggle('hidden', v !== 'dashboard');
+  document.getElementById('viewAnalytics').classList.toggle('hidden', v !== 'analytics');
+  document.getElementById('tabDash').classList.toggle('active', v === 'dashboard');
+  document.getElementById('tabAnalytics').classList.toggle('active', v === 'analytics');
+  if (v === 'analytics') refreshCurrentPeriod();
+};
+
+// ─── Period switching ────────────────────────────────────────────────────────
+window.showPeriod = function(p) {
+  activePeriod = p;
+  ['daily','monthly','yearly'].forEach(id => {
+    document.getElementById('period' + id[0].toUpperCase() + id.slice(1)).classList.toggle('hidden', id !== p);
+    document.getElementById('pt' + id[0].toUpperCase() + id.slice(1)).classList.toggle('active', id === p);
+  });
+  refreshCurrentPeriod();
+};
+
+function refreshCurrentPeriod() {
+  if (activePeriod === 'daily')   renderDaily();
+  if (activePeriod === 'monthly') renderMonthly();
+  if (activePeriod === 'yearly')  renderYearly();
+}
+
+// ─── Categories ──────────────────────────────────────────────────────────────
 async function loadCategories() {
-    try {
-        const categoriesDoc = await window.getDoc(
-            window.doc(window.db, 'users', currentUser.uid, 'settings', 'categories')
-        );
-        
-        if (categoriesDoc.exists()) {
-            const data = categoriesDoc.data();
-            categories = {
-                income: data.income || [],
-                expense: data.expense || []
-            };
-        } else {
-            // Default categories with colors
-            categories = {
-                income: [
-                    { name: 'Salary', color: '#10b981' },
-                    { name: 'Freelance', color: '#3b82f6' },
-                    { name: 'Business', color: '#8b5cf6' },
-                    { name: 'Investment', color: '#06b6d4' },
-                    { name: 'Other', color: '#6366f1' }
-                ],
-                expense: [
-                    { name: 'Food & Dining', color: '#ef4444' },
-                    { name: 'Transport', color: '#f97316' },
-                    { name: 'Shopping', color: '#ec4899' },
-                    { name: 'Bills & Utilities', color: '#f59e0b' },
-                    { name: 'Entertainment', color: '#a855f7' },
-                    { name: 'Healthcare', color: '#14b8a6' },
-                    { name: 'Education', color: '#3b82f6' },
-                    { name: 'Travel', color: '#06b6d4' },
-                    { name: 'Other', color: '#6b7280' }
-                ]
-            };
-            await saveCategories();
-        }
-        
-        updateCategoryOptions();
-        updateEditCategoryOptions();
-    } catch (error) {
-        console.error('Error loading categories:', error);
-    }
+  const ref  = window.doc(window.db, 'users', uid, 'settings', 'categories');
+  const snap = await window.getDoc(ref);
+  if (snap.exists()) {
+    const d = snap.data();
+    categories = { income: d.income||[], expense: d.expense||[] };
+  } else {
+    categories = {
+      income: [
+        {name:'Salary',     color:'#0FA974'},
+        {name:'Freelance',  color:'#3b82f6'},
+        {name:'Business',   color:'#8b5cf6'},
+        {name:'Investment', color:'#06b6d4'},
+        {name:'Other',      color:'#6366f1'},
+      ],
+      expense: [
+        {name:'Food & Dining',    color:'#E84545'},
+        {name:'Transport',        color:'#f97316'},
+        {name:'Shopping',         color:'#ec4899'},
+        {name:'Bills & Utilities',color:'#f59e0b'},
+        {name:'Entertainment',    color:'#a855f7'},
+        {name:'Healthcare',       color:'#14b8a6'},
+        {name:'Education',        color:'#3b82f6'},
+        {name:'Travel',           color:'#06b6d4'},
+        {name:'Other',            color:'#6b7280'},
+      ]
+    };
+    await saveCategories();
+  }
+  populateCategoryDropdowns();
 }
 
 async function saveCategories() {
+  await window.setDoc(
+    window.doc(window.db, 'users', uid, 'settings', 'categories'),
+    { income: categories.income, expense: categories.expense, updatedAt: window.serverTimestamp() }
+  );
+}
+
+function catName(c)  { return typeof c === 'string' ? c : c.name;  }
+function catColor(c) { return typeof c === 'string' ? '#999' : c.color; }
+
+function catType(name) {
+  if (categories.income.some(c  => catName(c)  === name)) return 'income';
+  if (categories.expense.some(c => catName(c) === name)) return 'expense';
+  return null;
+}
+
+function catColorByName(type, name) {
+  const list = categories[type] || [];
+  const found = list.find(c => catName(c) === name);
+  return found ? catColor(found) : (type === 'income' ? '#0FA974' : '#E84545');
+}
+
+function populateCategoryDropdowns() {
+  ['txCategory', 'editCategory'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Select category</option>';
+
+    const ig = document.createElement('optgroup');
+    ig.label = 'Income';
+    categories.income.forEach(c => {
+      const o = document.createElement('option'); o.value = catName(c); o.textContent = catName(c); ig.appendChild(o);
+    });
+    sel.appendChild(ig);
+
+    const eg = document.createElement('optgroup');
+    eg.label = 'Expense';
+    categories.expense.forEach(c => {
+      const o = document.createElement('option'); o.value = catName(c); o.textContent = catName(c); eg.appendChild(o);
+    });
+    sel.appendChild(eg);
+
+    if (prev) sel.value = prev;
+  });
+}
+
+// Categories modal
+window.openCatsModal = function() {
+  renderCatLists();
+  document.getElementById('catsModalBg').classList.add('open');
+};
+window.closeCatsModal = function() {
+  document.getElementById('catsModalBg').classList.remove('open');
+  populateCategoryDropdowns();
+};
+window.addCat = async function(type) {
+  const nameEl  = document.getElementById(type === 'income' ? 'newIncName'  : 'newExpName');
+  const colorEl = document.getElementById(type === 'income' ? 'newIncColor' : 'newExpColor');
+  const name = nameEl.value.trim();
+  if (!name) { alert('Enter a category name'); return; }
+  categories[type].push({ name, color: colorEl.value });
+  await saveCategories();
+  renderCatLists();
+  nameEl.value = '';
+};
+window.removeCat = async function(type, idx) {
+  if (!confirm('Remove category?')) return;
+  categories[type].splice(idx, 1);
+  await saveCategories();
+  renderCatLists();
+};
+window.syncSwatch = function(inputId, swatchId) {
+  const color = document.getElementById(inputId).value;
+  document.getElementById(swatchId).style.background = color;
+};
+
+window.updateCatColor = async function(type, idx, color) {
+  if (typeof categories[type][idx] === 'string') {
+    categories[type][idx] = { name: categories[type][idx], color };
+  } else {
+    categories[type][idx].color = color;
+  }
+  // Live-update the swatch without full re-render
+  const listEl = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
+  const swatch = listEl.querySelectorAll('.cat-color-swatch')[idx];
+  if (swatch) swatch.style.background = color;
+  await saveCategories();
+};
+
+function renderCatLists() {
+  ['income','expense'].forEach(type => {
+    const el = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
+    el.innerHTML = '';
+    categories[type].forEach((c, i) => {
+      const color = catColor(c);
+      const div = document.createElement('div');
+      div.className = 'cat-item';
+      div.innerHTML = `
+        <div class="cat-color-wrap" title="Click to change color">
+          <input type="color" value="${color}" onchange="updateCatColor('${type}',${i},this.value)">
+          <span class="cat-color-swatch" style="background:${color}"></span>
+        </div>
+        <span class="cat-name">${catName(c)}</span>
+        <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
+      `;
+      el.appendChild(div);
+    });
+  });
+}
+
+// ─── Transactions ────────────────────────────────────────────────────────────
+function listenTransactions() {
+  const q = window.query(
+    window.collection(window.db, 'users', uid, 'transactions'),
+    window.orderBy('selectedDate', 'desc')
+  );
+  window.onSnapshot(q, snap => {
+    transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTxList();
+    renderStats();
+    if (activeView === 'analytics') refreshCurrentPeriod();
+  });
+}
+
+function wireAddTxForm() {
+  document.getElementById('addTxForm').addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const category = document.getElementById('txCategory').value;
+    const amount   = parseFloat(document.getElementById('txAmount').value);
+    const dateVal  = document.getElementById('txDate').value;
+    const note     = document.getElementById('txNote').value.trim();
+
+    if (!category) { alert('Please select a category'); return; }
+    if (!amount || amount <= 0) { alert('Please enter a valid amount'); return; }
+
+    const type = catType(category);
+    if (!type) { alert('Unknown category — please re-select'); return; }
+
+    // Show loading state
+    const btn     = document.getElementById('addTxBtn');
+    const label   = document.getElementById('addTxLabel');
+    const spinner = document.getElementById('addTxSpinner');
+    const done    = document.getElementById('addTxDone');
+
+    label.classList.add('hidden');
+    spinner.classList.remove('hidden');
+    btn.disabled = true;
+
     try {
-        await window.setDoc(
-            window.doc(window.db, 'users', currentUser.uid, 'settings', 'categories'),
-            {
-                income: categories.income,
-                expense: categories.expense,
-                setupCompleted: true,
-                updatedAt: window.serverTimestamp()
-            }
-        );
-    } catch (error) {
-        console.error('Error saving categories:', error);
-        alert('Error saving categories');
+      await window.addDoc(
+        window.collection(window.db, 'users', uid, 'transactions'),
+        {
+          type,
+          category,
+          amount,
+          description: note,
+          selectedDate: new Date(dateVal),
+          createdAt: window.serverTimestamp()
+        }
+      );
+
+      // Success state
+      spinner.classList.add('hidden');
+      done.classList.remove('hidden');
+      btn.style.background = 'var(--green)';
+      vibrate();
+
+      // Reset form
+      document.getElementById('txAmount').value   = '';
+      document.getElementById('txNote').value     = '';
+      document.getElementById('txCategory').value = '';
+      document.getElementById('txDate').valueAsDate = new Date();
+
+      setTimeout(() => {
+        done.classList.add('hidden');
+        label.classList.remove('hidden');
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 2000);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save transaction.');
+      spinner.classList.add('hidden');
+      label.classList.remove('hidden');
+      btn.disabled = false;
     }
+  });
 }
 
-function updateCategoryOptions() {
-    const categorySelect = document.getElementById('categoryInput');
-    categorySelect.innerHTML = '<option value="">Select Category</option>';
-    
-    // Add income categories
-    const incomeGroup = document.createElement('optgroup');
-    incomeGroup.label = 'Income';
-    categories.income.forEach(cat => {
-        const option = document.createElement('option');
-        const catName = typeof cat === 'string' ? cat : cat.name;
-        option.value = catName;
-        option.textContent = catName;
-        incomeGroup.appendChild(option);
-    });
-    categorySelect.appendChild(incomeGroup);
-    
-    // Add expense categories
-    const expenseGroup = document.createElement('optgroup');
-    expenseGroup.label = 'Expense';
-    categories.expense.forEach(cat => {
-        const option = document.createElement('option');
-        const catName = typeof cat === 'string' ? cat : cat.name;
-        option.value = catName;
-        option.textContent = catName;
-        expenseGroup.appendChild(option);
-    });
-    categorySelect.appendChild(expenseGroup);
+function renderTxList() {
+  const el = document.getElementById('txList');
+  if (!transactions.length) {
+    el.innerHTML = '<div class="empty">No transactions yet</div>';
+    return;
+  }
+  el.innerHTML = '';
+  transactions.slice(0, 15).forEach(tx => {
+    const d     = toDate(tx.selectedDate);
+    const color = catColorByName(tx.type, tx.category);
+    const div = document.createElement('div');
+    div.className = 'tx-item';
+    div.innerHTML = `
+      <div class="tx-meta">
+        <div class="tx-cat">
+          <span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span>
+        </div>
+        ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
+        <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      </div>
+      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+      <div class="tx-actions">
+        <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
+        <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
+      </div>
+    `;
+    el.appendChild(div);
+  });
 }
 
-function updateEditCategoryOptions() {
-    const categorySelect = document.getElementById('editCategoryInput');
-    categorySelect.innerHTML = '<option value="">Select Category</option>';
-    
-    // Add income categories
-    const incomeGroup = document.createElement('optgroup');
-    incomeGroup.label = 'Income';
-    categories.income.forEach(cat => {
-        const option = document.createElement('option');
-        const catName = typeof cat === 'string' ? cat : cat.name;
-        option.value = catName;
-        option.textContent = catName;
-        incomeGroup.appendChild(option);
-    });
-    categorySelect.appendChild(incomeGroup);
-    
-    // Add expense categories
-    const expenseGroup = document.createElement('optgroup');
-    expenseGroup.label = 'Expense';
-    categories.expense.forEach(cat => {
-        const option = document.createElement('option');
-        const catName = typeof cat === 'string' ? cat : cat.name;
-        option.value = catName;
-        option.textContent = catName;
-        expenseGroup.appendChild(option);
-    });
-    categorySelect.appendChild(expenseGroup);
+window.deleteTx = async function(id) {
+  if (!confirm('Delete this transaction?')) return;
+  await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
+  vibrate();
+};
+
+window.openEditModal = function(id) {
+  editTxId = id;
+  const tx = transactions.find(t => t.id === id);
+  if (!tx) return;
+  const d = toDate(tx.selectedDate);
+  document.getElementById('editDate').value     = toInputDate(d);
+  document.getElementById('editCategory').value = tx.category;
+  document.getElementById('editAmount').value   = tx.amount;
+  document.getElementById('editNote').value     = tx.description || '';
+  document.getElementById('editModalBg').classList.add('open');
+};
+
+window.closeEditModal = function() {
+  document.getElementById('editModalBg').classList.remove('open');
+  editTxId = null;
+};
+
+window.saveEdit = async function() {
+  const category = document.getElementById('editCategory').value;
+  const amount   = parseFloat(document.getElementById('editAmount').value);
+  const dateVal  = document.getElementById('editDate').value;
+  const note     = document.getElementById('editNote').value.trim();
+  const type     = catType(category);
+
+  if (!category || !amount || !dateVal || !type) {
+    alert('Please fill all fields');
+    return;
+  }
+  await window.setDoc(
+    window.doc(window.db, 'users', uid, 'transactions', editTxId),
+    { type, category, amount, description: note, selectedDate: new Date(dateVal), updatedAt: window.serverTimestamp() },
+    { merge: true }
+  );
+  closeEditModal();
+  vibrate();
+};
+
+// ─── Stats ───────────────────────────────────────────────────────────────────
+function renderStats() {
+  const income  = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const pending = pendingAmounts.reduce((s,p)=>s+p.amount,0);
+  const balance = income - expense - pending;
+
+  document.getElementById('sIncome').textContent  = fmt(income);
+  document.getElementById('sExpense').textContent = fmt(expense);
+  document.getElementById('sBalance').textContent = fmt(balance);
+  document.getElementById('sPending').textContent = fmt(pending);
 }
 
-function openCategoriesModal() {
-    document.getElementById('categoriesModal').classList.add('active');
-    renderCategoriesLists();
+// ─── Pending Amounts ─────────────────────────────────────────────────────────
+function listenPending() {
+  const q = window.query(
+    window.collection(window.db, 'users', uid, 'pending'),
+    window.orderBy('createdAt', 'desc')
+  );
+  window.onSnapshot(q, snap => {
+    pendingAmounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderPendingList();
+    renderStats();
+  });
 }
 
-function closeCategoriesModal() {
-    document.getElementById('categoriesModal').classList.remove('active');
-    updateCategoryOptions();
-    updateEditCategoryOptions();
-    updateChart();
-}
-
-function renderCategoriesLists() {
-    // Render income categories
-    const incomeList = document.getElementById('incomeCategoriesList');
-    incomeList.innerHTML = '';
-    
-    categories.income.forEach((cat, index) => {
-        const catName = typeof cat === 'string' ? cat : cat.name;
-        const catColor = typeof cat === 'string' ? generateRandomColor() : cat.color;
-        
-        const item = document.createElement('div');
-        item.className = 'category-item';
-        item.innerHTML = `
-            <div class="category-color-dot" style="background: ${catColor}"></div>
-            <input type="color" value="${catColor}" onchange="updateCategoryColor('income', ${index}, this.value)" 
-                   style="width: 50px; height: 36px; border-radius: 8px; cursor: pointer; border: 2px solid var(--border);">
-            <span class="category-name">${catName}</span>
-            <button class="category-remove" onclick="removeCategory('income', ${index})">Remove</button>
-        `;
-        incomeList.appendChild(item);
-    });
-    
-    // Render expense categories
-    const expenseList = document.getElementById('expenseCategoriesList');
-    expenseList.innerHTML = '';
-    
-    categories.expense.forEach((cat, index) => {
-        const catName = typeof cat === 'string' ? cat : cat.name;
-        const catColor = typeof cat === 'string' ? generateRandomColor() : cat.color;
-        
-        const item = document.createElement('div');
-        item.className = 'category-item';
-        item.innerHTML = `
-            <div class="category-color-dot" style="background: ${catColor}"></div>
-            <input type="color" value="${catColor}" onchange="updateCategoryColor('expense', ${index}, this.value)"
-                   style="width: 50px; height: 36px; border-radius: 8px; cursor: pointer; border: 2px solid var(--border);">
-            <span class="category-name">${catName}</span>
-            <button class="category-remove" onclick="removeCategory('expense', ${index})">Remove</button>
-        `;
-        expenseList.appendChild(item);
-    });
-}
-
-function updateCategoryColor(type, index, color) {
-    if (typeof categories[type][index] === 'string') {
-        categories[type][index] = {
-            name: categories[type][index],
-            color: color
-        };
-    } else {
-        categories[type][index].color = color;
-    }
-    saveCategories();
-    renderCategoriesLists();
-}
-
-async function addCategory(type) {
-    const inputId = type === 'income' ? 'newIncomeCategory' : 'newExpenseCategory';
-    const colorInputId = type === 'income' ? 'newIncomeCategoryColor' : 'newExpenseCategoryColor';
-    const input = document.getElementById(inputId);
-    const colorInput = document.getElementById(colorInputId);
-    const categoryName = input.value.trim();
-    const categoryColor = colorInput.value;
-    
-    if (!categoryName) {
-        alert('Please enter a category name');
-        return;
-    }
-    
-    categories[type].push({
-        name: categoryName,
-        color: categoryColor
-    });
-    
-    await saveCategories();
-    renderCategoriesLists();
-    updateCategoryOptions();
-    updateEditCategoryOptions();
-    input.value = '';
-    colorInput.value = type === 'income' ? '#10b981' : '#FF6B6B';
-}
-
-async function removeCategory(type, index) {
-    if (confirm('Remove this category?')) {
-        categories[type].splice(index, 1);
-        await saveCategories();
-        renderCategoriesLists();
-        updateCategoryOptions();
-        updateEditCategoryOptions();
-    }
-}
-
-function getCategoryColor(type, categoryName) {
-    const categoryList = categories[type] || [];
-    const category = categoryList.find(cat => 
-        (typeof cat === 'string' ? cat : cat.name) === categoryName
+function wireAddPending() {
+  document.getElementById('addPendingBtn').addEventListener('click', async () => {
+    const name   = document.getElementById('pendingName').value.trim();
+    const amount = parseFloat(document.getElementById('pendingAmt').value);
+    if (!name || !amount || amount <= 0) { alert('Enter name and amount'); return; }
+    await window.addDoc(
+      window.collection(window.db, 'users', uid, 'pending'),
+      { name, amount, createdAt: window.serverTimestamp() }
     );
-    
-    if (category) {
-        return typeof category === 'string' ? generateRandomColor() : category.color;
-    }
-    
-    return type === 'income' ? '#10b981' : '#FF6B6B';
+    document.getElementById('pendingName').value = '';
+    document.getElementById('pendingAmt').value  = '';
+    vibrate();
+  });
 }
 
-// ===============================
-// PENDING AMOUNTS
-// ===============================
-
-function loadPendingAmounts() {
-    const q = window.query(
-        window.collection(window.db, 'users', currentUser.uid, 'pending'),
-        window.orderBy('createdAt', 'desc')
-    );
-    
-    window.onSnapshot(q, (snapshot) => {
-        pendingAmounts = [];
-        const pendingList = document.getElementById('pendingList');
-        pendingList.innerHTML = '';
-        
-        if (snapshot.empty) {
-            pendingList.innerHTML = '<div class="loading">No pending amounts</div>';
-            updateStats();
-            return;
-        }
-        
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            pendingAmounts.push({ id: doc.id, ...data });
-            
-            const item = document.createElement('div');
-            item.className = 'pending-item';
-            item.innerHTML = `
-                <input type="checkbox" class="pending-checkbox" onchange="clearPendingAmount('${doc.id}')">
-                <div class="pending-info">
-                    <div class="pending-name">${data.name}</div>
-                    <div class="pending-amount">₹${data.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                </div>
-            `;
-            pendingList.appendChild(item);
-        });
-        
-        updateStats();
-    });
+function renderPendingList() {
+  const el = document.getElementById('pendingList');
+  if (!pendingAmounts.length) {
+    el.innerHTML = '<div class="empty">No pending amounts</div>';
+    return;
+  }
+  el.innerHTML = '';
+  pendingAmounts.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'pending-item';
+    div.innerHTML = `
+      <input type="checkbox" title="Mark as cleared" onchange="clearPending('${p.id}')">
+      <span class="p-name">${p.name}</span>
+      <span class="p-amount">${fmt(p.amount)}</span>
+    `;
+    el.appendChild(div);
+  });
 }
 
-async function addPendingAmount() {
-    const nameInput = document.getElementById('pendingNameInput');
-    const amountInput = document.getElementById('pendingAmountInput');
-    
-    const name = nameInput.value.trim();
-    const amount = parseFloat(amountInput.value);
-    
-    if (!name) {
-        alert('Please enter a person\'s name');
-        return;
-    }
-    
-    if (!amount || amount <= 0) {
-        alert('Please enter a valid amount');
-        return;
-    }
-    
-    try {
-        await window.addDoc(
-            window.collection(window.db, 'users', currentUser.uid, 'pending'),
-            {
-                name: name,
-                amount: amount,
-                createdAt: window.serverTimestamp()
-            }
-        );
-        
-        nameInput.value = '';
-        amountInput.value = '';
-        triggerHaptic();
-    } catch (error) {
-        console.error('Error adding pending amount:', error);
-        alert('Error adding pending amount');
-    }
+window.clearPending = async function(id) {
+  await window.deleteDoc(window.doc(window.db, 'users', uid, 'pending', id));
+  vibrate();
+};
+
+// ─── Analytics: Daily ────────────────────────────────────────────────────────
+function renderDaily() {
+  const dateVal = document.getElementById('dailyDate').value;
+  if (!dateVal) return;
+
+  const sel  = new Date(dateVal);
+  const prev = new Date(sel); prev.setDate(prev.getDate() - 1);
+
+  const selExp = transactions.filter(t => {
+    const d = toDate(t.selectedDate);
+    return t.type === 'expense' && d.toDateString() === sel.toDateString();
+  });
+  const prevExp = transactions.filter(t => {
+    const d = toDate(t.selectedDate);
+    return t.type === 'expense' && d.toDateString() === prev.toDateString();
+  });
+
+  const selTotal  = selExp.reduce((s,t)=>s+t.amount,0);
+  const prevTotal = prevExp.reduce((s,t)=>s+t.amount,0);
+
+  document.getElementById('cmpToday').textContent     = fmt(selTotal);
+  document.getElementById('cmpYesterday').textContent = fmt(prevTotal);
+
+  const diff = selTotal - prevTotal;
+  const resultEl = document.getElementById('cmpResult');
+  const arrowEl  = document.getElementById('cmpArrow');
+
+  if (diff > 0) {
+    resultEl.textContent = `${fmt(diff)} more than the previous day`;
+    resultEl.className = 'cmp-result neg';
+    arrowEl.textContent = '↑';
+    arrowEl.className = 'cmp-arrow up';
+  } else if (diff < 0) {
+    resultEl.textContent = `${fmt(Math.abs(diff))} less than the previous day`;
+    resultEl.className = 'cmp-result pos';
+    arrowEl.textContent = '↓';
+    arrowEl.className = 'cmp-arrow down';
+  } else {
+    resultEl.textContent = selTotal === 0 ? 'No spending on either day' : 'Same as previous day';
+    resultEl.className = 'cmp-result';
+    arrowEl.textContent = '=';
+    arrowEl.className = 'cmp-arrow flat';
+  }
+
+  renderPieChart('dailyChartWrap', selExp, 'dailyChart', dailyChartInst, inst => dailyChartInst = inst);
 }
 
-async function clearPendingAmount(id) {
-    try {
-        await window.deleteDoc(
-            window.doc(window.db, 'users', currentUser.uid, 'pending', id)
-        );
-        triggerHaptic();
-    } catch (error) {
-        console.error('Error clearing pending amount:', error);
-        alert('Error clearing pending amount');
-    }
+document.getElementById('dailyDate').addEventListener('change', renderDaily);
+
+// ─── Analytics: Monthly ──────────────────────────────────────────────────────
+function renderMonthly() {
+  const val = document.getElementById('monthlyDate').value;
+  if (!val) return;
+  const [y, m] = val.split('-').map(Number);
+
+  const monthExp = transactions.filter(t => {
+    const d = toDate(t.selectedDate);
+    return t.type === 'expense' && d.getFullYear() === y && d.getMonth() === m - 1;
+  });
+
+  renderPieChart('monthlyChartWrap', monthExp, 'monthlyChart', monthlyChartInst, inst => monthlyChartInst = inst);
+
+  // Breakdown list
+  const totals = {};
+  const colors = {};
+  monthExp.forEach(t => {
+    totals[t.category] = (totals[t.category] || 0) + t.amount;
+    colors[t.category] = catColorByName('expense', t.category);
+  });
+
+  const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+  const el = document.getElementById('breakdownList');
+
+  if (!sorted.length) {
+    el.innerHTML = '<div class="empty">No expenses this month</div>';
+    return;
+  }
+  el.innerHTML = '';
+  sorted.forEach(([name, amt]) => {
+    const div = document.createElement('div');
+    div.className = 'breakdown-item';
+    div.innerHTML = `
+      <div class="b-name">
+        <div class="b-dot" style="background:${colors[name]}"></div>
+        ${name}
+      </div>
+      <div class="b-amt">${fmt(amt)}</div>
+    `;
+    el.appendChild(div);
+  });
 }
 
-// ===============================
-// TRANSACTIONS
-// ===============================
+document.getElementById('monthlyDate').addEventListener('change', renderMonthly);
 
-function loadTransactions() {
-    const q = window.query(
-        window.collection(window.db, 'users', currentUser.uid, 'transactions'),
-        window.orderBy('selectedDate', 'desc')
-    );
-    
-    window.onSnapshot(q, (snapshot) => {
-        transactions = [];
-        snapshot.forEach(doc => {
-            transactions.push({ id: doc.id, ...doc.data() });
-        });
-        
-        filterAndDisplayTransactions();
-    });
+// ─── Analytics: Yearly ───────────────────────────────────────────────────────
+function renderYearly() {
+  const year = parseInt(document.getElementById('yearlyYear').value);
+  if (!year) return;
+
+  const yearlyExp = transactions.filter(t => {
+    const d = toDate(t.selectedDate);
+    return t.type === 'expense' && d.getFullYear() === year;
+  });
+
+  // Collect all expense categories
+  const catSet = new Set();
+  yearlyExp.forEach(t => catSet.add(t.category));
+
+  if (!catSet.size) {
+    document.getElementById('yearlyBody').innerHTML =
+      '<tr><td colspan="15" class="empty">No expense data for ' + year + '</td></tr>';
+    return;
+  }
+
+  // Build data: {category: [jan..dec]}
+  const data = {};
+  catSet.forEach(c => { data[c] = Array(12).fill(0); });
+  yearlyExp.forEach(t => {
+    const m = toDate(t.selectedDate).getMonth();
+    data[t.category][m] += t.amount;
+  });
+
+  // Sort categories by annual total desc
+  const sorted = Object.keys(data).sort((a,b) =>
+    data[b].reduce((s,v)=>s+v,0) - data[a].reduce((s,v)=>s+v,0)
+  );
+
+  const tbody = document.getElementById('yearlyBody');
+  tbody.innerHTML = '';
+  sorted.forEach(cat => {
+    const months = data[cat];
+    const total  = months.reduce((s,v)=>s+v,0);
+    const avg    = total / 12;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${cat}</td>
+      ${months.map(v=>`<td>${fmt(v)}</td>`).join('')}
+      <td class="total-col">${fmt(total)}</td>
+      <td class="avg-col">${fmt(avg)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
-async function addTransaction() {
-    const category = document.getElementById('categoryInput').value;
-    const amount = parseFloat(document.getElementById('amountInput').value);
-    const selectedDateStr = document.getElementById('dateInput').value;
-    const description = document.getElementById('descInput').value.trim();
-    
-    if (!category) {
-        alert('Please select a category');
-        return;
-    }
-    
-    if (!amount || amount <= 0) {
-        alert('Please enter a valid amount');
-        return;
-    }
-    
-    if (!selectedDateStr) {
-        alert('Please select a date');
-        return;
-    }
-    
-    // Auto-detect type from category
-    const type = getCategoryType(category);
-    if (!type) {
-        alert('Invalid category selected');
-        return;
-    }
-    
-    try {
-        await window.addDoc(
-            window.collection(window.db, 'users', currentUser.uid, 'transactions'),
-            {
-                type: type,
-                amount: amount,
-                category: category,
-                description: description,
-                selectedDate: new Date(selectedDateStr),
-                createdAt: window.serverTimestamp()
-            }
-        );
-        
-        // Clear inputs
-        document.getElementById('amountInput').value = '';
-        document.getElementById('categoryInput').value = '';
-        document.getElementById('descInput').value = '';
-        document.getElementById('dateInput').valueAsDate = new Date();
-        
-        // Show success feedback
-        showButtonSuccess('addTransactionBtn');
-    } catch (error) {
-        console.error('Error adding transaction:', error);
-        alert('Error adding transaction');
-    }
-}
+document.getElementById('yearlyYear').addEventListener('change', renderYearly);
 
-async function deleteTransaction(id) {
-    if (confirm('Delete this transaction?')) {
-        try {
-            await window.deleteDoc(
-                window.doc(window.db, 'users', currentUser.uid, 'transactions', id)
-            );
-            triggerHaptic();
-        } catch (error) {
-            console.error('Error deleting transaction:', error);
-            alert('Error deleting transaction');
-        }
-    }
-}
+// ─── Shared Chart Renderer ────────────────────────────────────────────────────
+function renderPieChart(wrapId, expenses, chartId, existingInst, setInst) {
+  const wrap = document.getElementById(wrapId);
 
-// Edit transaction
-function openEditModal(id) {
-    editingTransactionId = id;
-    const transaction = transactions.find(t => t.id === id);
-    
-    if (!transaction) return;
-    
-    const txDate = transaction.selectedDate.toDate ? transaction.selectedDate.toDate() : new Date(transaction.selectedDate);
-    
-    document.getElementById('editDateInput').valueAsDate = txDate;
-    document.getElementById('editCategoryInput').value = transaction.category;
-    document.getElementById('editAmountInput').value = transaction.amount;
-    document.getElementById('editDescInput').value = transaction.description || '';
-    
-    document.getElementById('editModal').classList.add('active');
-}
+  if (existingInst) { existingInst.destroy(); setInst(null); }
 
-function closeEditModal() {
-    document.getElementById('editModal').classList.remove('active');
-    editingTransactionId = null;
-}
+  if (!expenses.length) {
+    wrap.innerHTML = '<div class="empty">No expenses for this period</div>';
+    return;
+  }
 
-async function saveEditTransaction() {
-    if (!editingTransactionId) return;
-    
-    const category = document.getElementById('editCategoryInput').value;
-    const amount = parseFloat(document.getElementById('editAmountInput').value);
-    const selectedDateStr = document.getElementById('editDateInput').value;
-    const description = document.getElementById('editDescInput').value.trim();
-    
-    if (!category || !amount || !selectedDateStr) {
-        alert('Please fill all required fields');
-        return;
-    }
-    
-    const type = getCategoryType(category);
-    if (!type) {
-        alert('Invalid category selected');
-        return;
-    }
-    
-    try {
-        await window.setDoc(
-            window.doc(window.db, 'users', currentUser.uid, 'transactions', editingTransactionId),
-            {
-                type: type,
-                amount: amount,
-                category: category,
-                description: description,
-                selectedDate: new Date(selectedDateStr),
-                updatedAt: window.serverTimestamp()
-            },
-            { merge: true }
-        );
-        
-        closeEditModal();
-        triggerHaptic();
-    } catch (error) {
-        console.error('Error updating transaction:', error);
-        alert('Error updating transaction');
-    }
-}
+  const totals = {};
+  const colors = {};
+  expenses.forEach(t => {
+    totals[t.category] = (totals[t.category] || 0) + t.amount;
+    colors[t.category] = catColorByName('expense', t.category);
+  });
 
-// ===============================
-// PERIOD FILTERING
-// ===============================
+  wrap.innerHTML = `<canvas id="${chartId}"></canvas>`;
 
-function switchTab(period) {
-    currentPeriod = period;
-    
-    // Update active tab
-    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    updateDateSelectorVisibility();
-    applyPeriodFilter();
-}
+  const textColor = getComputedStyle(document.documentElement)
+    .getPropertyValue('--text-2').trim() || '#666';
 
-function updateDateSelectorVisibility() {
-    document.getElementById('dailySelector').classList.toggle('hidden', currentPeriod !== 'daily');
-    document.getElementById('monthlySelector').classList.toggle('hidden', currentPeriod !== 'monthly');
-    document.getElementById('yearlySelector').classList.toggle('hidden', currentPeriod !== 'yearly');
-}
-
-function applyPeriodFilter() {
-    if (currentPeriod === 'daily') {
-        const dateStr = document.getElementById('dailyDate').value;
-        selectedDate = dateStr ? new Date(dateStr) : new Date();
-    } else if (currentPeriod === 'monthly') {
-        const dateStr = document.getElementById('monthlyDate').value;
-        if (dateStr) {
-            const [year, month] = dateStr.split('-');
-            selectedDate = new Date(year, month - 1, 1);
-        } else {
-            selectedDate = new Date();
-        }
-    } else if (currentPeriod === 'yearly') {
-        const year = document.getElementById('yearlyDate').value;
-        selectedDate = year ? new Date(year, 0, 1) : new Date();
-    }
-    
-    filterAndDisplayTransactions();
-}
-
-function isInPeriod(transactionDate) {
-    const txDate = transactionDate.toDate ? transactionDate.toDate() : new Date(transactionDate);
-    
-    if (currentPeriod === 'daily') {
-        return txDate.toDateString() === selectedDate.toDateString();
-    } else if (currentPeriod === 'monthly') {
-        return txDate.getMonth() === selectedDate.getMonth() && 
-               txDate.getFullYear() === selectedDate.getFullYear();
-    } else if (currentPeriod === 'yearly') {
-        return txDate.getFullYear() === selectedDate.getFullYear();
-    }
-    return false;
-}
-
-function filterAndDisplayTransactions() {
-    const filteredTransactions = transactions.filter(tx => isInPeriod(tx.selectedDate));
-    
-    displayTransactions(filteredTransactions);
-    updateStats(filteredTransactions);
-    updateChart(filteredTransactions);
-    updateFilterInfo();
-}
-
-function displayTransactions(filteredTransactions) {
-    const list = document.getElementById('transactionsList');
-    
-    if (filteredTransactions.length === 0) {
-        list.innerHTML = '<div class="loading">No transactions for this period</div>';
-        return;
-    }
-    
-    list.innerHTML = '';
-    
-    filteredTransactions.forEach(tx => {
-        const txDate = tx.selectedDate.toDate ? tx.selectedDate.toDate() : new Date(tx.selectedDate);
-        const categoryColor = getCategoryColor(tx.type, tx.category);
-        
-        const div = document.createElement('div');
-        div.className = `transaction ${tx.type}`;
-        div.innerHTML = `
-            <div class="transaction-info">
-                <div class="transaction-category" style="background: ${categoryColor}20; color: ${categoryColor}; border: 1px solid ${categoryColor}40;">
-                    ${tx.category}
-                </div>
-                ${tx.description ? `<div class="transaction-description">${tx.description}</div>` : ''}
-                <div class="transaction-date">${txDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
-            </div>
-            <div class="transaction-amount">${tx.type === 'income' ? '+' : '-'}₹${tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div class="transaction-actions">
-                <button class="transaction-edit" onclick="openEditModal('${tx.id}')">Edit</button>
-                <button class="transaction-delete" onclick="deleteTransaction('${tx.id}')">Delete</button>
-            </div>
-        `;
-        list.appendChild(div);
-    });
-}
-
-function updateFilterInfo() {
-    const info = document.getElementById('filterInfo');
-    
-    if (currentPeriod === 'daily') {
-        info.textContent = 'Showing: ' + selectedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
-    } else if (currentPeriod === 'monthly') {
-        info.textContent = 'Showing: ' + selectedDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-    } else {
-        info.textContent = 'Showing: ' + selectedDate.getFullYear();
-    }
-}
-
-// ===============================
-// STATS AND CHART
-// ===============================
-
-function updateStats(filteredTransactions = null) {
-    const txList = filteredTransactions || transactions.filter(tx => isInPeriod(tx.selectedDate));
-    
-    const income = txList.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0);
-    const expense = txList.filter(tx => tx.type === 'expense').reduce((sum, tx) => sum + tx.amount, 0);
-    const balance = income - expense;
-    
-    const totalPending = pendingAmounts.reduce((sum, p) => sum + p.amount, 0);
-    const presentAmount = balance - totalPending;
-    
-    document.getElementById('totalIncome').textContent = `₹${income.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    document.getElementById('totalExpense').textContent = `₹${expense.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    document.getElementById('balance').textContent = `₹${presentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    document.getElementById('totalPending').textContent = `₹${totalPending.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function updateChart(filteredTransactions = null) {
-    const txList = filteredTransactions || transactions.filter(tx => isInPeriod(tx.selectedDate));
-    const expenses = txList.filter(tx => tx.type === 'expense');
-    
-    // Group by category
-    const categoryTotals = {};
-    const categoryColors = {};
-    
-    expenses.forEach(tx => {
-        if (!categoryTotals[tx.category]) {
-            categoryTotals[tx.category] = 0;
-            categoryColors[tx.category] = getCategoryColor('expense', tx.category);
-        }
-        categoryTotals[tx.category] += tx.amount;
-    });
-    
-    const labels = Object.keys(categoryTotals);
-    const data = Object.values(categoryTotals);
-    const colors = Object.values(categoryColors);
-    
-    // Destroy existing chart
-    if (chart) {
-        chart.destroy();
-        chart = null;
-    }
-    
-    const chartContainer = document.querySelector('.chart-container');
-    
-    if (labels.length === 0) {
-        chartContainer.innerHTML = '<div class="loading">No expenses to display</div>';
-        return;
-    }
-    
-    // Recreate canvas
-    chartContainer.innerHTML = '<canvas id="spendingChart"></canvas>';
-    const ctx = document.getElementById('spendingChart').getContext('2d');
-    
-    chart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors,
-                borderWidth: 0,
-                hoverBorderWidth: 4,
-                hoverBorderColor: '#fff'
-            }]
+  const inst = new Chart(document.getElementById(chartId).getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(totals),
+      datasets: [{ data: Object.values(totals), backgroundColor: Object.values(colors), borderWidth: 2, borderColor: 'transparent' }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { padding: 16, font: { size: 13, family: 'DM Sans, sans-serif' }, color: textColor }
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        padding: 20,
-                        font: {
-                            size: 13,
-                            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Inter", sans-serif'
-                        },
-                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim(),
-                        usePointStyle: true,
-                        pointStyle: 'circle'
-                    }
-                },
-                tooltip: {
-                    enabled: true,
-                    backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim(),
-                    titleColor: getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim(),
-                    bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim(),
-                    borderColor: getComputedStyle(document.documentElement).getPropertyValue('--border').trim(),
-                    borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 8,
-                    displayColors: true,
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            
-                            let periodText = '';
-                            if (currentPeriod === 'daily') {
-                                periodText = selectedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-                            } else if (currentPeriod === 'monthly') {
-                                periodText = selectedDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-                            } else {
-                                periodText = selectedDate.getFullYear().toString();
-                            }
-                            
-                            return [
-                                `${label}`,
-                                `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                                `${percentage}% (${periodText})`
-                            ];
-                        }
-                    }
-                }
-            },
-            animation: {
-                animateRotate: true,
-                animateScale: true,
-                duration: 1000,
-                easing: 'easeInOutQuart'
-            },
-            cutout: '65%',
-            hover: {
-                mode: 'nearest',
-                intersect: true
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+              const pct   = ((ctx.parsed/total)*100).toFixed(1);
+              return ` ${ctx.label}: ${fmt(ctx.parsed)} (${pct}%)`;
             }
+          }
         }
-    });
-}
-
-// Sign out function
-async function signOut() {
-    if (confirm('Are you sure you want to sign out?')) {
-        try {
-            await window.signOutFirebase(window.auth);
-        } catch (error) {
-            console.error('Sign out error:', error);
-            alert('Error signing out');
-        }
+      },
+      cutout: '62%'
     }
-}
+  });
 
-// Export functions to window
-window.addTransaction = addTransaction;
-window.deleteTransaction = deleteTransaction;
-window.openEditModal = openEditModal;
-window.closeEditModal = closeEditModal;
-window.saveEditTransaction = saveEditTransaction;
-window.switchTab = switchTab;
-window.applyPeriodFilter = applyPeriodFilter;
-window.openCategoriesModal = openCategoriesModal;
-window.closeCategoriesModal = closeCategoriesModal;
-window.addCategory = addCategory;
-window.removeCategory = removeCategory;
-window.updateCategoryColor = updateCategoryColor;
-window.addPendingAmount = addPendingAmount;
-window.clearPendingAmount = clearPendingAmount;
-window.signOut = signOut;
+  setInst(inst);
+}
