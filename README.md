@@ -1,8 +1,6 @@
-# 💰 Finance Tracker - Complete Fixed Version
+# 💰 Finance Tracker - 
 
-A modern, feature-rich personal finance tracker with analytics, built with vanilla JavaScript and Firebase.
 
-## ✨ Features
 
 ### Dashboard
 - 📊 Real-time stats (Income, Expenses, Balance, Pending)
