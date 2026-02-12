@@ -12,6 +12,10 @@ const ERR = {
   'auth/weak-password':        'Password must be at least 6 characters.',
   'auth/too-many-requests':    'Too many attempts — please wait a moment.',
   'auth/network-request-failed': 'Network error — check your connection.',
+  'auth/operation-not-allowed': 'Google sign-in is not enabled. Enable it in Firebase Console → Authentication → Sign-in method.',
+  'auth/unauthorized-domain':  'This domain is not authorised. Add it in Firebase Console → Authentication → Settings → Authorised domains.',
+  'auth/cancelled-popup-request': null,   // suppress — user just opened a second popup
+  'auth/popup-blocked':        'Popup was blocked by your browser. Please allow popups for this site.',
 };
 
 function err(elId, msg) {
@@ -89,7 +93,12 @@ document.getElementById('signinGoogleBtn').addEventListener('click', async e => 
     await window.signInWithPopup(window.auth, new window.GoogleAuthProvider());
     btn.innerHTML = GOOGLE_ICON + ' ✓ Signed in!';
   } catch (er) {
-    if (er.code !== 'auth/popup-closed-by-user') err('signinErr', ERR[er.code] || 'Google sign-in failed.');
+    console.error('Google sign-in error:', er.code, er.message);
+    const msg = ERR[er.code];
+    // msg===null means suppress silently (e.g. cancelled popup request)
+    if (er.code !== 'auth/popup-closed-by-user' && msg !== null) {
+      err('signinErr', msg || `Sign-in failed (${er.code}). Check Firebase Console.`);
+    }
     resetGoogleBtn(btn, false);
   }
 });
@@ -127,7 +136,11 @@ document.getElementById('signupGoogleBtn').addEventListener('click', async e => 
     await window.signInWithPopup(window.auth, new window.GoogleAuthProvider());
     btn.innerHTML = GOOGLE_ICON + ' ✓ Joined!';
   } catch (er) {
-    if (er.code !== 'auth/popup-closed-by-user') err('signupErr', ERR[er.code] || 'Google sign-in failed.');
+    console.error('Google sign-in error:', er.code, er.message);
+    const msg = ERR[er.code];
+    if (er.code !== 'auth/popup-closed-by-user' && msg !== null) {
+      err('signupErr', msg || `Sign-in failed (${er.code}). Check Firebase Console.`);
+    }
     resetGoogleBtn(btn, true);
   }
 });

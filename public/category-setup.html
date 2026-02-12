@@ -1,194 +1,273 @@
 <!DOCTYPE html>
-<html lang="en" class="page-locked">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup Categories - Finance Tracker</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
-        .setup-container {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .setup-card {
-            background: var(--bg-card);
-            padding: 48px;
-            border-radius: 24px;
-            max-width: 800px;
-            width: 100%;
-            border: 1px solid var(--border);
-            box-shadow: 0 20px 60px var(--shadow-lg);
-        }
-
-        .setup-header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .setup-header h1 {
-            font-size: 2rem;
-            margin-bottom: 8px;
-        }
-
-        .setup-header p {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-        }
-
-        .categories-section {
-            margin-bottom: 32px;
-        }
-
-        .categories-section h3 {
-            font-size: 1.1rem;
-            margin-bottom: 16px;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .category-pills {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .category-pill {
-            padding: 10px 18px;
-            border-radius: 20px;
-            border: 2px solid var(--border);
-            background: var(--bg-secondary);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 0.9rem;
-            font-weight: 500;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .category-pill:hover {
-            border-color: var(--accent);
-            transform: translateY(-2px);
-        }
-
-        .category-pill.selected {
-            border-width: 2px;
-            transform: scale(1.05);
-        }
-
-        .category-color-dot {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            border: 2px solid rgba(0,0,0,0.1);
-        }
-
-        .custom-category {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-        }
-
-        .custom-category input[type="text"] {
-            flex: 1;
-        }
-
-        .custom-category input[type="color"] {
-            width: 50px;
-            height: 44px;
-            padding: 4px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        .custom-category button {
-            padding: 12px 20px;
-            white-space: nowrap;
-        }
-
-        .setup-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 32px;
-        }
-
-        .setup-actions button {
-            flex: 1;
-        }
-
-        .skip-btn {
-            background: transparent;
-            color: var(--text-secondary);
-            border: 1.5px solid var(--border);
-        }
-
-        .skip-btn:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Setup Categories — Finance Tracker</title>
+  <script>(function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light'); })();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-    <div class="setup-container">
-        <div class="setup-card">
-            <div class="setup-header">
-                <h1>Setup Your Categories</h1>
-                <p>Select categories and customize their colors for better visualization</p>
-            </div>
 
-            <!-- Income Categories -->
-            <div class="categories-section">
-                <h3>
-                    <span style="color: var(--income);">💚</span>
-                    Income Categories
-                </h3>
-                <div class="category-pills" id="incomePills"></div>
-                <div class="custom-category">
-                    <input type="text" id="customIncome" placeholder="Add custom category">
-                    <input type="color" id="customIncomeColor" value="#10b981">
-                    <button onclick="addCustomCategory('income')" class="btn-secondary">+ Add</button>
-                </div>
-            </div>
+<!-- Page loader -->
+<div id="pageLoader" style="position:fixed;inset:0;background:var(--bg-page);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;">
+  <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite;"></div>
+  <div style="font-size:.88rem;color:var(--text-3);font-family:'DM Sans',sans-serif;">Loading…</div>
+</div>
 
-            <!-- Expense Categories -->
-            <div class="categories-section">
-                <h3>
-                    <span style="color: var(--expense);">💸</span>
-                    Expense Categories
-                </h3>
-                <div class="category-pills" id="expensePills"></div>
-                <div class="custom-category">
-                    <input type="text" id="customExpense" placeholder="Add custom category">
-                    <input type="color" id="customExpenseColor" value="#FF6B6B">
-                    <button onclick="addCustomCategory('expense')" class="btn-secondary">+ Add</button>
-                </div>
-            </div>
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-            <!-- Actions -->
-            <div class="setup-actions">
-                <button onclick="skipSetup()" class="skip-btn">Skip for Now</button>
-                <button onclick="saveCategories()" class="btn-primary">Continue →</button>
-            </div>
-        </div>
+  .cs-wrap {
+    min-height: 100vh;
+    background: var(--bg-page);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 20px 60px;
+  }
+
+  .cs-card {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-xl);
+    padding: 40px 40px 36px;
+    width: 100%;
+    max-width: 680px;
+    box-shadow: var(--shadow-md);
+  }
+
+  .cs-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .cs-brand {
+    width: 52px; height: 52px;
+    border-radius: var(--r-md);
+    background: var(--ink);
+    color: var(--ink-fg);
+    font-size: 1.5rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .cs-header h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-1);
+    margin-bottom: 6px;
+    letter-spacing: -.02em;
+  }
+  .cs-header p {
+    font-size: .9rem;
+    color: var(--text-3);
+  }
+
+  .cs-section {
+    margin-bottom: 32px;
+  }
+  .cs-section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1.5px solid var(--border);
+  }
+  .cs-section-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .cs-section-head h3 {
+    font-size: .8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text-3);
+  }
+
+  /* Category rows — same style as manage categories modal */
+  .cs-cat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .cs-cat-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-subtle);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .cs-cat-item:hover {
+    border-color: var(--ink);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Circle color picker — same as manage categories */
+  .cat-color-wrap {
+    position: relative;
+    width: 28px; height: 28px;
+    flex-shrink: 0;
+  }
+  .cat-color-wrap input[type="color"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%; height: 100%;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+  }
+  .cat-color-swatch {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--border);
+    transition: box-shadow .15s, transform .15s;
+  }
+  .cat-color-wrap:hover .cat-color-swatch {
+    box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--ink);
+    transform: scale(1.12);
+  }
+
+  .cs-cat-name {
+    flex: 1;
+    font-size: .9rem;
+    font-weight: 500;
+    color: var(--text-1);
+  }
+  .cs-cat-remove {
+    font-family: inherit;
+    font-size: .78rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--r-sm);
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--red);
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+    flex-shrink: 0;
+  }
+  .cs-cat-remove:hover {
+    background: rgba(232,69,69,.1);
+    border-color: var(--red);
+  }
+
+  /* Add row */
+  .cs-add-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .cs-add-row input[type="text"] {
+    flex: 1;
+    min-width: 0;
+  }
+  /* Add color picker in add row */
+  .cs-add-color-wrap {
+    position: relative;
+    width: 40px; height: 40px;
+    flex-shrink: 0;
+  }
+  .cs-add-color-wrap input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: none; padding: 0;
+  }
+  .cs-add-color-swatch {
+    width: 40px; height: 40px;
+    border-radius: var(--r-md);
+    pointer-events: none;
+    border: 1.5px solid var(--border);
+    transition: transform .15s;
+  }
+  .cs-add-color-wrap:hover .cs-add-color-swatch { transform: scale(1.05); }
+
+  /* Footer actions */
+  .cs-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 36px;
+    padding-top: 24px;
+    border-top: 1.5px solid var(--border);
+  }
+  .cs-actions button { flex: 1; }
+
+  @media (max-width: 600px) {
+    .cs-card { padding: 28px 20px 24px; }
+    .cs-header h1 { font-size: 1.3rem; }
+  }
+</style>
+
+<div class="cs-wrap">
+  <div class="cs-card">
+
+    <div class="cs-header">
+      <div class="cs-brand">₹</div>
+      <h1>Setup Your Categories</h1>
+      <p>Choose what to track. You can always edit these later in Settings.</p>
     </div>
 
-    <!-- Loading Overlay -->
-    <div class="page-loader" id="pageLoader">
-        <div>
-            <div class="spinner"></div>
-            <div class="spinner-text">Saving...</div>
+    <!-- Expense Categories (shown first per user preference) -->
+    <div class="cs-section" id="sectionExpense">
+      <div class="cs-section-head">
+        <div class="cs-section-dot" style="background: var(--red)"></div>
+        <h3>Expense Categories</h3>
+      </div>
+      <div class="cs-cat-list" id="expenseList"></div>
+      <div class="cs-add-row">
+        <input type="text" id="newExpName" placeholder="Add expense category…" />
+        <div class="cs-add-color-wrap" title="Pick colour">
+          <input type="color" id="newExpColor" value="#E84545"
+                 oninput="document.getElementById('newExpSwatch').style.background=this.value" />
+          <span class="cs-add-color-swatch" id="newExpSwatch" style="background:#E84545"></span>
         </div>
+        <button class="btn btn-secondary" onclick="addCat('expense')">Add</button>
+      </div>
     </div>
 
-    <script type="module" src="firebase-config.js"></script>
-    <script type="module" src="category-setup.js"></script>
+    <!-- Income Categories -->
+    <div class="cs-section" id="sectionIncome">
+      <div class="cs-section-head">
+        <div class="cs-section-dot" style="background: var(--green)"></div>
+        <h3>Income Categories</h3>
+      </div>
+      <div class="cs-cat-list" id="incomeList"></div>
+      <div class="cs-add-row">
+        <input type="text" id="newIncName" placeholder="Add income category…" />
+        <div class="cs-add-color-wrap" title="Pick colour">
+          <input type="color" id="newIncColor" value="#0FA974"
+                 oninput="document.getElementById('newIncSwatch').style.background=this.value" />
+          <span class="cs-add-color-swatch" id="newIncSwatch" style="background:#0FA974"></span>
+        </div>
+        <button class="btn btn-secondary" onclick="addCat('income')">Add</button>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="cs-actions">
+      <button class="btn btn-secondary" onclick="skipSetup()">Skip for Now</button>
+      <button class="btn btn-primary"   onclick="saveAndContinue()" id="continueBtn">Continue →</button>
+    </div>
+
+  </div>
+</div>
+
+<script type="module" src="firebase-config.js"></script>
+<script type="module" src="category-setup.js"></script>
 </body>
 </html>

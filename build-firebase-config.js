@@ -95,9 +95,11 @@ window.where = where;
 // Export Auth functions
 window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
 window.signInWithEmailAndPassword = signInWithEmailAndPassword;
-window.signOutFirebase = signOut;
+window.fbSignOut = signOut;           // ← app.js calls window.fbSignOut()
+window.signOutFirebase = signOut;     // ← keep alias for backwards compat
 window.onAuthStateChanged = onAuthStateChanged;
 window.signInWithPopup = signInWithPopup;
+window.GoogleAuthProvider = GoogleAuthProvider;  // ← auth.js uses new window.GoogleAuthProvider()
 
 // Mark Firebase as initializing
 window.firebaseInitialized = false;
@@ -143,26 +145,23 @@ window.firebaseReady = new Promise((resolve) => {
 
 console.log('Firebase exports initialized, firebaseReady promise created');
 
-// CRITICAL FIX: Safety fallback - unlock page after 5 seconds if auth hasn't responded
+// CRITICAL FIX: Safety fallback — redirect to login after 4s if auth hasn't resolved
+// (Covers slow Firebase CDN loads, offline states, etc.)
 let authStateReceived = false;
 setTimeout(() => {
     if (!authStateReceived) {
-        console.warn('⚠️ Auth state not received after 5 seconds - unlocking page');
-        const html = document.documentElement;
-        if (html.classList.contains('page-locked')) {
-            html.classList.remove('page-locked');
+        console.warn('⚠️ Auth state not received after 4 seconds — redirecting to login');
+        const currentPage = window.location.pathname;
+        if (!currentPage.includes('login.html')) {
+            window.location.replace('login.html');
+        } else {
+            // Already on login, just unhide it
+            document.documentElement.classList.remove('page-locked');
             const loader = document.getElementById('pageLoader');
-            if (loader) loader.classList.remove('active');
-            
-            // Only show error if not on login page
-            const currentPage = window.location.pathname;
-            if (!currentPage.includes('login.html')) {
-                console.error('Firebase may have failed to initialize. Redirecting to login...');
-                window.location.href = 'login.html';
-            }
+            if (loader) loader.remove();
         }
     }
-}, 5000);
+}, 4000);
 
 // Auth state observer - redirects to appropriate page and protects routes
 let authInitialized = false;
