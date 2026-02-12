@@ -243,6 +243,15 @@ body {
 .nav-tab:hover { color: var(--text-1); background: var(--bg-subtle); }
 .nav-tab.active { background: var(--ink); color: var(--ink-fg); }
 
+.nav-rupee {
+  display: inline-block;
+  font-size: 1em;
+  font-weight: 700;
+  opacity: .85;
+  margin-right: 2px;
+  letter-spacing: 0;
+}
+
 /* ---------- PAGE HEADERS ---------- */
 
 .view-header { margin-bottom: 28px; }

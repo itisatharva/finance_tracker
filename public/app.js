@@ -377,10 +377,48 @@ function renderTxList() {
   });
 }
 
+// ─── Delete confirmation modal wiring ────────────────────────────────────────
+let _pendingDeleteId = null;
+
+(function wireDeleteModal() {
+  const bg          = document.getElementById('deleteModalBg');
+  const closeBtn    = document.getElementById('deleteModalClose');
+  const cancelBtn   = document.getElementById('deleteCancelBtn');
+  const confirmBtn  = document.getElementById('deleteConfirmBtn');
+  const noAskChk    = document.getElementById('deleteNoAsk');
+
+  function closeModal() {
+    bg.classList.remove('open');
+    _pendingDeleteId = null;
+  }
+
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+  bg.addEventListener('click', e => { if (e.target === bg) closeModal(); });
+
+  confirmBtn.addEventListener('click', async () => {
+    if (!_pendingDeleteId) return;
+    const id = _pendingDeleteId;
+    closeModal();
+    if (noAskChk.checked) {
+      localStorage.setItem('skipDeleteConfirm', '1');
+    }
+    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
+    vibrate();
+  });
+})();
+
 window.deleteTx = async function(id) {
-  if (!confirm('Delete this transaction?')) return;
-  await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
-  vibrate();
+  if (localStorage.getItem('skipDeleteConfirm') === '1') {
+    // Skip confirmation — delete directly
+    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
+    vibrate();
+    return;
+  }
+  // Show custom modal
+  _pendingDeleteId = id;
+  document.getElementById('deleteNoAsk').checked = false;
+  document.getElementById('deleteModalBg').classList.add('open');
 };
 
 window.openEditModal = function(id) {
