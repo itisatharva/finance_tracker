@@ -1,13 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" class="page-locked">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Finance Tracker</title>
-  <!-- Apply saved theme BEFORE styles load (no flash) -->
-  <script>
-    (function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light'); })();
-  </script>
+  <script>(function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light'); })();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet" />
@@ -16,19 +13,21 @@
 </head>
 <body>
 
-<!-- ─────────────────────────────────────────
-     SETTINGS BUTTON (⚙)
-     ───────────────────────────────────────── -->
+<!-- Page loader -->
+<div id="pageLoader" style="position:fixed;inset:0;background:var(--bg-page);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;">
+  <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite;"></div>
+  <div style="font-size:.9rem;color:var(--text-3);font-family:'DM Sans',sans-serif;">Loading…</div>
+</div>
+
+<!-- ⚙ Settings button -->
 <button class="btn-settings" id="btnSettings" aria-label="Settings">
-  <svg viewBox="0 0 24 24" stroke-width="1.8">
+  <svg viewBox="0 0 24 24" stroke-width="1.8" fill="none" stroke="currentColor">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
   </svg>
 </button>
 
-<!-- ─────────────────────────────────────────
-     SETTINGS DRAWER
-     ───────────────────────────────────────── -->
+<!-- Settings drawer backdrop -->
 <div class="settings-backdrop" id="settingsBackdrop"></div>
 <aside class="settings-drawer" id="settingsDrawer">
   <div class="settings-top">
@@ -37,7 +36,6 @@
   </div>
   <div class="settings-body">
 
-    <!-- Account -->
     <div class="settings-group">
       <h3>Account</h3>
       <div class="account-block">
@@ -46,25 +44,30 @@
       </div>
     </div>
 
-    <!-- Appearance -->
     <div class="settings-group">
       <h3>Appearance</h3>
       <button class="settings-row" onclick="toggleTheme()">
-        <span>Toggle Dark Mode</span>
-        <span class="row-icon">◑</span>
+        <span>Toggle Dark Mode</span><span class="row-icon">◑</span>
       </button>
     </div>
 
-    <!-- Categories -->
     <div class="settings-group">
-      <h3>Data</h3>
+      <h3>Starting Balance</h3>
+      <p style="font-size:.8rem;color:var(--text-3);margin-bottom:10px;line-height:1.5;">Set your bank starting balance. This is used as the base for Cash Flow calculations.</p>
+      <div class="settings-field">
+        <label style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);display:block;margin-bottom:6px;">Amount (₹)</label>
+        <input type="text" id="startingBalanceInput" placeholder="e.g. 10000" inputmode="decimal" style="margin-bottom:8px;" />
+        <button class="btn btn-secondary" id="saveStartingBalance" style="width:100%;">Save Balance</button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h3>Categories</h3>
       <button class="settings-row" id="btnOpenCats">
-        <span>Manage Categories</span>
-        <span class="row-icon">→</span>
+        <span>Manage Categories</span><span class="row-icon">→</span>
       </button>
     </div>
 
-    <!-- Sign Out -->
     <div class="settings-group">
       <h3>Session</h3>
       <button class="settings-row danger" id="btnSignOut">
@@ -75,56 +78,42 @@
   </div>
 </aside>
 
-<!-- ─────────────────────────────────────────
-     MAIN CONTENT
-     ───────────────────────────────────────── -->
+<!-- ── Main ─────────────────────────────────────────────────────────────────── -->
 <div class="container">
 
-  <!-- Top Nav -->
   <nav class="nav">
-    <button class="nav-tab active" id="tabDash" onclick="showView('dashboard')">Dashboard</button>
+    <button class="nav-tab active" id="tabDash"      onclick="showView('dashboard')">Dashboard</button>
     <button class="nav-tab"        id="tabAnalytics" onclick="showView('analytics')">Analytics</button>
   </nav>
 
-  <!-- ══════════════════════════════════════
-       DASHBOARD VIEW
-       ══════════════════════════════════════ -->
+  <!-- ══════════════ DASHBOARD ══════════════ -->
   <div id="viewDashboard">
+    <div class="view-header"><h1>Dashboard</h1></div>
 
-    <div class="view-header">
-      <h1>Dashboard</h1>
+    <div class="stats-row">
+      <div class="stat-card income">  <div class="lbl">Income</div>   <div class="val" id="sIncome">₹0</div></div>
+      <div class="stat-card expense"> <div class="lbl">Expenses</div>  <div class="val" id="sExpense">₹0</div></div>
+      <div class="stat-card">         <div class="lbl">Balance</div>   <div class="val" id="sBalance">₹0</div></div>
+      <div class="stat-card pending"> <div class="lbl">Pending</div>   <div class="val" id="sPending">₹0</div></div>
     </div>
 
-    <!-- Stats -->
-    <div class="stats-row" id="statsRow">
-      <div class="stat-card income">  <div class="lbl">Income</div>  <div class="val" id="sIncome">₹0</div></div>
-      <div class="stat-card expense"> <div class="lbl">Expenses</div> <div class="val" id="sExpense">₹0</div></div>
-      <div class="stat-card">         <div class="lbl">Balance</div>  <div class="val" id="sBalance">₹0</div></div>
-      <div class="stat-card pending"> <div class="lbl">Pending</div>  <div class="val" id="sPending">₹0</div></div>
-    </div>
-
-    <!-- Add Transaction -->
     <div class="dash-main">
       <div class="dash-left">
+        <!-- Add Transaction -->
         <div class="card">
           <h2>Add Transaction</h2>
           <form id="addTxForm">
             <div class="form-grid">
-              <div class="field">
-                <label>Date</label>
-                <input type="date" id="txDate" required />
-              </div>
+              <div class="field"><label>Date</label><input type="date" id="txDate" required /></div>
               <div class="field">
                 <label>Category</label>
-                <select id="txCategory" required>
-                  <option value="">Select category</option>
-                </select>
+                <select id="txCategory" required><option value="">Select category</option></select>
               </div>
             </div>
             <div class="form-grid">
               <div class="field">
                 <label>Amount (₹)</label>
-                <input type="number" id="txAmount" placeholder="0.00" step="0.01" min="0.01" required />
+                <input type="text" id="txAmount" placeholder="0.00" inputmode="decimal" required />
               </div>
               <div class="field">
                 <label>Note <span style="text-transform:none;letter-spacing:0;color:var(--text-3)">(optional)</span></label>
@@ -134,7 +123,7 @@
             <button type="submit" class="btn btn-primary w-full" id="addTxBtn" style="margin-top:4px;">
               <span id="addTxLabel">Add Transaction</span>
               <span id="addTxSpinner" class="btn-spinner hidden"></span>
-              <span id="addTxDone"   class="hidden">✓ Added!</span>
+              <span id="addTxDone" class="hidden">✓ Added!</span>
             </button>
           </form>
         </div>
@@ -143,148 +132,143 @@
         <div class="card">
           <h2>Pending Amounts</h2>
           <div class="pending-form">
-            <input type="text"   id="pendingName"   placeholder="Person / description" />
-            <input type="number" id="pendingAmt"    placeholder="Amount (₹)" step="0.01" min="0.01" />
+            <input type="text"   id="pendingName" placeholder="Person / description" />
+            <input type="text"   id="pendingAmt"  placeholder="Amount (₹)" inputmode="decimal" />
             <button class="btn btn-secondary" id="addPendingBtn">Add</button>
           </div>
-          <div class="pending-list" id="pendingList">
-            <div class="empty">No pending amounts</div>
-          </div>
+          <div class="pending-list" id="pendingList"><div class="empty">No pending amounts</div></div>
         </div>
-      </div><!-- /dash-left -->
+      </div>
 
       <div class="dash-right">
         <!-- Recent Transactions -->
         <div class="card">
           <h2>Recent Transactions</h2>
-          <div class="tx-list" id="txList">
-            <div class="empty">Loading…</div>
-          </div>
+          <div class="tx-list" id="txList"><div class="empty">Loading…</div></div>
         </div>
-      </div><!-- /dash-right -->
-    </div><!-- /dash-main -->
-
+      </div>
+    </div>
   </div><!-- /viewDashboard -->
 
-  <!-- ══════════════════════════════════════
-       ANALYTICS VIEW
-       ══════════════════════════════════════ -->
+  <!-- ══════════════ ANALYTICS ══════════════ -->
   <div id="viewAnalytics" class="hidden">
+    <div class="view-header"><h1>Analytics</h1></div>
 
-    <div class="view-header">
-      <h1>Analytics</h1>
-    </div>
-
-    <!-- Period tabs -->
     <div class="period-tabs">
-      <button class="period-tab active" id="ptDaily"   onclick="showPeriod('daily')">Daily</button>
-      <button class="period-tab"        id="ptMonthly" onclick="showPeriod('monthly')">Monthly</button>
-      <button class="period-tab"        id="ptYearly"  onclick="showPeriod('yearly')">Yearly</button>
+      <button class="period-tab active" id="ptDaily"     onclick="showPeriod('daily')">Daily</button>
+      <button class="period-tab"        id="ptMonthly"   onclick="showPeriod('monthly')">Monthly</button>
+      <button class="period-tab"        id="ptYearly"    onclick="showPeriod('yearly')">Yearly</button>
+      <button class="period-tab"        id="ptCashflow"  onclick="showPeriod('cashflow')">Cash Flow</button>
     </div>
 
-    <!-- ──────── DAILY ──────── -->
+    <!-- DAILY -->
     <div id="periodDaily">
       <div class="analytics-main">
         <div class="analytics-left">
-          <div class="date-row">
-            <label>Date</label>
-            <input type="date" id="dailyDate" />
-          </div>
-          <!-- Comparison -->
+          <div class="date-row"><label>Date</label><input type="date" id="dailyDate" /></div>
           <div class="cmp-card">
-            <div class="cmp-stat">
-              <div class="cmp-lbl">Selected Day</div>
-              <div class="cmp-val" id="cmpToday">₹0</div>
-            </div>
+            <div class="cmp-stat"><div class="cmp-lbl">Selected Day</div><div class="cmp-val" id="cmpToday">₹0</div></div>
             <div class="cmp-arrow" id="cmpArrow">→</div>
-            <div class="cmp-stat">
-              <div class="cmp-lbl">Previous Day</div>
-              <div class="cmp-val muted" id="cmpYesterday">₹0</div>
-            </div>
+            <div class="cmp-stat"><div class="cmp-lbl">Previous Day</div><div class="cmp-val muted" id="cmpYesterday">₹0</div></div>
             <div class="cmp-result" id="cmpResult">Select a date to see comparison</div>
           </div>
         </div>
         <div class="analytics-right">
-          <!-- Chart -->
-          <div class="chart-wrap" id="dailyChartWrap">
-            <div class="empty">No expenses for this day</div>
-          </div>
+          <div class="chart-wrap" id="dailyChartWrap"><div class="empty">No expenses for this day</div></div>
         </div>
       </div>
     </div>
 
-    <!-- ──────── MONTHLY ──────── -->
+    <!-- MONTHLY -->
     <div id="periodMonthly" class="hidden">
-      <div class="analytics-main">
+      <div class="date-row" style="margin-bottom:16px;"><label>Month</label><input type="month" id="monthlyDate" /></div>
+      <!-- Monthly income/expense summary -->
+      <div class="monthly-summary" id="monthlySummary">
+        <div class="ms-item ms-income">
+          <div class="ms-lbl">Month Income</div>
+          <div class="ms-val" id="msIncome">₹0</div>
+        </div>
+        <div class="ms-arrow">↓</div>
+        <div class="ms-item ms-expense">
+          <div class="ms-lbl">Month Expenses</div>
+          <div class="ms-val" id="msExpense">₹0</div>
+        </div>
+      </div>
+      <div class="analytics-main" style="margin-top:0;">
         <div class="analytics-left">
-          <div class="date-row">
-            <label>Month</label>
-            <input type="month" id="monthlyDate" />
-          </div>
-          <div class="chart-wrap" id="monthlyChartWrap">
-            <div class="empty">No expenses for this month</div>
-          </div>
+          <div class="chart-wrap" id="monthlyChartWrap"><div class="empty">No expenses for this month</div></div>
         </div>
         <div class="analytics-right">
           <div class="card">
             <h2>Category Breakdown</h2>
-            <div class="breakdown-list" id="breakdownList">
-              <div class="empty">No data</div>
-            </div>
+            <div class="breakdown-list" id="breakdownList"><div class="empty">No data</div></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ──────── YEARLY ──────── -->
+    <!-- YEARLY -->
     <div id="periodYearly" class="hidden">
-      <div class="date-row" style="margin-bottom:20px;">
-        <label>Year</label>
+      <div class="date-row" style="margin-bottom:20px;"><label>Year</label>
         <input type="number" id="yearlyYear" min="2000" max="2100" placeholder="2025" style="max-width:130px;" />
       </div>
       <div class="yearly-wrap">
-        <div class="yearly-title">Monthly Expenses</div>
+        <div class="yearly-title">Monthly Expenses by Category</div>
         <div class="yearly-scroll">
           <table class="yearly-tbl">
-            <thead>
-              <tr>
-                <th style="text-align:left">Category</th>
-                <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th>
-                <th>May</th><th>Jun</th><th>Jul</th><th>Aug</th>
-                <th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
-                <th class="total-col">Total</th>
-                <th class="avg-col">Average</th>
-              </tr>
-            </thead>
-            <tbody id="yearlyBody">
-              <tr><td colspan="15" class="empty">Enter a year above</td></tr>
-            </tbody>
+            <thead><tr>
+              <th style="text-align:left">Category</th>
+              <th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th>
+              <th>May</th><th>Jun</th><th>Jul</th><th>Aug</th>
+              <th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th>
+              <th class="total-col">Total</th><th class="avg-col">Avg/mo</th>
+            </tr></thead>
+            <tbody id="yearlyBody"><tr><td colspan="15" class="empty">Enter a year above</td></tr></tbody>
           </table>
         </div>
       </div>
     </div>
 
-  </div><!-- /viewAnalytics -->
+    <!-- CASH FLOW -->
+    <div id="periodCashflow" class="hidden">
+      <div class="date-row" style="margin-bottom:20px;"><label>Year</label>
+        <input type="number" id="cashflowYear" min="2000" max="2100" placeholder="2025" style="max-width:130px;" />
+      </div>
+      <div class="yearly-wrap">
+        <div class="yearly-title">Monthly Cash Flow</div>
+        <div class="yearly-scroll">
+          <table class="yearly-tbl cf-tbl">
+            <thead><tr>
+              <th style="text-align:left">Month</th>
+              <th class="cf-income">Income</th>
+              <th class="cf-expense">Expense</th>
+              <th>Net</th>
+              <th class="total-col">Balance</th>
+            </tr></thead>
+            <tbody id="cashflowBody"><tr><td colspan="5" class="empty">Enter a year above</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <p style="margin-top:12px;font-size:.8rem;color:var(--text-3);padding:0 4px;">
+        Balance rolls forward each month. Starting balance: <strong id="cfStartBal">₹0</strong>. Update it in Settings ⚙
+      </p>
+    </div>
 
+  </div><!-- /viewAnalytics -->
 </div><!-- /container -->
 
-<!-- ─────────────────────────────────────────
-     EDIT TRANSACTION MODAL
-     ───────────────────────────────────────── -->
+<!-- Edit Modal -->
 <div class="modal-backdrop" id="editModalBg">
   <div class="modal">
-    <div class="modal-head">
-      <h2>Edit Transaction</h2>
-      <button class="btn-close-settings" onclick="closeEditModal()">×</button>
-    </div>
+    <div class="modal-head"><h2>Edit Transaction</h2><button class="btn-close-settings" onclick="closeEditModal()">×</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="field"><label>Date</label>      <input type="date"   id="editDate" /></div>
-        <div class="field"><label>Category</label>  <select id="editCategory"><option value="">Select</option></select></div>
+        <div class="field"><label>Date</label><input type="date" id="editDate" /></div>
+        <div class="field"><label>Category</label><select id="editCategory"><option value="">Select</option></select></div>
       </div>
       <div class="form-grid" style="margin-top:14px;">
-        <div class="field"><label>Amount (₹)</label><input type="number" id="editAmount" step="0.01" /></div>
-        <div class="field"><label>Note</label>       <input type="text"   id="editNote" /></div>
+        <div class="field"><label>Amount (₹)</label><input type="text" id="editAmount" inputmode="decimal" /></div>
+        <div class="field"><label>Note</label><input type="text" id="editNote" /></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -294,28 +278,12 @@
   </div>
 </div>
 
-<!-- ─────────────────────────────────────────
-     CATEGORIES MODAL
-     ───────────────────────────────────────── -->
+<!-- Categories Modal -->
 <div class="modal-backdrop" id="catsModalBg">
   <div class="modal">
-    <div class="modal-head">
-      <h2>Manage Categories</h2>
-      <button class="btn-close-settings" onclick="closeCatsModal()">×</button>
-    </div>
+    <div class="modal-head"><h2>Manage Categories</h2><button class="btn-close-settings" onclick="closeCatsModal()">×</button></div>
     <div class="modal-body">
-      <p class="section-label" style="color:var(--green)">Income</p>
-      <div id="incomeList"></div>
-      <div class="add-cat-row">
-        <input type="text" id="newIncName" placeholder="Category name" />
-        <div class="add-cat-color-wrap" title="Pick color">
-          <input type="color" id="newIncColor" value="#0FA974" oninput="syncSwatch('newIncColor','newIncSwatch')">
-          <span class="add-cat-color-swatch" id="newIncSwatch" style="background:#0FA974"></span>
-        </div>
-        <button class="btn btn-secondary" onclick="addCat('income')">Add</button>
-      </div>
-
-      <p class="section-label" style="color:var(--red);margin-top:24px">Expense</p>
+      <p class="section-label" style="color:var(--red)">Expense</p>
       <div id="expenseList"></div>
       <div class="add-cat-row">
         <input type="text" id="newExpName" placeholder="Category name" />
@@ -325,17 +293,22 @@
         </div>
         <button class="btn btn-secondary" onclick="addCat('expense')">Add</button>
       </div>
+
+      <p class="section-label" style="color:var(--green);margin-top:24px">Income</p>
+      <div id="incomeList"></div>
+      <div class="add-cat-row">
+        <input type="text" id="newIncName" placeholder="Category name" />
+        <div class="add-cat-color-wrap" title="Pick color">
+          <input type="color" id="newIncColor" value="#0FA974" oninput="syncSwatch('newIncColor','newIncSwatch')">
+          <span class="add-cat-color-swatch" id="newIncSwatch" style="background:#0FA974"></span>
+        </div>
+        <button class="btn btn-secondary" onclick="addCat('income')">Add</button>
+      </div>
     </div>
-    <div class="modal-foot">
-      <button class="btn btn-primary" onclick="closeCatsModal()">Done</button>
-    </div>
+    <div class="modal-foot"><button class="btn btn-primary" onclick="closeCatsModal()">Done</button></div>
   </div>
 </div>
 
-<script>
-  // Apply theme script in-page (belt-and-suspenders)
-  (function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light'); })();
-</script>
 <script type="module" src="theme.js"></script>
 <script type="module" src="firebase-config.js"></script>
 <script type="module" src="app.js"></script>

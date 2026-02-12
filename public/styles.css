@@ -88,9 +88,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Page lock — hides content while auth resolves */
-html.page-locked body { visibility: hidden; }
-
 /* Import DM Sans */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
@@ -977,3 +974,161 @@ select:focus option { animation: fadeIn .1s ease; }
   .stats-row { grid-template-columns: 1fr; }
   .nav-tab { padding: 9px 18px; font-size: .85rem; }
 }
+
+/* =============================================
+   ADDITIONS — Auth cards, Monthly summary,
+   Cash Flow table, spinner removal
+   ============================================= */
+
+/* ---------- HIDE NUMBER SPINNERS ---------- */
+/* Removes the up/down arrows on number/text-number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* ---------- AUTH WRAP & CARDS ---------- */
+
+.auth-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  background: var(--bg-page);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Soft background pattern */
+.auth-wrap::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(15,169,116,.07) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(232,69,69,.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.auth-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 36px 32px 32px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  z-index: 1;
+  transition: transform .32s cubic-bezier(.4,0,.2,1), opacity .32s ease;
+}
+
+.auth-slide-out {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(40px) scale(.97);
+}
+
+.auth-brand {
+  width: 44px; height: 44px;
+  border-radius: var(--r-md);
+  background: var(--ink);
+  color: var(--ink-fg);
+  font-size: 1.4rem;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+}
+.join-brand { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
+
+.auth-card h1 {
+  font-size: 1.5rem; font-weight: 700; color: var(--text-1); margin-bottom: 4px; letter-spacing: -.02em;
+}
+.auth-sub { font-size: .88rem; color: var(--text-3); margin-bottom: 22px; }
+
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+
+.auth-btn {
+  margin-top: 6px;
+  font-size: .95rem;
+  padding: 13px 20px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background .2s, transform .15s, opacity .15s;
+}
+.auth-btn:hover { opacity: .88; transform: translateY(-1px); }
+.auth-btn:disabled { opacity: .7; transform: none; }
+
+.btn-join {
+  font-family: inherit;
+  font-weight: 700;
+  font-size: .95rem;
+  border-radius: var(--r-pill);
+  padding: 13px 24px;
+  cursor: pointer;
+  border: none;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  transition: opacity .15s, transform .15s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%;
+}
+.btn-join:hover { opacity: .9; transform: translateY(-1px); }
+.btn-join:disabled { opacity: .6; transform: none; }
+
+.auth-toggle {
+  margin-top: 18px;
+  text-align: center;
+  font-size: .85rem;
+  color: var(--text-3);
+}
+.auth-toggle a { color: var(--text-1); font-weight: 600; text-decoration: none; }
+.auth-toggle a:hover { text-decoration: underline; }
+
+.auth-err {
+  font-size: .84rem; color: var(--red);
+  background: rgba(232,69,69,.08);
+  border: 1px solid rgba(232,69,69,.2);
+  border-radius: var(--r-sm);
+  padding: 10px 14px; display: none; margin-bottom: 14px;
+}
+.auth-err.show { display: block; }
+
+.auth-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 16px 0; color: var(--text-3); font-size: .78rem;
+}
+.auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* ---------- MONTHLY SUMMARY ---------- */
+
+.monthly-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.ms-item { flex: 1; text-align: center; }
+.ms-lbl  { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-3); margin-bottom: 4px; }
+.ms-val  { font-size: 1.5rem; font-weight: 700; }
+.ms-income .ms-val  { color: var(--green); }
+.ms-expense .ms-val { color: var(--red); }
+.ms-arrow { font-size: 1.5rem; color: var(--text-3); flex-shrink: 0; }
+
+/* ---------- CASH FLOW TABLE COLOURS ---------- */
+
+.cf-tbl .cf-income  { color: var(--green) !important; font-weight: 600; }
+.cf-tbl .cf-expense { color: var(--red)   !important; font-weight: 600; }
+.cf-pos { color: var(--green) !important; font-weight: 700; }
+.cf-neg { color: var(--red)   !important; font-weight: 700; }
+.cf-empty-row td { color: var(--text-3) !important; font-style: italic; }
+.cf-tbl thead .cf-income  { color: var(--green) !important; }
+.cf-tbl thead .cf-expense { color: var(--red)   !important; }
+
+/* ---------- SETTINGS FIELD ---------- */
+.settings-field { padding: 4px 0; }

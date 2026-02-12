@@ -1,37 +1,39 @@
-// app.js — Finance Tracker main logic
+// app.js — Finance Tracker
 
-// ─── State ─────────────────────────────────────────────────────────────────
-let uid            = null;
-let transactions   = [];
-let pendingAmounts = [];
-let categories     = { income: [], expense: [] };
-let editTxId       = null;
-let activeView     = 'dashboard';
-let activePeriod   = 'daily';
-let dailyChartInst = null;
+// ─── State ───────────────────────────────────────────────────────────────────
+let uid             = null;
+let transactions    = [];
+let pendingAmounts  = [];
+let categories      = { income: [], expense: [] };
+let startingBalance = 0;
+let editTxId        = null;
+let activeView      = 'dashboard';
+let activePeriod    = 'daily';
+let dailyChartInst  = null;
 let monthlyChartInst = null;
 
-// ─── Init ───────────────────────────────────────────────────────────────────
+// ─── Init ────────────────────────────────────────────────────────────────────
 window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
-    if (!user) return; // firebase-config.js handles redirect
-
+    if (!user) return;
     uid = user.uid;
 
-    // Account info in settings
-    document.getElementById('acctEmail').textContent  = user.email;
+    // Account info
+    document.getElementById('acctEmail').textContent = user.email || '—';
     const ts = user.metadata.creationTime;
     if (ts) document.getElementById('acctJoined').textContent =
       new Date(ts).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
 
     // Default dates
     const today = new Date();
-    document.getElementById('txDate').valueAsDate   = today;
-    document.getElementById('dailyDate').value      = toInputDate(today);
-    document.getElementById('monthlyDate').value    = today.toISOString().slice(0,7);
-    document.getElementById('yearlyYear').value     = today.getFullYear();
+    document.getElementById('txDate').valueAsDate  = today;
+    document.getElementById('dailyDate').value     = toInputDate(today);
+    document.getElementById('monthlyDate').value   = today.toISOString().slice(0,7);
+    document.getElementById('yearlyYear').value    = today.getFullYear();
+    document.getElementById('cashflowYear').value  = today.getFullYear();
 
     await loadCategories();
+    await loadSettings();
     listenPending();
     listenTransactions();
     wireSettingsDrawer();
@@ -40,38 +42,60 @@ window.firebaseReady.then(() => {
   });
 });
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-function toInputDate(d) {
-  return d.toISOString().split('T')[0];
-}
-function toDate(v) {
-  return v && v.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v));
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function toInputDate(d) { return d.toISOString().split('T')[0]; }
+function toDate(v) { return v && v.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v)); }
 function fmt(n) {
-  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  const abs = Math.abs(n);
+  const str = '₹' + abs.toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  return n < 0 ? '-' + str : str;
 }
 function vibrate() { if (navigator.vibrate) navigator.vibrate(40); }
 
-// ─── Settings Drawer ────────────────────────────────────────────────────────
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ─── Settings Drawer ─────────────────────────────────────────────────────────
 function wireSettingsDrawer() {
-  const btn      = document.getElementById('btnSettings');
-  const backdrop = document.getElementById('settingsBackdrop');
-  const drawer   = document.getElementById('settingsDrawer');
-  const close    = document.getElementById('btnCloseSettings');
-  const signOut  = document.getElementById('btnSignOut');
-  const openCats = document.getElementById('btnOpenCats');
+  const btnOpen   = document.getElementById('btnSettings');
+  const backdrop  = document.getElementById('settingsBackdrop');
+  const drawer    = document.getElementById('settingsDrawer');
+  const btnClose  = document.getElementById('btnCloseSettings');
+  const btnOut    = document.getElementById('btnSignOut');
+  const btnCats   = document.getElementById('btnOpenCats');
+  const btnSaveBal= document.getElementById('saveStartingBalance');
+  const balInput  = document.getElementById('startingBalanceInput');
 
-  function open()  { drawer.classList.add('open'); backdrop.classList.add('open'); }
-  function close_() { drawer.classList.remove('open'); backdrop.classList.remove('open'); }
+  function openDrawer()  { drawer.classList.add('open'); backdrop.classList.add('open'); }
+  function closeDrawer() { drawer.classList.remove('open'); backdrop.classList.remove('open'); }
 
-  btn.addEventListener('click', open);
-  close.addEventListener('click', close_);
-  backdrop.addEventListener('click', close_);
-  signOut.addEventListener('click', async () => {
+  btnOpen.addEventListener('click', openDrawer);
+  btnClose.addEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', closeDrawer);
+
+  btnOut.addEventListener('click', async () => {
     if (!confirm('Sign out?')) return;
     await window.fbSignOut(window.auth).catch(console.error);
   });
-  openCats.addEventListener('click', () => { close_(); openCatsModal(); });
+
+  btnCats.addEventListener('click', () => { closeDrawer(); openCatsModal(); });
+
+  btnSaveBal.addEventListener('click', async () => {
+    const raw = balInput.value.replace(/,/g,'').trim();
+    const val = parseFloat(raw);
+    if (isNaN(val) || val < 0) { alert('Enter a valid starting balance (e.g. 10000)'); return; }
+    startingBalance = val;
+    await saveSettings();
+    renderStats();
+    if (activePeriod === 'cashflow') renderCashflow();
+    btnSaveBal.textContent = '✓ Saved!';
+    btnSaveBal.style.background = 'var(--green)';
+    btnSaveBal.style.color = '#fff';
+    setTimeout(() => {
+      btnSaveBal.textContent = 'Save Balance';
+      btnSaveBal.style.background = '';
+      btnSaveBal.style.color = '';
+    }, 2000);
+  });
 }
 
 // ─── View switching ──────────────────────────────────────────────────────────
@@ -84,26 +108,32 @@ window.showView = function(v) {
   if (v === 'analytics') refreshCurrentPeriod();
 };
 
-// ─── Period switching ────────────────────────────────────────────────────────
+// ─── Period switching ─────────────────────────────────────────────────────────
+const PERIODS = ['daily','monthly','yearly','cashflow'];
+
 window.showPeriod = function(p) {
   activePeriod = p;
-  ['daily','monthly','yearly'].forEach(id => {
-    document.getElementById('period' + id[0].toUpperCase() + id.slice(1)).classList.toggle('hidden', id !== p);
-    document.getElementById('pt' + id[0].toUpperCase() + id.slice(1)).classList.toggle('active', id === p);
+  PERIODS.forEach(id => {
+    const periodEl = document.getElementById('period' + cap(id));
+    const tabEl    = document.getElementById('pt' + cap(id));
+    if (periodEl) periodEl.classList.toggle('hidden', id !== p);
+    if (tabEl)    tabEl.classList.toggle('active', id === p);
   });
   refreshCurrentPeriod();
 };
 
+function cap(s) { return s[0].toUpperCase() + s.slice(1); }
+
 function refreshCurrentPeriod() {
-  if (activePeriod === 'daily')   renderDaily();
-  if (activePeriod === 'monthly') renderMonthly();
-  if (activePeriod === 'yearly')  renderYearly();
+  if (activePeriod === 'daily')    renderDaily();
+  if (activePeriod === 'monthly')  renderMonthly();
+  if (activePeriod === 'yearly')   renderYearly();
+  if (activePeriod === 'cashflow') renderCashflow();
 }
 
 // ─── Categories ──────────────────────────────────────────────────────────────
 async function loadCategories() {
-  const ref  = window.doc(window.db, 'users', uid, 'settings', 'categories');
-  const snap = await window.getDoc(ref);
+  const snap = await window.getDoc(window.doc(window.db, 'users', uid, 'settings', 'categories'));
   if (snap.exists()) {
     const d = snap.data();
     categories = { income: d.income||[], expense: d.expense||[] };
@@ -140,34 +170,45 @@ async function saveCategories() {
   );
 }
 
-function catName(c)  { return typeof c === 'string' ? c : c.name;  }
-function catColor(c) { return typeof c === 'string' ? '#999' : c.color; }
+// ─── General Settings ────────────────────────────────────────────────────────
+async function loadSettings() {
+  try {
+    const snap = await window.getDoc(window.doc(window.db, 'users', uid, 'settings', 'general'));
+    if (snap.exists()) startingBalance = Number(snap.data().startingBalance) || 0;
+    const inp = document.getElementById('startingBalanceInput');
+    if (inp) inp.value = startingBalance > 0 ? startingBalance : '';
+  } catch(e) { console.error('loadSettings', e); }
+}
+
+async function saveSettings() {
+  await window.setDoc(
+    window.doc(window.db, 'users', uid, 'settings', 'general'),
+    { startingBalance, updatedAt: window.serverTimestamp() }
+  );
+}
+
+// ─── Category helpers ─────────────────────────────────────────────────────────
+function catName(c)  { return typeof c === 'string' ? c : c.name; }
+function catColor(c) { return typeof c === 'string' ? '#999'  : c.color; }
 
 function catType(name) {
-  if (categories.income.some(c  => catName(c)  === name)) return 'income';
+  if (categories.income.some(c  => catName(c) === name)) return 'income';
   if (categories.expense.some(c => catName(c) === name)) return 'expense';
   return null;
 }
 
 function catColorByName(type, name) {
-  const list = categories[type] || [];
-  const found = list.find(c => catName(c) === name);
+  const found = (categories[type]||[]).find(c => catName(c) === name);
   return found ? catColor(found) : (type === 'income' ? '#0FA974' : '#E84545');
 }
 
+// Expense first, then Income — per user request
 function populateCategoryDropdowns() {
   ['txCategory', 'editCategory'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
     const prev = sel.value;
     sel.innerHTML = '<option value="">Select category</option>';
-
-    const ig = document.createElement('optgroup');
-    ig.label = 'Income';
-    categories.income.forEach(c => {
-      const o = document.createElement('option'); o.value = catName(c); o.textContent = catName(c); ig.appendChild(o);
-    });
-    sel.appendChild(ig);
 
     const eg = document.createElement('optgroup');
     eg.label = 'Expense';
@@ -176,11 +217,18 @@ function populateCategoryDropdowns() {
     });
     sel.appendChild(eg);
 
+    const ig = document.createElement('optgroup');
+    ig.label = 'Income';
+    categories.income.forEach(c => {
+      const o = document.createElement('option'); o.value = catName(c); o.textContent = catName(c); ig.appendChild(o);
+    });
+    sel.appendChild(ig);
+
     if (prev) sel.value = prev;
   });
 }
 
-// Categories modal
+// ─── Categories Modal ────────────────────────────────────────────────────────
 window.openCatsModal = function() {
   renderCatLists();
   document.getElementById('catsModalBg').classList.add('open');
@@ -200,23 +248,17 @@ window.addCat = async function(type) {
   nameEl.value = '';
 };
 window.removeCat = async function(type, idx) {
-  if (!confirm('Remove category?')) return;
+  if (!confirm('Remove this category?')) return;
   categories[type].splice(idx, 1);
   await saveCategories();
   renderCatLists();
 };
 window.syncSwatch = function(inputId, swatchId) {
-  const color = document.getElementById(inputId).value;
-  document.getElementById(swatchId).style.background = color;
+  document.getElementById(swatchId).style.background = document.getElementById(inputId).value;
 };
-
 window.updateCatColor = async function(type, idx, color) {
-  if (typeof categories[type][idx] === 'string') {
-    categories[type][idx] = { name: categories[type][idx], color };
-  } else {
-    categories[type][idx].color = color;
-  }
-  // Live-update the swatch without full re-render
+  if (typeof categories[type][idx] === 'string') categories[type][idx] = { name: categories[type][idx], color };
+  else categories[type][idx].color = color;
   const listEl = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
   const swatch = listEl.querySelectorAll('.cat-color-swatch')[idx];
   if (swatch) swatch.style.background = color;
@@ -244,7 +286,7 @@ function renderCatLists() {
   });
 }
 
-// ─── Transactions ────────────────────────────────────────────────────────────
+// ─── Transactions ─────────────────────────────────────────────────────────────
 function listenTransactions() {
   const q = window.query(
     window.collection(window.db, 'users', uid, 'transactions'),
@@ -261,19 +303,17 @@ function listenTransactions() {
 function wireAddTxForm() {
   document.getElementById('addTxForm').addEventListener('submit', async e => {
     e.preventDefault();
-
     const category = document.getElementById('txCategory').value;
-    const amount   = parseFloat(document.getElementById('txAmount').value);
+    const raw      = document.getElementById('txAmount').value.replace(/,/g,'').trim();
+    const amount   = parseFloat(raw);
     const dateVal  = document.getElementById('txDate').value;
     const note     = document.getElementById('txNote').value.trim();
 
     if (!category) { alert('Please select a category'); return; }
     if (!amount || amount <= 0) { alert('Please enter a valid amount'); return; }
-
     const type = catType(category);
     if (!type) { alert('Unknown category — please re-select'); return; }
 
-    // Show loading state
     const btn     = document.getElementById('addTxBtn');
     const label   = document.getElementById('addTxLabel');
     const spinner = document.getElementById('addTxSpinner');
@@ -286,28 +326,16 @@ function wireAddTxForm() {
     try {
       await window.addDoc(
         window.collection(window.db, 'users', uid, 'transactions'),
-        {
-          type,
-          category,
-          amount,
-          description: note,
-          selectedDate: new Date(dateVal),
-          createdAt: window.serverTimestamp()
-        }
+        { type, category, amount, description: note, selectedDate: new Date(dateVal), createdAt: window.serverTimestamp() }
       );
-
-      // Success state
       spinner.classList.add('hidden');
       done.classList.remove('hidden');
       btn.style.background = 'var(--green)';
       vibrate();
-
-      // Reset form
-      document.getElementById('txAmount').value   = '';
-      document.getElementById('txNote').value     = '';
+      document.getElementById('txAmount').value = '';
+      document.getElementById('txNote').value   = '';
       document.getElementById('txCategory').value = '';
       document.getElementById('txDate').valueAsDate = new Date();
-
       setTimeout(() => {
         done.classList.add('hidden');
         label.classList.remove('hidden');
@@ -316,7 +344,7 @@ function wireAddTxForm() {
       }, 2000);
     } catch (err) {
       console.error(err);
-      alert('Failed to save transaction.');
+      alert('Failed to save — check your connection.');
       spinner.classList.add('hidden');
       label.classList.remove('hidden');
       btn.disabled = false;
@@ -326,21 +354,16 @@ function wireAddTxForm() {
 
 function renderTxList() {
   const el = document.getElementById('txList');
-  if (!transactions.length) {
-    el.innerHTML = '<div class="empty">No transactions yet</div>';
-    return;
-  }
+  if (!transactions.length) { el.innerHTML = '<div class="empty">No transactions yet</div>'; return; }
   el.innerHTML = '';
-  transactions.slice(0, 15).forEach(tx => {
+  transactions.slice(0, 20).forEach(tx => {
     const d     = toDate(tx.selectedDate);
     const color = catColorByName(tx.type, tx.category);
-    const div = document.createElement('div');
+    const div   = document.createElement('div');
     div.className = 'tx-item';
     div.innerHTML = `
       <div class="tx-meta">
-        <div class="tx-cat">
-          <span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span>
-        </div>
+        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
         ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
         <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
       </div>
@@ -371,46 +394,44 @@ window.openEditModal = function(id) {
   document.getElementById('editNote').value     = tx.description || '';
   document.getElementById('editModalBg').classList.add('open');
 };
-
 window.closeEditModal = function() {
   document.getElementById('editModalBg').classList.remove('open');
   editTxId = null;
 };
-
 window.saveEdit = async function() {
   const category = document.getElementById('editCategory').value;
-  const amount   = parseFloat(document.getElementById('editAmount').value);
+  const rawAmt   = document.getElementById('editAmount').value.replace(/,/g,'').trim();
+  const amount   = parseFloat(rawAmt);
   const dateVal  = document.getElementById('editDate').value;
   const note     = document.getElementById('editNote').value.trim();
   const type     = catType(category);
-
-  if (!category || !amount || !dateVal || !type) {
-    alert('Please fill all fields');
-    return;
-  }
+  if (!category || !amount || !dateVal || !type) { alert('Please fill all fields'); return; }
   await window.setDoc(
     window.doc(window.db, 'users', uid, 'transactions', editTxId),
     { type, category, amount, description: note, selectedDate: new Date(dateVal), updatedAt: window.serverTimestamp() },
     { merge: true }
   );
-  closeEditModal();
-  vibrate();
+  closeEditModal(); vibrate();
 };
 
-// ─── Stats ───────────────────────────────────────────────────────────────────
+// ─── Stats (all-time) ─────────────────────────────────────────────────────────
 function renderStats() {
   const income  = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const pending = pendingAmounts.reduce((s,p)=>s+p.amount,0);
-  const balance = income - expense - pending;
+  const balance = startingBalance + income - expense;
 
   document.getElementById('sIncome').textContent  = fmt(income);
   document.getElementById('sExpense').textContent = fmt(expense);
   document.getElementById('sBalance').textContent = fmt(balance);
   document.getElementById('sPending').textContent = fmt(pending);
+
+  // Update cash flow starting balance label
+  const cfEl = document.getElementById('cfStartBal');
+  if (cfEl) cfEl.textContent = fmt(startingBalance);
 }
 
-// ─── Pending Amounts ─────────────────────────────────────────────────────────
+// ─── Pending Amounts ──────────────────────────────────────────────────────────
 function listenPending() {
   const q = window.query(
     window.collection(window.db, 'users', uid, 'pending'),
@@ -426,8 +447,9 @@ function listenPending() {
 function wireAddPending() {
   document.getElementById('addPendingBtn').addEventListener('click', async () => {
     const name   = document.getElementById('pendingName').value.trim();
-    const amount = parseFloat(document.getElementById('pendingAmt').value);
-    if (!name || !amount || amount <= 0) { alert('Enter name and amount'); return; }
+    const raw    = document.getElementById('pendingAmt').value.replace(/,/g,'').trim();
+    const amount = parseFloat(raw);
+    if (!name || !amount || amount <= 0) { alert('Enter a name and amount'); return; }
     await window.addDoc(
       window.collection(window.db, 'users', uid, 'pending'),
       { name, amount, createdAt: window.serverTimestamp() }
@@ -440,10 +462,7 @@ function wireAddPending() {
 
 function renderPendingList() {
   const el = document.getElementById('pendingList');
-  if (!pendingAmounts.length) {
-    el.innerHTML = '<div class="empty">No pending amounts</div>';
-    return;
-  }
+  if (!pendingAmounts.length) { el.innerHTML = '<div class="empty">No pending amounts</div>'; return; }
   el.innerHTML = '';
   pendingAmounts.forEach(p => {
     const div = document.createElement('div');
@@ -462,23 +481,15 @@ window.clearPending = async function(id) {
   vibrate();
 };
 
-// ─── Analytics: Daily ────────────────────────────────────────────────────────
+// ─── Analytics: Daily ─────────────────────────────────────────────────────────
 function renderDaily() {
   const dateVal = document.getElementById('dailyDate').value;
   if (!dateVal) return;
-
   const sel  = new Date(dateVal);
   const prev = new Date(sel); prev.setDate(prev.getDate() - 1);
 
-  const selExp = transactions.filter(t => {
-    const d = toDate(t.selectedDate);
-    return t.type === 'expense' && d.toDateString() === sel.toDateString();
-  });
-  const prevExp = transactions.filter(t => {
-    const d = toDate(t.selectedDate);
-    return t.type === 'expense' && d.toDateString() === prev.toDateString();
-  });
-
+  const selExp  = transactions.filter(t => t.type==='expense' && toDate(t.selectedDate).toDateString()===sel.toDateString());
+  const prevExp = transactions.filter(t => t.type==='expense' && toDate(t.selectedDate).toDateString()===prev.toDateString());
   const selTotal  = selExp.reduce((s,t)=>s+t.amount,0);
   const prevTotal = prevExp.reduce((s,t)=>s+t.amount,0);
 
@@ -488,106 +499,76 @@ function renderDaily() {
   const diff = selTotal - prevTotal;
   const resultEl = document.getElementById('cmpResult');
   const arrowEl  = document.getElementById('cmpArrow');
-
   if (diff > 0) {
-    resultEl.textContent = `${fmt(diff)} more than the previous day`;
-    resultEl.className = 'cmp-result neg';
-    arrowEl.textContent = '↑';
-    arrowEl.className = 'cmp-arrow up';
+    resultEl.textContent = `${fmt(diff)} more than previous day`; resultEl.className='cmp-result neg';
+    arrowEl.textContent = '↑'; arrowEl.className = 'cmp-arrow up';
   } else if (diff < 0) {
-    resultEl.textContent = `${fmt(Math.abs(diff))} less than the previous day`;
-    resultEl.className = 'cmp-result pos';
-    arrowEl.textContent = '↓';
-    arrowEl.className = 'cmp-arrow down';
+    resultEl.textContent = `${fmt(Math.abs(diff))} less than previous day`; resultEl.className='cmp-result pos';
+    arrowEl.textContent = '↓'; arrowEl.className = 'cmp-arrow down';
   } else {
-    resultEl.textContent = selTotal === 0 ? 'No spending on either day' : 'Same as previous day';
-    resultEl.className = 'cmp-result';
-    arrowEl.textContent = '=';
-    arrowEl.className = 'cmp-arrow flat';
+    resultEl.textContent = selTotal===0?'No spending on either day':'Same as previous day'; resultEl.className='cmp-result';
+    arrowEl.textContent = '='; arrowEl.className='cmp-arrow flat';
   }
-
   renderPieChart('dailyChartWrap', selExp, 'dailyChart', dailyChartInst, inst => dailyChartInst = inst);
 }
-
 document.getElementById('dailyDate').addEventListener('change', renderDaily);
 
-// ─── Analytics: Monthly ──────────────────────────────────────────────────────
+// ─── Analytics: Monthly ───────────────────────────────────────────────────────
 function renderMonthly() {
   const val = document.getElementById('monthlyDate').value;
   if (!val) return;
   const [y, m] = val.split('-').map(Number);
 
-  const monthExp = transactions.filter(t => {
+  const monthTx  = transactions.filter(t => {
     const d = toDate(t.selectedDate);
-    return t.type === 'expense' && d.getFullYear() === y && d.getMonth() === m - 1;
+    return d.getFullYear()===y && d.getMonth()===m-1;
   });
+  const monthInc = monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const monthExp = monthTx.filter(t=>t.type==='expense');
+  const monthExpTotal = monthExp.reduce((s,t)=>s+t.amount,0);
+
+  // Update summary badges
+  document.getElementById('msIncome').textContent  = fmt(monthInc);
+  document.getElementById('msExpense').textContent = fmt(monthExpTotal);
 
   renderPieChart('monthlyChartWrap', monthExp, 'monthlyChart', monthlyChartInst, inst => monthlyChartInst = inst);
 
-  // Breakdown list
-  const totals = {};
-  const colors = {};
+  // Category breakdown
+  const totals = {}; const colors = {};
   monthExp.forEach(t => {
-    totals[t.category] = (totals[t.category] || 0) + t.amount;
+    totals[t.category] = (totals[t.category]||0) + t.amount;
     colors[t.category] = catColorByName('expense', t.category);
   });
-
   const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   const el = document.getElementById('breakdownList');
-
-  if (!sorted.length) {
-    el.innerHTML = '<div class="empty">No expenses this month</div>';
-    return;
-  }
+  if (!sorted.length) { el.innerHTML='<div class="empty">No expenses this month</div>'; return; }
   el.innerHTML = '';
   sorted.forEach(([name, amt]) => {
     const div = document.createElement('div');
     div.className = 'breakdown-item';
     div.innerHTML = `
-      <div class="b-name">
-        <div class="b-dot" style="background:${colors[name]}"></div>
-        ${name}
-      </div>
+      <div class="b-name"><div class="b-dot" style="background:${colors[name]}"></div>${name}</div>
       <div class="b-amt">${fmt(amt)}</div>
     `;
     el.appendChild(div);
   });
 }
-
 document.getElementById('monthlyDate').addEventListener('change', renderMonthly);
 
 // ─── Analytics: Yearly ───────────────────────────────────────────────────────
 function renderYearly() {
   const year = parseInt(document.getElementById('yearlyYear').value);
   if (!year) return;
-
-  const yearlyExp = transactions.filter(t => {
-    const d = toDate(t.selectedDate);
-    return t.type === 'expense' && d.getFullYear() === year;
-  });
-
-  // Collect all expense categories
-  const catSet = new Set();
-  yearlyExp.forEach(t => catSet.add(t.category));
-
+  const yearlyExp = transactions.filter(t => t.type==='expense' && toDate(t.selectedDate).getFullYear()===year);
+  const catSet = new Set(); yearlyExp.forEach(t => catSet.add(t.category));
   if (!catSet.size) {
-    document.getElementById('yearlyBody').innerHTML =
-      '<tr><td colspan="15" class="empty">No expense data for ' + year + '</td></tr>';
+    document.getElementById('yearlyBody').innerHTML = `<tr><td colspan="15" class="empty">No expense data for ${year}</td></tr>`;
     return;
   }
-
-  // Build data: {category: [jan..dec]}
   const data = {};
   catSet.forEach(c => { data[c] = Array(12).fill(0); });
-  yearlyExp.forEach(t => {
-    const m = toDate(t.selectedDate).getMonth();
-    data[t.category][m] += t.amount;
-  });
-
-  // Sort categories by annual total desc
-  const sorted = Object.keys(data).sort((a,b) =>
-    data[b].reduce((s,v)=>s+v,0) - data[a].reduce((s,v)=>s+v,0)
-  );
+  yearlyExp.forEach(t => { data[t.category][toDate(t.selectedDate).getMonth()] += t.amount; });
+  const sorted = Object.keys(data).sort((a,b) => data[b].reduce((s,v)=>s+v,0) - data[a].reduce((s,v)=>s+v,0));
 
   const tbody = document.getElementById('yearlyBody');
   tbody.innerHTML = '';
@@ -596,41 +577,81 @@ function renderYearly() {
     const total  = months.reduce((s,v)=>s+v,0);
     const avg    = total / 12;
     const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${cat}</td>${months.map(v=>`<td>${v>0?fmt(v):'—'}</td>`).join('')}<td class="total-col">${fmt(total)}</td><td class="avg-col">${fmt(avg)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById('yearlyYear').addEventListener('change', renderYearly);
+
+// ─── Analytics: Cash Flow ────────────────────────────────────────────────────
+// Income - Expense per month, carrying balance forward from startingBalance
+function renderCashflow() {
+  const year = parseInt(document.getElementById('cashflowYear').value);
+  if (!year) return;
+
+  const yearTx = transactions.filter(t => toDate(t.selectedDate).getFullYear() === year);
+
+  // Build monthly income + expense
+  const monthInc = Array(12).fill(0);
+  const monthExp = Array(12).fill(0);
+  yearTx.forEach(t => {
+    const mo = toDate(t.selectedDate).getMonth();
+    if (t.type === 'income')  monthInc[mo] += t.amount;
+    if (t.type === 'expense') monthExp[mo] += t.amount;
+  });
+
+  // Also check if there are any months with data at all
+  const hasData = monthInc.some(v=>v>0) || monthExp.some(v=>v>0);
+  if (!hasData) {
+    document.getElementById('cashflowBody').innerHTML =
+      `<tr><td colspan="5" class="empty">No data for ${year}</td></tr>`;
+    return;
+  }
+
+  // Rolling balance: starts with startingBalance, carries month-to-month
+  const tbody = document.getElementById('cashflowBody');
+  tbody.innerHTML = '';
+  let runningBalance = startingBalance;
+
+  MONTHS.forEach((mo, i) => {
+    const inc = monthInc[i];
+    const exp = monthExp[i];
+    const net = inc - exp;
+    runningBalance += net;
+
+    const netClass   = net >= 0 ? 'cf-pos' : 'cf-neg';
+    const balClass   = runningBalance >= 0 ? 'cf-pos' : 'cf-neg';
+    const netSign    = net >= 0 ? '+' : '';
+    const balSign    = runningBalance >= 0 ? '' : '';
+
+    const tr = document.createElement('tr');
+    tr.className = (inc===0 && exp===0) ? 'cf-empty-row' : '';
     tr.innerHTML = `
-      <td>${cat}</td>
-      ${months.map(v=>`<td>${fmt(v)}</td>`).join('')}
-      <td class="total-col">${fmt(total)}</td>
-      <td class="avg-col">${fmt(avg)}</td>
+      <td style="text-align:left;font-weight:600">${mo} ${year}</td>
+      <td class="cf-income">${inc > 0 ? fmt(inc) : '—'}</td>
+      <td class="cf-expense">${exp > 0 ? fmt(exp) : '—'}</td>
+      <td class="${netClass}">${inc===0&&exp===0 ? '—' : netSign + fmt(net)}</td>
+      <td class="total-col ${balClass}">${fmt(runningBalance)}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
-document.getElementById('yearlyYear').addEventListener('change', renderYearly);
+document.getElementById('cashflowYear').addEventListener('change', renderCashflow);
 
-// ─── Shared Chart Renderer ────────────────────────────────────────────────────
+// ─── Shared Pie/Doughnut chart ────────────────────────────────────────────────
 function renderPieChart(wrapId, expenses, chartId, existingInst, setInst) {
   const wrap = document.getElementById(wrapId);
-
   if (existingInst) { existingInst.destroy(); setInst(null); }
+  if (!expenses.length) { wrap.innerHTML='<div class="empty">No expenses for this period</div>'; return; }
 
-  if (!expenses.length) {
-    wrap.innerHTML = '<div class="empty">No expenses for this period</div>';
-    return;
-  }
-
-  const totals = {};
-  const colors = {};
+  const totals = {}; const colors = {};
   expenses.forEach(t => {
-    totals[t.category] = (totals[t.category] || 0) + t.amount;
+    totals[t.category] = (totals[t.category]||0) + t.amount;
     colors[t.category] = catColorByName('expense', t.category);
   });
-
   wrap.innerHTML = `<canvas id="${chartId}"></canvas>`;
-
-  const textColor = getComputedStyle(document.documentElement)
-    .getPropertyValue('--text-2').trim() || '#666';
-
+  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-2').trim()||'#666';
   const inst = new Chart(document.getElementById(chartId).getContext('2d'), {
     type: 'doughnut',
     data: {
@@ -638,26 +659,16 @@ function renderPieChart(wrapId, expenses, chartId, existingInst, setInst) {
       datasets: [{ data: Object.values(totals), backgroundColor: Object.values(colors), borderWidth: 2, borderColor: 'transparent' }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { padding: 16, font: { size: 13, family: 'DM Sans, sans-serif' }, color: textColor }
-        },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
-              const pct   = ((ctx.parsed/total)*100).toFixed(1);
-              return ` ${ctx.label}: ${fmt(ctx.parsed)} (${pct}%)`;
-            }
-          }
-        }
+        legend: { position:'bottom', labels:{ padding:16, font:{size:13,family:'DM Sans, sans-serif'}, color:textColor } },
+        tooltip: { callbacks: { label: ctx => {
+          const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+          return ` ${ctx.label}: ${fmt(ctx.parsed)} (${((ctx.parsed/total)*100).toFixed(1)}%)`;
+        }}}
       },
       cutout: '62%'
     }
   });
-
   setInst(inst);
 }
