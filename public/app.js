@@ -454,10 +454,19 @@ window.saveEdit = async function() {
 
 // ─── Stats (all-time) ─────────────────────────────────────────────────────────
 function renderStats() {
-  const income  = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
-  const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const now = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth();
+  const monthTx = transactions.filter(t => {
+    const d = toDate(t.selectedDate || t.createdAt);
+    return d.getFullYear() === curY && d.getMonth() === curM;
+  });
+  const income  = monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const expense = monthTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const pending = pendingAmounts.reduce((s,p)=>s+p.amount,0);
-  const balance = startingBalance + income - expense;
+  const allIncome  = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const allExpense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  const balance = startingBalance + allIncome - allExpense - pending;
 
   document.getElementById('sIncome').textContent  = fmt(income);
   document.getElementById('sExpense').textContent = fmt(expense);

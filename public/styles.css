@@ -1049,7 +1049,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   display: flex; align-items: center; justify-content: center;
   margin-bottom: 16px;
 }
-.join-brand { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: #fff; }
+.join-brand { /* removed purple gradient — now matches auth-brand */ }
 
 .auth-card h1 {
   font-size: 1.5rem; font-weight: 700; color: var(--text-1); margin-bottom: 4px; letter-spacing: -.02em;

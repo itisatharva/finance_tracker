@@ -1,8 +1,5 @@
-// category-setup.js
-// NOTE: ES modules are deferred — DOM is ALWAYS ready when this runs.
-// NEVER use document.addEventListener('DOMContentLoaded', ...) here.
+// ES module — DOM is always ready. Never use DOMContentLoaded here.
 
-// ── Default categories (match app.js defaults) ─────────────────────────────
 const DEFAULTS = {
   expense: [
     { name: 'Food & Dining',    color: '#E84545' },
@@ -25,40 +22,36 @@ const DEFAULTS = {
   ],
 };
 
-// ── Working state (start with defaults) ───────────────────────────────────
 const cats = {
   expense: DEFAULTS.expense.map(c => ({ ...c })),
   income:  DEFAULTS.income.map(c => ({ ...c })),
 };
 
-// ── Render both lists ──────────────────────────────────────────────────────
 function renderLists() {
   ['expense', 'income'].forEach(type => {
     const el = document.getElementById(type === 'expense' ? 'expenseList' : 'incomeList');
     el.innerHTML = '';
     cats[type].forEach((cat, i) => {
-      const row = document.createElement('div');
-      row.className = 'cs-cat-item';
-      row.innerHTML = `
+      const div = document.createElement('div');
+      div.className = 'cat-item';
+      div.innerHTML = `
         <div class="cat-color-wrap" title="Click to change colour">
-          <input type="color" value="${cat.color}"
-                 oninput="updateColor('${type}',${i},this.value)">
+          <input type="color" value="${cat.color}" oninput="updateColor('${type}',${i},this.value)">
           <span class="cat-color-swatch" style="background:${cat.color}"></span>
         </div>
-        <span class="cs-cat-name">${cat.name}</span>
-        <button class="cs-cat-remove" onclick="removeCat('${type}',${i})">Remove</button>
+        <span class="cat-name">${cat.name}</span>
+        <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
       `;
-      el.appendChild(row);
+      el.appendChild(div);
     });
   });
 }
 
-// ── Window-exposed helpers (used by onclick in HTML) ──────────────────────
 window.updateColor = function(type, idx, color) {
   cats[type][idx].color = color;
   const list = document.getElementById(type === 'expense' ? 'expenseList' : 'incomeList');
-  const swatch = list.querySelectorAll('.cat-color-swatch')[idx];
-  if (swatch) swatch.style.background = color;
+  const swatches = list.querySelectorAll('.cat-color-swatch');
+  if (swatches[idx]) swatches[idx].style.background = color;
 };
 
 window.removeCat = function(type, idx) {
@@ -69,45 +62,30 @@ window.removeCat = function(type, idx) {
 window.addCat = function(type) {
   const nameId  = type === 'expense' ? 'newExpName'  : 'newIncName';
   const colorId = type === 'expense' ? 'newExpColor' : 'newIncColor';
-  const name  = document.getElementById(nameId).value.trim();
-  const color = document.getElementById(colorId).value;
-  if (!name) {
-    document.getElementById(nameId).focus();
-    return;
-  }
+  const name    = document.getElementById(nameId).value.trim();
+  const color   = document.getElementById(colorId).value;
+  if (!name) { document.getElementById(nameId).focus(); return; }
   cats[type].push({ name, color });
   renderLists();
   document.getElementById(nameId).value = '';
 };
 
-// Enter key in name inputs triggers add
-document.getElementById('newExpName').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); window.addCat('expense'); }
-});
-document.getElementById('newIncName').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); window.addCat('income'); }
-});
-
-// ── Save & Continue ────────────────────────────────────────────────────────
 window.saveAndContinue = async function() {
-  if (cats.expense.length === 0 && cats.income.length === 0) {
-    alert('Please add at least one category to continue.');
+  if (!cats.expense.length && !cats.income.length) {
+    alert('Please add at least one category.');
     return;
   }
   await persist(cats.expense, cats.income);
 };
 
-// ── Skip — save defaults without waiting ──────────────────────────────────
 window.skipSetup = async function() {
   await persist(DEFAULTS.expense, DEFAULTS.income);
 };
 
-// ── Persist to Firestore + redirect ──────────────────────────────────────
 async function persist(expenseList, incomeList) {
   const btn = document.getElementById('continueBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
 
-  // Wait until auth + firestore are ready (firebase-config.js resolves this instantly)
   let attempts = 0;
   while (!(window.auth && window.auth.currentUser && window.setDoc && window.db)) {
     if (++attempts > 100) { alert('Firebase not ready — please reload.'); return; }
@@ -115,23 +93,25 @@ async function persist(expenseList, incomeList) {
   }
 
   try {
-    const user = window.auth.currentUser;
+    const uid = window.auth.currentUser.uid;
     await window.setDoc(
-      window.doc(window.db, 'users', user.uid, 'settings', 'categories'),
-      {
-        income:  incomeList,
-        expense: expenseList,
-        setupCompleted: true,
-        createdAt: window.serverTimestamp(),
-      }
+      window.doc(window.db, 'users', uid, 'settings', 'categories'),
+      { income: incomeList, expense: expenseList, setupCompleted: true, createdAt: window.serverTimestamp() }
     );
+    window._authHandled = true;
     window.location.replace('index.html');
-  } catch (err) {
-    console.error('saveCategories:', err);
-    alert('Could not save categories: ' + err.message);
+  } catch (e) {
+    console.error('category-setup save failed:', e);
+    alert('Could not save: ' + e.message);
     if (btn) { btn.disabled = false; btn.textContent = 'Continue →'; }
   }
 }
 
-// ── Boot: render lists immediately (DOM is ready in ES modules) ───────────
+document.getElementById('newExpName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); window.addCat('expense'); }
+});
+document.getElementById('newIncName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); window.addCat('income'); }
+});
+
 renderLists();
