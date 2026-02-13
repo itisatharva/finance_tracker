@@ -84,8 +84,9 @@
 <div class="container">
 
   <nav class="nav">
-    <button class="nav-tab active" id="tabDash"      onclick="showView('dashboard')"><span class="nav-rupee">₹</span> Dashboard</button>
-    <button class="nav-tab"        id="tabAnalytics" onclick="showView('analytics')">Analytics</button>
+    <button class="nav-tab active" id="tabDash"          onclick="showView('dashboard')"><span class="nav-rupee">₹</span> Dashboard</button>
+    <button class="nav-tab"        id="tabAnalytics"     onclick="showView('analytics')">Analytics</button>
+    <button class="nav-tab"        id="tabTransactions"  onclick="showView('transactions')">Transactions</button>
   </nav>
 
   <!-- ══════════════ DASHBOARD ══════════════ -->
@@ -257,6 +258,17 @@
     </div>
 
   </div><!-- /viewAnalytics -->
+
+  <!-- ══════════════ TRANSACTIONS ══════════════ -->
+  <div id="viewTransactions" class="hidden">
+    <div class="view-header" style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+      <h1>All Transactions</h1>
+      <span id="allTxCount" style="font-size:.85rem;color:var(--text-3);font-weight:500;white-space:nowrap;"></span>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="tx-list" id="allTxList" style="max-height:none;"><div class="empty">Loading…</div></div>
+    </div>
+  </div><!-- /viewTransactions -->
 </div><!-- /container -->
 
 <!-- Edit Modal -->

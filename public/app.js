@@ -103,9 +103,12 @@ window.showView = function(v) {
   activeView = v;
   document.getElementById('viewDashboard').classList.toggle('hidden', v !== 'dashboard');
   document.getElementById('viewAnalytics').classList.toggle('hidden', v !== 'analytics');
+  document.getElementById('viewTransactions').classList.toggle('hidden', v !== 'transactions');
   document.getElementById('tabDash').classList.toggle('active', v === 'dashboard');
   document.getElementById('tabAnalytics').classList.toggle('active', v === 'analytics');
+  document.getElementById('tabTransactions').classList.toggle('active', v === 'transactions');
   if (v === 'analytics') refreshCurrentPeriod();
+  if (v === 'transactions') renderAllTxList();
 };
 
 // ─── Period switching ─────────────────────────────────────────────────────────
@@ -297,6 +300,7 @@ function listenTransactions() {
     renderTxList();
     renderStats();
     if (activeView === 'analytics') refreshCurrentPeriod();
+    if (activeView === 'transactions') renderAllTxList();
   });
 }
 
@@ -352,11 +356,52 @@ function wireAddTxForm() {
   });
 }
 
+// Sort helper: selectedDate desc, then createdAt desc for same-day ties
+function txSorted(list) {
+  return list.slice().sort((a, b) => {
+    const diff = toDate(b.selectedDate) - toDate(a.selectedDate);
+    if (diff !== 0) return diff;
+    return toDate(b.createdAt) - toDate(a.createdAt);
+  });
+}
+
 function renderTxList() {
   const el = document.getElementById('txList');
   if (!transactions.length) { el.innerHTML = '<div class="empty">No transactions yet</div>'; return; }
   el.innerHTML = '';
-  transactions.slice(0, 20).forEach(tx => {
+  txSorted(transactions).slice(0, 20).forEach(tx => {
+    const d     = toDate(tx.selectedDate);
+    const color = catColorByName(tx.type, tx.category);
+    const div   = document.createElement('div');
+    div.className = 'tx-item';
+    div.innerHTML = `
+      <div class="tx-meta">
+        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
+        ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
+        <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      </div>
+      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+      <div class="tx-actions">
+        <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
+        <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
+      </div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+function renderAllTxList() {
+  const el = document.getElementById('allTxList');
+  const countEl = document.getElementById('allTxCount');
+  if (!transactions.length) {
+    el.innerHTML = '<div class="empty">No transactions yet</div>';
+    if (countEl) countEl.textContent = '0 transactions';
+    return;
+  }
+  const sorted = txSorted(transactions);
+  if (countEl) countEl.textContent = sorted.length + ' transaction' + (sorted.length !== 1 ? 's' : '');
+  el.innerHTML = '';
+  sorted.forEach(tx => {
     const d     = toDate(tx.selectedDate);
     const color = catColorByName(tx.type, tx.category);
     const div   = document.createElement('div');
