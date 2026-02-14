@@ -12,10 +12,19 @@ let activePeriod    = 'daily';
 let dailyChartInst  = null;
 let monthlyChartInst = null;
 
+// ─── Loader ───────────────────────────────────────────────────────────────────
+// Called by app.js as soon as auth is confirmed — belt-and-suspenders backup
+// in case firebase-config.js's authStateReady() is delayed or fails on mobile.
+function hideLoader() {
+  const l = document.getElementById('pageLoader');
+  if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) return;
+    hideLoader(); // Remove spinner immediately — don't wait for data to load
     uid = user.uid;
 
     // Account info

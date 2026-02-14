@@ -95,17 +95,6 @@ const onAppPage   = !onLoginPage && !onSetupPage;
 
 window._authHandled = false;
 
-// ─── WHY authStateReady and NOT onAuthStateChanged for routing ────────────────
-//
-// onAuthStateChanged fires on: init, sign-in, sign-out, AND silent token refresh.
-// Firebase refreshes tokens every hour. During refresh it briefly emits user=null.
-// Any redirect on null = instant login loop. This was the root cause all along.
-//
-// authStateReady() resolves EXACTLY ONCE after the persisted session is read from
-// IndexedDB on startup. auth.currentUser is guaranteed correct after it resolves.
-// It never fires again for token refreshes. Users stay logged in automatically.
-// ─────────────────────────────────────────────────────────────────────────────────
-
 let _initialDone = false;
 
 auth.authStateReady().then(() => {
@@ -115,22 +104,53 @@ auth.authStateReady().then(() => {
   const user = auth.currentUser;
 
   if (!user) {
-    if (onAppPage) { window.location.replace('login.html'); return; }
+    if (onAppPage || onSetupPage) {
+      window._authHandled = true;
+      window.location.replace('login.html');
+      return;
+    }
     hideLoader();
     return;
   }
 
-  if (onLoginPage) { window.location.replace('index.html'); return; }
+  if (onLoginPage) {
+    window._authHandled = true;
+    window.location.replace('index.html');
+    return;
+  }
+
   hideLoader();
+
+}).catch(err => {
+  console.warn('authStateReady error:', err);
+  _initialDone = true;
+  if (!window._authHandled) {
+    if (onAppPage || onSetupPage) {
+      window._authHandled = true;
+      window.location.replace('login.html');
+    } else {
+      hideLoader();
+    }
+  }
 });
 
-// Only for actual sign-out while app is running.
-// _initialDone guard blocks this during startup and token refreshes.
 onAuthStateChanged(auth, user => {
   if (!_initialDone) return;
   if (window._authHandled) return;
-  if (!user && onAppPage) window.location.replace('login.html');
+  if (!user && onAppPage) {
+    window._authHandled = true;
+    window.location.replace('login.html');
+  }
 });
+
+setTimeout(() => {
+  if (!document.getElementById('pageLoader')) return;
+  console.warn('Safety timeout: force-removing loader');
+  hideLoader();
+  if (!_initialDone && (onAppPage || onSetupPage)) {
+    window.location.replace('login.html');
+  }
+}, 6000);
 
 function hideLoader() {
   const l = document.getElementById('pageLoader');
@@ -142,3 +162,22 @@ function hideLoader() {
 const outputPath = path.join(__dirname, 'public', 'firebase-config.js');
 fs.writeFileSync(outputPath, configContent);
 console.log('✓ firebase-config.js generated successfully');
+
+// ── Cache-bust HTML files ─────────────────────────────────────────────────────
+// Appends ?v=TIMESTAMP to all local JS and CSS refs in every HTML file.
+// This forces browsers (especially mobile Safari) to fetch fresh assets
+// on every deploy without requiring manual cache clearing.
+const version  = Date.now();
+const htmlFiles = ['index.html', 'login.html', 'category-setup.html'];
+htmlFiles.forEach(filename => {
+  const htmlPath = path.join(__dirname, 'public', filename);
+  if (!fs.existsSync(htmlPath)) return;
+  let html = fs.readFileSync(htmlPath, 'utf-8');
+  // Strip any existing ?v=... then add the new one — local files only
+  html = html.replace(/(src|href)="([^"]+\.(js|css))(\?v=[^"]*)?"/g, (m, attr, file) => {
+    if (file.startsWith('http') || file.startsWith('//')) return m;
+    return `${attr}="${file}?v=${version}"`;
+  });
+  fs.writeFileSync(htmlPath, html);
+  console.log(`✓ ${filename} cache-busted with ?v=${version}`);
+});

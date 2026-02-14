@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=1771054095282" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -341,8 +341,15 @@
   </div>
 </div>
 
-<script type="module" src="theme.js"></script>
-<script type="module" src="firebase-config.js"></script>
-<script type="module" src="app.js"></script>
+<script>
+  // bfcache fix: mobile browsers serve frozen pages from back-forward cache.
+  // If this page was restored from bfcache, reload it so auth runs fresh.
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted) window.location.reload();
+  });
+</script>
+<script type="module" src="theme.js?v=1771054095282"></script>
+<script type="module" src="firebase-config.js?v=1771054095282"></script>
+<script type="module" src="app.js?v=1771054095282"></script>
 </body>
 </html>
