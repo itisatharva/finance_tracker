@@ -1,238 +1,144 @@
 #!/usr/bin/env node
 
 /**
- * Build script to generate firebase-config.js from .env file
- * This ensures Firebase credentials are not committed to the repository
+ * Build script — generates public/firebase-config.js from .env
  */
 
-const fs = require('fs');
+const fs   = require('fs');
 const path = require('path');
 
-// Load environment variables from .env file
 const envPath = path.join(__dirname, '.env');
 if (!fs.existsSync(envPath)) {
-    console.error('Error: .env file not found!');
-    console.error('Please copy .env.example to .env and fill in your Firebase credentials.');
-    process.exit(1);
+  console.error('Error: .env file not found!');
+  process.exit(1);
 }
 
-// Parse .env file
-const envContent = fs.readFileSync(envPath, 'utf-8');
 const envVars = {};
-
-envContent.split('\n').forEach(line => {
-    const trimmedLine = line.trim();
-    if (trimmedLine && !trimmedLine.startsWith('#')) {
-        const [key, value] = trimmedLine.split('=');
-        if (key && value) {
-            // Remove quotes if present
-            envVars[key.trim()] = value.trim().replace(/^["']|["']$/g, '');
-        }
+fs.readFileSync(envPath, 'utf-8').split('\n').forEach(line => {
+  const trimmed = line.trim();
+  if (trimmed && !trimmed.startsWith('#')) {
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx > -1) {
+      const key = trimmed.slice(0, eqIdx).trim();
+      const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+      envVars[key] = val;
     }
+  }
 });
 
-// Required Firebase config keys
-const requiredKeys = [
-    'VITE_FIREBASE_API_KEY',
-    'VITE_FIREBASE_AUTH_DOMAIN',
-    'VITE_FIREBASE_PROJECT_ID',
-    'VITE_FIREBASE_STORAGE_BUCKET',
-    'VITE_FIREBASE_MESSAGING_SENDER_ID',
-    'VITE_FIREBASE_APP_ID',
-    'VITE_FIREBASE_MEASUREMENT_ID'
+const required = [
+  'VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET', 'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID', 'VITE_FIREBASE_MEASUREMENT_ID'
 ];
-
-// Validate all required keys are present
-const missingKeys = requiredKeys.filter(key => !envVars[key]);
-if (missingKeys.length > 0) {
-    console.error('Error: Missing required Firebase credentials in .env:');
-    missingKeys.forEach(key => console.error(`  - ${key}`));
-    process.exit(1);
+const missing = required.filter(k => !envVars[k]);
+if (missing.length) {
+  console.error('Missing required keys in .env:', missing.join(', '));
+  process.exit(1);
 }
 
-// Generate firebase-config.js with SAFETY TIMEOUT
-const configContent = `// Firebase Configuration and Initialization
-// DO NOT COMMIT THIS FILE - It is generated from .env
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc, serverTimestamp, setDoc, getDoc, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
+// ─────────────────────────────────────────────────────────────────────────────
+// THIS IS THE FILE THAT GETS DEPLOYED.
+// DO NOT use onAuthStateChanged for routing — it fires on every token refresh
+// (every hour), causing a redirect loop. Use auth.authStateReady() instead:
+// it resolves EXACTLY ONCE after the persisted session is read from IndexedDB.
+// ─────────────────────────────────────────────────────────────────────────────
+const configContent = `import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import {
+  getAuth, onAuthStateChanged,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signInWithPopup, signInWithRedirect, getRedirectResult,
+  GoogleAuthProvider, signOut as fbSignOut, getAdditionalUserInfo
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import {
+  getFirestore, collection, doc, getDoc, setDoc, addDoc, deleteDoc,
+  query, orderBy, onSnapshot, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
 const firebaseConfig = {
-  apiKey: "${envVars['VITE_FIREBASE_API_KEY']}",
-  authDomain: "${envVars['VITE_FIREBASE_AUTH_DOMAIN']}",
-  projectId: "${envVars['VITE_FIREBASE_PROJECT_ID']}",
-  storageBucket: "${envVars['VITE_FIREBASE_STORAGE_BUCKET']}",
+  apiKey:            "${envVars['VITE_FIREBASE_API_KEY']}",
+  authDomain:        "${envVars['VITE_FIREBASE_AUTH_DOMAIN']}",
+  projectId:         "${envVars['VITE_FIREBASE_PROJECT_ID']}",
+  storageBucket:     "${envVars['VITE_FIREBASE_STORAGE_BUCKET']}",
   messagingSenderId: "${envVars['VITE_FIREBASE_MESSAGING_SENDER_ID']}",
-  appId: "${envVars['VITE_FIREBASE_APP_ID']}",
-  measurementId: "${envVars['VITE_FIREBASE_MEASUREMENT_ID']}"
+  appId:             "${envVars['VITE_FIREBASE_APP_ID']}",
+  measurementId:     "${envVars['VITE_FIREBASE_MEASUREMENT_ID']}"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
+const db   = getFirestore(app);
 
-// Export Firebase services
 window.auth = auth;
-window.db = db;
-window.googleProvider = googleProvider;
-
-// Export Firestore functions
-window.collection = collection;
-window.addDoc = addDoc;
-window.query = query;
-window.orderBy = orderBy;
-window.onSnapshot = onSnapshot;
-window.deleteDoc = deleteDoc;
-window.doc = doc;
-window.serverTimestamp = serverTimestamp;
-window.setDoc = setDoc;
-window.getDoc = getDoc;
-window.where = where;
-
-// Export Auth functions
+window.db   = db;
+window.onAuthStateChanged             = onAuthStateChanged;
+window.signInWithEmailAndPassword     = signInWithEmailAndPassword;
 window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
-window.signInWithEmailAndPassword = signInWithEmailAndPassword;
-window.fbSignOut = signOut;           // ← app.js calls window.fbSignOut()
-window.signOutFirebase = signOut;     // ← keep alias for backwards compat
-window.onAuthStateChanged = onAuthStateChanged;
-window.signInWithPopup = signInWithPopup;
-window.GoogleAuthProvider = GoogleAuthProvider;  // ← auth.js uses new window.GoogleAuthProvider()
+window.signInWithPopup                = signInWithPopup;
+window.signInWithRedirect             = signInWithRedirect;
+window.getRedirectResult              = getRedirectResult;
+window.GoogleAuthProvider             = GoogleAuthProvider;
+window.getAdditionalUserInfo          = getAdditionalUserInfo;
+window.fbSignOut                      = fbSignOut;
+window.signOutFirebase                = fbSignOut;
+window.collection    = collection;   window.doc         = doc;
+window.getDoc        = getDoc;       window.setDoc      = setDoc;
+window.addDoc        = addDoc;       window.deleteDoc   = deleteDoc;
+window.query         = query;        window.orderBy     = orderBy;
+window.onSnapshot    = onSnapshot;   window.serverTimestamp = serverTimestamp;
+window.firebaseReady = Promise.resolve();
 
-// Mark Firebase as initializing
-window.firebaseInitialized = false;
+const _path       = window.location.pathname;
+const onLoginPage = _path.includes('login');
+const onSetupPage = _path.includes('category-setup');
+const onAppPage   = !onLoginPage && !onSetupPage;
 
-// Create a promise that resolves when Firebase is ready
-window.firebaseReady = new Promise((resolve) => {
-    console.log('Creating firebaseReady promise...');
-    
-    function checkReady() {
-        const authReady = window.auth && String(window.auth).includes('Auth');
-        const signOutReady = window.signOutFirebase && typeof window.signOutFirebase === 'function';
-        const dbReady = window.db && String(window.db).includes('Firestore');
-        
-        console.log('Firebase readiness check:', { authReady, signOutReady, dbReady });
-        
-        if (authReady && signOutReady && dbReady) {
-            console.log('✓ Firebase is fully initialized and ready');
-            window.firebaseInitialized = true;
-            resolve(true);
-            return true;
-        }
-        return false;
-    }
-    
-    // Try immediately
-    if (checkReady()) return;
-    
-    // Check periodically if not ready
-    const interval = setInterval(() => {
-        if (checkReady()) clearInterval(interval);
-    }, 50);
-    
-    // Safety timeout - resolve after 10 seconds anyway
-    setTimeout(() => {
-        clearInterval(interval);
-        if (!window.firebaseInitialized) {
-            console.warn('⚠ Firebase initialization timeout - resolving anyway');
-            window.firebaseInitialized = true;
-        }
-        resolve(true);
-    }, 10000);
+window._authHandled = false;
+
+// ─── WHY authStateReady and NOT onAuthStateChanged for routing ────────────────
+//
+// onAuthStateChanged fires on: init, sign-in, sign-out, AND silent token refresh.
+// Firebase refreshes tokens every hour. During refresh it briefly emits user=null.
+// Any redirect on null = instant login loop. This was the root cause all along.
+//
+// authStateReady() resolves EXACTLY ONCE after the persisted session is read from
+// IndexedDB on startup. auth.currentUser is guaranteed correct after it resolves.
+// It never fires again for token refreshes. Users stay logged in automatically.
+// ─────────────────────────────────────────────────────────────────────────────────
+
+let _initialDone = false;
+
+auth.authStateReady().then(() => {
+  _initialDone = true;
+  if (window._authHandled) return;
+
+  const user = auth.currentUser;
+
+  if (!user) {
+    if (onAppPage) { window.location.replace('login.html'); return; }
+    hideLoader();
+    return;
+  }
+
+  if (onLoginPage) { window.location.replace('index.html'); return; }
+  hideLoader();
 });
 
-console.log('Firebase exports initialized, firebaseReady promise created');
-
-// CRITICAL FIX: Safety fallback — redirect to login after 4s if auth hasn't resolved
-// (Covers slow Firebase CDN loads, offline states, etc.)
-let authStateReceived = false;
-setTimeout(() => {
-    if (!authStateReceived) {
-        console.warn('⚠️ Auth state not received after 4 seconds — redirecting to login');
-        const currentPage = window.location.pathname;
-        if (!currentPage.includes('login.html')) {
-            window.location.replace('login.html');
-        } else {
-            // Already on login, just unhide it
-            document.documentElement.classList.remove('page-locked');
-            const loader = document.getElementById('pageLoader');
-            if (loader) loader.remove();
-        }
-    }
-}, 4000);
-
-// Auth state observer - redirects to appropriate page and protects routes
-let authInitialized = false;
-
-onAuthStateChanged(auth, async (user) => {
-    authStateReceived = true; // Mark that we received auth state
-    const currentPage = window.location.pathname;
-    authInitialized = true;
-    
-    // Log for debugging
-    console.log('Auth state changed:', user ? 'User logged in' : 'User logged out', 'Page:', currentPage);
-    
-    if (user) {
-        // User is logged in
-        // Show page content (hide loader)
-        const pageLoader = document.getElementById('pageLoader');
-        if (pageLoader) pageLoader.classList.remove('active');
-        
-        // Remove the page-locked class to show content
-        document.documentElement.classList.remove('page-locked');
-        
-        if (currentPage.includes('login.html')) {
-            // Check if user has completed category setup
-            try {
-                const categoriesDoc = await getDoc(doc(db, 'users', user.uid, 'settings', 'categories'));
-                
-                if (categoriesDoc.exists() && categoriesDoc.data().setupCompleted) {
-                    // Setup completed, go to main app
-                    console.log('Setup completed, redirecting to index.html');
-                    window.location.href = 'index.html';
-                } else {
-                    // Setup not completed, go to category setup
-                    console.log('Setup not completed, redirecting to category-setup.html');
-                    window.location.href = 'category-setup.html';
-                }
-            } catch (error) {
-                console.error('Error checking setup:', error);
-                // If error, go to category setup to be safe
-                window.location.href = 'category-setup.html';
-            }
-        } else if (currentPage.includes('category-setup.html')) {
-            // Check if already completed setup
-            try {
-                const categoriesDoc = await getDoc(doc(db, 'users', user.uid, 'settings', 'categories'));
-                if (categoriesDoc.exists() && categoriesDoc.data().setupCompleted) {
-                    console.log('Setup already completed, redirecting to index.html');
-                    window.location.href = 'index.html';
-                }
-            } catch (error) {
-                console.error('Error:', error);
-            }
-        }
-    } else {
-        // User is not logged in
-        if (!currentPage.includes('login.html')) {
-            // Redirect to login for protected pages
-            console.log('User not authenticated, redirecting to login.html');
-            window.location.href = 'login.html';
-        } else {
-            // Login page is allowed, show content
-            const pageLoader = document.getElementById('pageLoader');
-            if (pageLoader) pageLoader.classList.remove('active');
-            document.documentElement.classList.remove('page-locked');
-        }
-    }
+// Only for actual sign-out while app is running.
+// _initialDone guard blocks this during startup and token refreshes.
+onAuthStateChanged(auth, user => {
+  if (!_initialDone) return;
+  if (window._authHandled) return;
+  if (!user && onAppPage) window.location.replace('login.html');
 });
+
+function hideLoader() {
+  const l = document.getElementById('pageLoader');
+  if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
+  document.documentElement.classList.remove('page-locked');
+}
 `;
 
-// Write firebase-config.js
 const outputPath = path.join(__dirname, 'public', 'firebase-config.js');
 fs.writeFileSync(outputPath, configContent);
-console.log(`✓ firebase-config.js generated successfully at ${outputPath}`);
-console.log('✓ Firebase credentials are secure (from .env file)');
-console.log('✓ Safety timeout added for blank page fix');
+console.log('✓ firebase-config.js generated successfully');
