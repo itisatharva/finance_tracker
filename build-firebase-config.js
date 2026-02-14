@@ -87,77 +87,37 @@ window.addDoc        = addDoc;       window.deleteDoc   = deleteDoc;
 window.query         = query;        window.orderBy     = orderBy;
 window.onSnapshot    = onSnapshot;   window.serverTimestamp = serverTimestamp;
 window.firebaseReady = Promise.resolve();
+window._authHandled  = false;
 
 const _path       = window.location.pathname;
 const onLoginPage = _path.includes('login');
 const onSetupPage = _path.includes('category-setup');
 const onAppPage   = !onLoginPage && !onSetupPage;
 
-window._authHandled = false;
-
-let _initialDone = false;
-
+// authStateReady() resolves ONCE after Firebase reads the session from IndexedDB.
+// It never fires again for token refreshes. This is the only routing logic needed.
+// Sign-out redirect is handled by app.js directly after fbSignOut().
 auth.authStateReady().then(() => {
-  _initialDone = true;
   if (window._authHandled) return;
 
   const user = auth.currentUser;
 
   if (!user) {
-    if (onAppPage || onSetupPage) {
-      window._authHandled = true;
-      window.location.replace('login.html');
-      return;
-    }
+    if (onAppPage || onSetupPage) { window.location.replace('login.html'); return; }
     hideLoader();
     return;
   }
 
-  if (onLoginPage) {
-    window._authHandled = true;
-    window.location.replace('index.html');
-    return;
-  }
-
+  if (onLoginPage) { window.location.replace('index.html'); return; }
   hideLoader();
-
-}).catch(err => {
-  console.warn('authStateReady error:', err);
-  _initialDone = true;
-  if (!window._authHandled) {
-    if (onAppPage || onSetupPage) {
-      window._authHandled = true;
-      window.location.replace('login.html');
-    } else {
-      hideLoader();
-    }
-  }
 });
-
-onAuthStateChanged(auth, user => {
-  if (!_initialDone) return;
-  if (window._authHandled) return;
-  if (!user && onAppPage) {
-    window._authHandled = true;
-    window.location.replace('login.html');
-  }
-});
-
-setTimeout(() => {
-  if (!document.getElementById('pageLoader')) return;
-  console.warn('Safety timeout: force-removing loader');
-  hideLoader();
-  if (!_initialDone && (onAppPage || onSetupPage)) {
-    window.location.replace('login.html');
-  }
-}, 6000);
 
 function hideLoader() {
   const l = document.getElementById('pageLoader');
   if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
   document.documentElement.classList.remove('page-locked');
 }
-`;
+`
 
 const outputPath = path.join(__dirname, 'public', 'firebase-config.js');
 fs.writeFileSync(outputPath, configContent);
