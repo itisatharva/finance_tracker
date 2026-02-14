@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node build-firebase-config.js",
     "deploy": "firebase deploy",
-    "dev": "npm run build && firebase emulators:start"
+    "dev": "firebase emulators:start"
   },
   "keywords": ["finance", "tracker", "firebase", "budget"],
   "author": "",
