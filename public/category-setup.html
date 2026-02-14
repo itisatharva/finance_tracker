@@ -8,11 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=1771067140680" />
+  <link rel="stylesheet" href="styles.css?v=1771054095282" />
+
+<style>@keyframes loader-out{to{opacity:0;pointer-events:none;}}</style>
 </head>
 <body>
 
-<div id="pageLoader" style="position:fixed;inset:0;background:var(--bg-page);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;">
+<div id="pageLoader" style="position:fixed;inset:0;background:var(--bg-page);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;animation:loader-out 0.4s linear 6s forwards;">
   <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite;"></div>
   <div style="font-size:.88rem;color:var(--text-3);font-family:'DM Sans',sans-serif;">Loading…</div>
 </div>
@@ -88,7 +90,7 @@
   </div>
 </div>
 
-<script type="module" src="firebase-config.js?v=1771067140680"></script>
-<script type="module" src="category-setup.js?v=1771067140680"></script>
+<script type="module" src="firebase-config.js?v=1771054095282"></script>
+<script type="module" src="category-setup.js?v=1771054095282"></script>
 </body>
 </html>
