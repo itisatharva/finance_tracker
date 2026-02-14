@@ -12,14 +12,6 @@ let activePeriod    = 'daily';
 let dailyChartInst  = null;
 let monthlyChartInst = null;
 
-// ─── Loader ───────────────────────────────────────────────────────────────────
-// Called by app.js as soon as auth is confirmed — belt-and-suspenders backup
-// in case firebase-config.js's authStateReady() is delayed or fails on mobile.
-function hideLoader() {
-  const l = document.getElementById('pageLoader');
-  if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
-}
-
 // ─── Init ────────────────────────────────────────────────────────────────────
 function hideLoader() {
   const l = document.getElementById('pageLoader');
@@ -89,6 +81,7 @@ function wireSettingsDrawer() {
   btnOut.addEventListener('click', async () => {
     if (!confirm('Sign out?')) return;
     await window.fbSignOut(window.auth).catch(console.error);
+    window.location.replace('login.html');
   });
 
   btnCats.addEventListener('click', () => { closeDrawer(); openCatsModal(); });
