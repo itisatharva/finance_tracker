@@ -21,10 +21,15 @@ function hideLoader() {
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
+function hideLoader() {
+  const l = document.getElementById('pageLoader');
+  if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
+}
+
 window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) return;
-    hideLoader(); // Remove spinner immediately — don't wait for data to load
+    hideLoader();
     uid = user.uid;
 
     // Account info

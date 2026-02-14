@@ -348,8 +348,13 @@
     if (e.persisted) window.location.reload();
   });
 </script>
-<script type="module" src="theme.js?v=1771054095282"></script>
-<script type="module" src="firebase-config.js?v=1771054095282"></script>
-<script type="module" src="app.js?v=1771054095282"></script>
+<script>
+  window.addEventListener('pageshow', function(e) {
+    if (e.persisted) window.location.reload();
+  });
+</script>
+<script type="module" src="theme.js"></script>
+<script type="module" src="firebase-config.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
