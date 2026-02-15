@@ -1,346 +1,154 @@
-# 💰 Finance Tracker - 
+# Finance Tracker
 
+A personal finance web application for tracking income, expenses, pending amounts, and spending patterns over time. Built with vanilla JavaScript and Firebase.
 
-
-### Dashboard
-- 📊 Real-time stats (Income, Expenses, Balance, Pending)
-- ➕ Quick transaction entry
-- 📝 Pending amounts tracking
-- 📜 Recent transactions list with edit/delete
-- ⚙️ Settings panel (account, theme, categories, sign out)
-
-### Analytics
-- 📅 **Daily**: Compare today vs yesterday spending with chart
-- 📆 **Monthly**: Category breakdown in descending order with chart
-- 📋 **Yearly**: Spreadsheet-style table (categories × months)
-
-### Design
-- 🎨 Beige/Black color scheme
-- 🌙 Fully functional dark mode
-- 📱 Responsive mobile design
-- ⚡ Fast loading
-- 🎯 Professional UI
-
-### Smart Features
-- 🤖 Auto-detect income/expense from category
-- ✏️ Edit any transaction
-- 📳 Haptic feedback on mobile
-- 🎬 Loading animations
-- 🎨 Custom category colors
-- 💾 Real-time sync with Firebase
+Live: [https://itisatharva-ft.web.app]
 
 ---
 
-## 🚀 Quick Start
+## Overview
 
-### 1. Clone or Download
+Finance Tracker is a real-time, single-user web app that syncs data instantly to Firebase Firestore. It works in any modern browser on both desktop and mobile.
 
-```bash
-git clone https://github.com/YOUR_USERNAME/finance-tracker.git
-cd finance-tracker
-```
-
-### 2. Update Firebase Config
-
-Edit `public/firebase-config.js`:
-
-```javascript
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
-```
-
-Get these from: [Firebase Console](https://console.firebase.google.com/) → Your Project → Project Settings → Your apps
-
-### 3. Set Up Firestore Rules
-
-In Firebase Console → Firestore Database → Rules:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/transactions/{transaction} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /users/{userId}/settings/{setting} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /users/{userId}/pending/{pendingId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
-```
-
-### 4. Deploy to Firebase Hosting
-
-```bash
-# Install Firebase CLI
-npm install -g firebase-tools
-
-# Login
-firebase login
-
-# Initialize (select Hosting)
-firebase init
-
-# Deploy
-firebase deploy
-```
+All data is private — Firestore security rules ensure each user can only access their own transactions, categories, and settings.
 
 ---
 
-## 📁 File Structure
+## Getting Started
 
-```
-finance-tracker/
-├── public/
-│   ├── index.html          # Main app (Dashboard & Analytics)
-│   ├── login.html          # Authentication page
-│   ├── app.js             # Main application logic
-│   ├── auth.js            # Login/signup logic
-│   ├── styles.css         # All styles (light & dark mode)
-│   ├── theme.js           # Theme toggle functionality
-│   └── firebase-config.js # Firebase configuration
-├── firebase.json          # Firebase config
-├── .gitignore            # Git ignore file
-└── README.md             # This file
-```
+### Creating an Account
+
+Navigate to the app URL and you will land on the login page. You can sign up using:
+
+- **Email and password** — enter your email, choose a password of at least 6 characters, and click Join.
+- **Google** — click "Join with Google" and complete the Google sign-in flow.
+
+After signing up, you will be taken to the category setup screen. This is a one-time step where you can review the default categories or customise them before continuing to the dashboard. You can always edit categories later from Settings.
+
+### Signing In
+
+On the login screen, enter your credentials or use Google Sign-In. Returning users are taken directly to the dashboard.
 
 ---
 
-## 🎯 How to Use
+## Dashboard
 
-### First Time Setup
-1. Open the app
-2. Sign up with email/password
-3. Categories are pre-configured
-4. Start adding transactions!
+The dashboard is the main screen of the app. It is divided into four sections.
 
-### Adding Transactions
-1. Select **Date**
-2. Choose **Category** (auto-detects income/expense)
-3. Enter **Amount**
-4. Add optional **Note**
-5. Click "Add Transaction"
-6. See loading animation → "✓ Added!"
+### Stats Row
 
-### Managing Pending Amounts
-1. Enter person's name
-2. Enter amount
-3. Click "Add Pending"
-4. Check off when cleared
-5. Balance updates automatically
+At the top of the dashboard, four cards display:
 
-### Viewing Analytics
+- **Income** — total income added in the current calendar month.
+- **Expenses** — total expenses added in the current calendar month. Resets to zero at the start of each month.
+- **Balance** — your all-time balance: starting balance plus all income minus all expenses minus pending amounts. This is designed to match your actual bank account.
+- **Pending** — the sum of all currently uncleared pending amounts.
 
-**Daily View:**
-- Pick any date
-- See comparison to yesterday
-- View pie chart of expenses
+### Add Transaction
 
-**Monthly View:**
-- Select month/year
-- See pie chart
-- View categories sorted high to low
+To add a transaction:
 
-**Yearly View:**
-- Enter year
-- See spreadsheet table
-- Categories × Months with totals
+1. Select the date using the date picker. It defaults to today.
+2. Select a category from the dropdown. The app automatically determines whether the transaction is income or expense based on the category type.
+3. Enter the amount. Decimals are supported.
+4. Optionally add a note to describe the transaction.
+5. Click Add Transaction. The button will confirm with a green tick once saved.
 
-### Settings
-Click ⚙️ icon (top-right) to:
-- View account info
-- Toggle dark mode
-- Manage categories
-- Sign out
+Transactions are saved in real time to Firestore and appear immediately in the Recent Transactions list.
+
+### Pending Amounts
+
+Pending amounts represent money owed to or from someone that has not yet been settled. They are deducted from your balance so that your balance always reflects what is actually available.
+
+To add a pending amount, enter a name or description and an amount, then click Add. To clear a pending amount once it has been settled, check the checkbox next to it. It will be removed and the balance will update automatically.
+
+### Recent Transactions
+
+The 20 most recent transactions are shown here, sorted by transaction date. Each entry shows the category, optional note, date, and amount. Income is shown in green and expenses in red.
+
+Each transaction has two actions:
+
+- **Edit** — opens a modal where you can change the date, category, amount, and note. Save to update.
+- **Delete** — shows a confirmation dialog before deleting. You can check "Don't ask again" to skip the confirmation for future deletes in the same session.
 
 ---
 
-## 🎨 Color Scheme
+## Transactions
 
-### Light Mode
-- Background: `#F5F3F0` (Light beige)
-- Cards: `#FFFFFF` (White)
-- Primary: `#2D2D2D` (Black)
-- Accent: `#E8DED3` (Beige)
-
-### Dark Mode
-- Background: `#1a1a1a` (Dark)
-- Cards: `#2a2a2a` (Dark gray)
-- Primary: `#E8E6E1` (Light text)
-- Accent: `#3a3a3a` (Dark beige)
-
-### Data Colors
-- Income: `#10b981` (Green)
-- Expense: `#FF6B6B` (Red)
-- Pending: `#FFA500` (Orange)
+The Transactions tab shows every transaction ever recorded, sorted by date descending. The total count is displayed at the top. Edit and delete work the same as on the dashboard.
 
 ---
 
-## 🔧 Customization
+## Analytics
 
-### Add New Categories
+The Analytics tab has four views selectable from the tab bar at the top.
 
-1. Click settings icon ⚙️
-2. Click "Manage Categories"
-3. Scroll to Income or Expense section
-4. Enter category name
-5. Pick color
-6. Click "Add"
+### Daily
 
-### Change Category Colors
+Select any date to see the total expenses for that day compared to the previous day. An arrow indicates whether spending went up or down. A doughnut chart breaks down expenses by category for the selected day.
 
-1. Open "Manage Categories"
-2. Click color box next to category
-3. Pick new color
-4. Saves automatically
+### Monthly
 
----
+Select a month and year to see:
 
-## 📱 Mobile Experience
+- A summary showing total income and total expenses for that month.
+- A doughnut chart breaking down expenses by category.
+- A category breakdown list sorted from highest to lowest spend.
 
-- Fully responsive design
-- Touch-optimized buttons
-- Haptic feedback (vibration)
-- Swipe-friendly
-- Bottom navigation
-- Optimized for small screens
+### Yearly
+
+Enter a year to see a table of expense categories versus months. Each cell shows the total spent in that category for that month. The rightmost columns show the annual total and monthly average for each category.
+
+### Cash Flow
+
+Enter a year to see a month-by-month cash flow table showing income, expenses, net (income minus expenses), and a running balance that carries forward from your starting balance. The starting balance is set in Settings.
 
 ---
 
-## 🐛 Troubleshooting
+## Settings
 
-### Login page loads slowly
-- Should be instant now
-- Emergency 5-second timeout included
-- Check internet connection
+The settings panel is accessible via the gear icon in the top right corner.
 
-### Dark mode text not readable
-- Fixed! All contrasts proper
-- `--text-primary` always readable
-- Test by toggling in settings
+### Starting Balance
 
-### Transactions not saving
-- Check Firebase credentials
-- Verify Firestore rules
-- Check browser console for errors
-
-### Charts not showing
-- Need expense transactions
-- Select correct date/month/year
-- Check that period has data
-
----
-
-## 🚀 Deployment
-
-### Firebase Hosting
-
-```bash
-firebase deploy
-```
-
-### GitHub Pages
-
-1. Push to GitHub
-2. Go to Settings → Pages
-3. Source: main branch / root
-4. Save
-5. Visit: https://YOUR_USERNAME.github.io/finance-tracker
-
----
-
-## 📊 Data Structure
-
-### Transactions
-```javascript
-{
-  type: "expense",
-  amount: 500,
-  category: "Food & Dining",
-  description: "Lunch",
-  selectedDate: Date,
-  createdAt: Timestamp
-}
-```
+Enter your bank account balance as it was before you started tracking in this app. This is used as the base for the Balance stat and the Cash Flow running balance. It does not affect income or expense totals.
 
 ### Categories
-```javascript
-{
-  income: [
-    { name: "Salary", color: "#10b981" }
-  ],
-  expense: [
-    { name: "Food & Dining", color: "#ef4444" }
-  ]
-}
-```
 
-### Pending
-```javascript
-{
-  name: "John",
-  amount: 5000,
-  createdAt: Timestamp
-}
-```
+Opens the category manager where you can:
+
+- Add new income or expense categories with a custom name and colour.
+- Change the colour of existing categories by clicking the colour swatch.
+- Remove categories you no longer need.
+
+Category changes take effect immediately for all future transactions. Existing transactions retain the category name they were saved with.
+
+### Dark Mode
+
+Toggles between light and dark theme. The preference is saved to the browser and applied on every subsequent visit.
+
+### Sign Out
+
+Signs you out of the current session and returns you to the login page.
 
 ---
 
-## 🎉 Features Checklist
+## Data and Privacy
 
-- [x] User authentication (email/password)
-- [x] Add/Edit/Delete transactions
-- [x] Auto-detect income/expense from category
-- [x] Pending amounts tracking
-- [x] Real-time stats
-- [x] Daily analytics with comparison
-- [x] Monthly analytics with breakdown
-- [x] Yearly table view
-- [x] Custom category colors
-- [x] Dark mode
-- [x] Settings panel
-- [x] Account info
-- [x] Loading animations
-- [x] Haptic feedback
-- [x] Responsive design
-- [x] Fast loading
-- [x] Proper error handling
+All data is stored in your Firebase Firestore database under your user account. No data is shared with any third party. Firestore security rules prevent any user from reading or writing another user's data. Deleting your account from Firebase will permanently remove all associated data.
 
 ---
 
-## 📝 License
+## Technology
 
-MIT License - Feel free to use for personal projects!
-
----
-
-## 🙏 Credits
-
-Built with:
-- Vanilla JavaScript
-- Firebase (Auth + Firestore)
-- Chart.js
-- Love ❤️
+- Vanilla JavaScript, HTML, CSS — no frontend framework
+- Firebase Authentication — email/password and Google sign-in
+- Firebase Firestore — real-time database
+- Firebase Hosting — deployment
+- Chart.js — analytics charts
 
 ---
 
-## 📞 Support
+## License
 
-Having issues? Check:
-1. Firebase credentials are correct
-2. Firestore rules are set
-3. Browser console for errors
-4. Internet connection
-
----
-
-**Enjoy tracking your finances!** 💰✨
+MIT License
