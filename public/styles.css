@@ -419,7 +419,7 @@ input[type="color"] {
 
 .tx-meta { flex: 1; min-width: 0; }
 .tx-meta .tx-cat  { font-weight: 600; font-size: .9rem; color: var(--text-1); margin-bottom: 2px; }
-.tx-meta .tx-note { font-size: .8rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-meta .tx-note { font-size: .88rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-meta .tx-date { font-size: .75rem; color: var(--text-3); margin-top: 2px; }
 
 .tx-amount {
