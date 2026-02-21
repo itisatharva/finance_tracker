@@ -9,8 +9,6 @@ let startingBalance = 0;
 let editTxId        = null;
 let activeView      = 'dashboard';
 let activePeriod    = 'daily';
-let dailyChartInst  = null;
-let monthlyChartInst = null;
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 function hideLoader() {
@@ -608,7 +606,7 @@ function renderDaily() {
     resultEl.textContent = selTotal===0?'No spending on either day':'Same as previous day'; resultEl.className='cmp-result';
     arrowEl.textContent = '='; arrowEl.className='cmp-arrow flat';
   }
-  renderPieChart('dailyChartWrap', selExp, 'dailyChart', dailyChartInst, inst => dailyChartInst = inst);
+  renderPieChart('dailyChartWrap', selExp);
 }
 document.getElementById('dailyDate').addEventListener('change', renderDaily);
 
@@ -630,7 +628,7 @@ function renderMonthly() {
   document.getElementById('msIncome').textContent  = fmt(monthInc);
   document.getElementById('msExpense').textContent = fmt(monthExpTotal);
 
-  renderPieChart('monthlyChartWrap', monthExp, 'monthlyChart', monthlyChartInst, inst => monthlyChartInst = inst);
+ renderPieChart('monthlyChartWrap', monthExp);
 
   // Category breakdown
   const totals = {}; const colors = {};
@@ -739,35 +737,73 @@ function renderCashflow() {
 document.getElementById('cashflowYear').addEventListener('change', renderCashflow);
 
 // ─── Shared Pie/Doughnut chart ────────────────────────────────────────────────
-function renderPieChart(wrapId, expenses, chartId, existingInst, setInst) {
+function renderPieChart(wrapId, expenses) {
   const wrap = document.getElementById(wrapId);
-  if (existingInst) { existingInst.destroy(); setInst(null); }
-  if (!expenses.length) { wrap.innerHTML='<div class="empty">No expenses for this period</div>'; return; }
+  if (!expenses.length) { 
+    wrap.innerHTML='<div class="empty">No expenses for this period</div>'; 
+    return; 
+  }
 
-  const totals = {}; const colors = {};
+  const totals = {}; 
+  const colors = {};
   expenses.forEach(t => {
     totals[t.category] = (totals[t.category]||0) + t.amount;
     colors[t.category] = catColorByName('expense', t.category);
   });
-  wrap.innerHTML = `<canvas id="${chartId}"></canvas>`;
-  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-2').trim()||'#666';
-  const inst = new Chart(document.getElementById(chartId).getContext('2d'), {
-    type: 'doughnut',
-    data: {
-      labels: Object.keys(totals),
-      datasets: [{ data: Object.values(totals), backgroundColor: Object.values(colors), borderWidth: 2, borderColor: 'transparent' }]
+
+  const labels = Object.keys(totals);
+  const values = Object.values(totals);
+  const colorArray = Object.values(colors);
+  
+  // Create pull array - slightly explode each slice
+  const pull = labels.map(() => 0.05);
+
+  wrap.innerHTML = '<div style="width:100%;height:100%;"></div>';
+  const container = wrap.firstChild;
+
+  const data = [{
+    type: 'pie',
+    labels: labels,
+    values: values,
+    marker: {
+      colors: colorArray,
+      line: { width: 0 }
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position:'bottom', labels:{ padding:16, font:{size:13,family:'DM Sans, sans-serif'}, color:textColor } },
-        tooltip: { callbacks: { label: ctx => {
-          const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
-          return ` ${ctx.label}: ${fmt(ctx.parsed)} (${((ctx.parsed/total)*100).toFixed(1)}%)`;
-        }}}
-      },
-      cutout: '62%'
+    textposition: 'outside',
+    textinfo: 'label+percent',
+    pull: pull,
+    hole: 0,
+    hovertemplate: '<b>%{label}</b><br>' + 
+                   '%{value:,.2f}<br>' +
+                   '%{percent}<extra></extra>',
+    sort: false
+  }];
+
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor = isDark ? '#E8E6E1' : '#4a4a4a';
+  const bgColor = isDark ? '#2a2a2a' : '#ffffff';
+
+  const layout = {
+    showlegend: false,
+    margin: { t: 40, b: 40, l: 40, r: 40 },
+    paper_bgcolor: bgColor,
+    plot_bgcolor: bgColor,
+    font: {
+      family: 'DM Sans, sans-serif',
+      size: 13,
+      color: textColor
+    },
+    scene: {
+      camera: {
+        eye: { x: 1.5, y: 1.5, z: 1.3 }
+      }
     }
-  });
-  setInst(inst);
+  };
+
+  const config = {
+    responsive: true,
+    displayModeBar: false
+  };
+
+  Plotly.newPlot(container, data, layout, config);
 }
