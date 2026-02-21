@@ -755,10 +755,10 @@ function renderPieChart(wrapId, expenses) {
   const values = Object.values(totals);
   const colorArray = Object.values(colors);
   
-  // Create pull array - slightly explode each slice
-  const pull = labels.map(() => 0.05);
+  // Slightly explode each slice
+  const pull = labels.map(() => 0.03);
 
-  wrap.innerHTML = '<div style="width:100%;height:100%;"></div>';
+  wrap.innerHTML = '<div style="width:100%;height:100%;min-height:400px;"></div>';
   const container = wrap.firstChild;
 
   const data = [{
@@ -767,16 +767,21 @@ function renderPieChart(wrapId, expenses) {
     values: values,
     marker: {
       colors: colorArray,
-      line: { width: 0 }
+      line: { color: '#1a1a1a', width: 2 }
     },
-    textposition: 'outside',
+    textposition: 'auto',
     textinfo: 'label+percent',
     pull: pull,
     hole: 0,
+    insidetextorientation: 'horizontal',
     hovertemplate: '<b>%{label}</b><br>' + 
-                   '%{value:,.2f}<br>' +
+                   '₹%{value:,.2f}<br>' +
                    '%{percent}<extra></extra>',
-    sort: false
+    sort: false,
+    textfont: {
+      size: 12,
+      family: 'DM Sans, sans-serif'
+    }
   }];
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -785,19 +790,15 @@ function renderPieChart(wrapId, expenses) {
 
   const layout = {
     showlegend: false,
-    margin: { t: 40, b: 40, l: 40, r: 40 },
+    margin: { t: 60, b: 60, l: 80, r: 80 },
     paper_bgcolor: bgColor,
     plot_bgcolor: bgColor,
     font: {
       family: 'DM Sans, sans-serif',
-      size: 13,
+      size: 12,
       color: textColor
     },
-    scene: {
-      camera: {
-        eye: { x: 1.5, y: 1.5, z: 1.3 }
-      }
-    }
+    autosize: true
   };
 
   const config = {
