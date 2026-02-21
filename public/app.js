@@ -751,60 +751,137 @@ function renderPieChart(wrapId, expenses) {
     colors[t.category] = catColorByName('expense', t.category);
   });
 
-  const labels = Object.keys(totals);
-  const values = Object.values(totals);
-  const colorArray = Object.values(colors);
+  // Sort by value descending
+  const entries = Object.entries(totals).sort((a,b) => b[1] - a[1]);
+  const labels = entries.map(e => e[0]);
+  const values = entries.map(e => e[1]);
+  const colorArray = labels.map(l => colors[l]);
   
-  // Slightly explode each slice
-  const pull = labels.map(() => 0.03);
+  // Calculate dynamic height
+  const dynamicHeight = Math.max(500, labels.length * 50 + 200);
 
-  wrap.innerHTML = '<div style="width:100%;height:100%;min-height:400px;"></div>';
+  wrap.innerHTML = `<div style="width:100%;height:100%;min-height:${dynamicHeight}px;"></div>`;
   const container = wrap.firstChild;
 
-  const data = [{
-    type: 'pie',
-    labels: labels,
-    values: values,
-    marker: {
-      colors: colorArray,
-      line: { color: '#1a1a1a', width: 2 }
-    },
-    textposition: 'auto',
-    textinfo: 'label+percent',
-    pull: pull,
-    hole: 0,
-    insidetextorientation: 'horizontal',
-    hovertemplate: '<b>%{label}</b><br>' + 
-                   '₹%{value:,.2f}<br>' +
-                   '%{percent}<extra></extra>',
-    sort: false,
-    textfont: {
-      size: 12,
-      family: 'DM Sans, sans-serif'
-    }
-  }];
-
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#E8E6E1' : '#4a4a4a';
+  const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
   const bgColor = isDark ? '#2a2a2a' : '#ffffff';
+  const gridColor = isDark ? '#444' : '#ddd';
+
+  // Position spheres in a circle in 3D space
+  const total = values.reduce((a,b) => a+b, 0);
+  const maxVal = Math.max(...values);
+  
+  const x = [], y = [], z = [], sizes = [], texts = [];
+  labels.forEach((label, i) => {
+    const angle = (i / labels.length) * 2 * Math.PI;
+    const radius = 3;
+    x.push(radius * Math.cos(angle));
+    y.push(values[i]);
+    z.push(radius * Math.sin(angle));
+    
+    // Size based on value
+    const sizeFactor = (values[i] / maxVal) * 80 + 20;
+    sizes.push(sizeFactor);
+    
+    const pct = ((values[i] / total) * 100).toFixed(1);
+    texts.push(`${label}<br>₹${values[i].toLocaleString('en-IN')}<br>${pct}%`);
+  });
+
+  const trace = {
+    type: 'scatter3d',
+    mode: 'markers+text',
+    x: x,
+    y: y,
+    z: z,
+    text: labels,
+    hovertext: texts,
+    hoverinfo: 'text',
+    marker: {
+      size: sizes,
+      color: colorArray,
+      opacity: 0.9,
+      line: { color: isDark ? '#1a1a1a' : '#fff', width: 2 }
+    },
+    textfont: { color: textColor, size: 11, family: 'DM Sans, sans-serif' },
+    textposition: 'top center'
+  };
 
   const layout = {
     showlegend: false,
-    margin: { t: 60, b: 60, l: 80, r: 80 },
+    margin: { t: 20, b: 20, l: 20, r: 20 },
     paper_bgcolor: bgColor,
-    plot_bgcolor: bgColor,
-    font: {
-      family: 'DM Sans, sans-serif',
-      size: 12,
-      color: textColor
-    },
-    autosize: true
+    font: { family: 'DM Sans, sans-serif', color: textColor },
+    scene: {
+      xaxis: { 
+        showticklabels: false, 
+        showgrid: true, 
+        gridcolor: gridColor,
+        zeroline: false,
+        title: ''
+      },
+      yaxis: { 
+        title: 'Amount (₹)',
+        titlefont: { color: textColor },
+        tickfont: { color: textColor, size: 10 },
+        gridcolor: gridColor,
+        showgrid: true
+      },
+      zaxis: { 
+        showticklabels: false, 
+        showgrid: true, 
+        gridcolor: gridColor,
+        zeroline: false,
+        title: ''
+      },
+      camera: {
+        eye: { x: 1.8, y: 1.8, z: 1.3 },
+        center: { x: 0, y: 0, z: 0 }
+      },
+      bgcolor: bgColor
+    }
   };
 
-  const config = {
-    responsive: true,
-    displayModeBar: false
-  };
+  const config = { responsive: true, displayModeBar: false };
 
-  Plotly.newPlot(container, data, layout, config);
+  Plotly.newPlot(container, [trace], layout, config);
+  
+  // Store for theme updates
+  window._chartContainers = window._chartContainers || {};
+  window._chartContainers[wrapId] = container;
 }
+// ─── Theme Observer (Optimized Plotly Update) ─────────────────────────────
+window._chartThemeObserver = new MutationObserver(() => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
+  const bgColor = isDark ? '#2a2a2a' : '#ffffff';
+  const gridColor = isDark ? '#444' : '#ddd';
+  
+  if (window._chartContainers) {
+    Object.values(window._chartContainers).forEach(container => {
+      if (container && container.data) {
+        Plotly.relayout(container, {
+          'paper_bgcolor': bgColor,
+          'font.color': textColor,
+          'scene.bgcolor': bgColor,
+          'scene.xaxis.gridcolor': gridColor,
+          'scene.yaxis.titlefont.color': textColor,
+          'scene.yaxis.tickfont.color': textColor,
+          'scene.yaxis.gridcolor': gridColor,
+          'scene.zaxis.gridcolor': gridColor
+        });
+
+        Plotly.restyle(container, {
+          'textfont.color': textColor,
+          'marker.line.color': isDark ? '#1a1a1a' : '#fff'
+        });
+      }
+    });
+  }
+});
+
+// Observe theme attribute
+window._chartThemeObserver.observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ['data-theme']
+});
