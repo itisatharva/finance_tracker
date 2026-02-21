@@ -751,137 +751,93 @@ function renderPieChart(wrapId, expenses) {
     colors[t.category] = catColorByName('expense', t.category);
   });
 
-  // Sort by value descending
-  const entries = Object.entries(totals).sort((a,b) => b[1] - a[1]);
-  const labels = entries.map(e => e[0]);
-  const values = entries.map(e => e[1]);
-  const colorArray = labels.map(l => colors[l]);
+  const labels = Object.keys(totals);
+  const values = Object.values(totals);
+  const colorArray = Object.values(colors);
   
-  // Calculate dynamic height
-  const dynamicHeight = Math.max(500, labels.length * 50 + 200);
+  // Slightly explode slices
+  const pull = labels.map(() => 0.04);
 
-  wrap.innerHTML = `<div style="width:100%;height:100%;min-height:${dynamicHeight}px;"></div>`;
+  wrap.innerHTML = '<div style="width:100%;height:100%;min-height:450px;"></div>';
   const container = wrap.firstChild;
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
   const bgColor = isDark ? '#2a2a2a' : '#ffffff';
-  const gridColor = isDark ? '#444' : '#ddd';
+  const borderColor = isDark ? '#3a3a3a' : '#ffffff';
 
-  // Position spheres in a circle in 3D space
-  const total = values.reduce((a,b) => a+b, 0);
-  const maxVal = Math.max(...values);
-  
-  const x = [], y = [], z = [], sizes = [], texts = [];
-  labels.forEach((label, i) => {
-    const angle = (i / labels.length) * 2 * Math.PI;
-    const radius = 3;
-    x.push(radius * Math.cos(angle));
-    y.push(values[i]);
-    z.push(radius * Math.sin(angle));
-    
-    // Size based on value
-    const sizeFactor = (values[i] / maxVal) * 80 + 20;
-    sizes.push(sizeFactor);
-    
-    const pct = ((values[i] / total) * 100).toFixed(1);
-    texts.push(`${label}<br>₹${values[i].toLocaleString('en-IN')}<br>${pct}%`);
-  });
-
-  const trace = {
-    type: 'scatter3d',
-    mode: 'markers+text',
-    x: x,
-    y: y,
-    z: z,
-    text: labels,
-    hovertext: texts,
-    hoverinfo: 'text',
+  const data = [{
+    type: 'pie',
+    labels: labels,
+    values: values,
     marker: {
-      size: sizes,
-      color: colorArray,
-      opacity: 0.9,
-      line: { color: isDark ? '#1a1a1a' : '#fff', width: 2 }
+      colors: colorArray,
+      line: { color: borderColor, width: 2 }
     },
-    textfont: { color: textColor, size: 11, family: 'DM Sans, sans-serif' },
-    textposition: 'top center'
-  };
+    textposition: 'outside',
+    textinfo: 'label+percent',
+    pull: pull,
+    hole: 0,
+    hovertemplate: '<b>%{label}</b><br>' + 
+                   '₹%{value:,.2f}<br>' +
+                   '%{percent}<extra></extra>',
+    sort: false,
+    textfont: {
+      size: 13,
+      family: 'DM Sans, sans-serif',
+      color: textColor
+    },
+    outsidetextfont: {
+      size: 13,
+      family: 'DM Sans, sans-serif',
+      color: textColor
+    }
+  }];
 
   const layout = {
     showlegend: false,
-    margin: { t: 20, b: 20, l: 20, r: 20 },
+    margin: { t: 80, b: 80, l: 120, r: 120 },
     paper_bgcolor: bgColor,
-    font: { family: 'DM Sans, sans-serif', color: textColor },
-    scene: {
-      xaxis: { 
-        showticklabels: false, 
-        showgrid: true, 
-        gridcolor: gridColor,
-        zeroline: false,
-        title: ''
-      },
-      yaxis: { 
-        title: 'Amount (₹)',
-        titlefont: { color: textColor },
-        tickfont: { color: textColor, size: 10 },
-        gridcolor: gridColor,
-        showgrid: true
-      },
-      zaxis: { 
-        showticklabels: false, 
-        showgrid: true, 
-        gridcolor: gridColor,
-        zeroline: false,
-        title: ''
-      },
-      camera: {
-        eye: { x: 1.8, y: 1.8, z: 1.3 },
-        center: { x: 0, y: 0, z: 0 }
-      },
-      bgcolor: bgColor
+    plot_bgcolor: bgColor,
+    font: {
+      family: 'DM Sans, sans-serif',
+      size: 13,
+      color: textColor
+    },
+    autosize: true,
+    uniformtext: {
+      minsize: 10,
+      mode: 'hide'
     }
   };
 
-  const config = { responsive: true, displayModeBar: false };
+  const config = {
+    responsive: true,
+    displayModeBar: false
+  };
 
-  Plotly.newPlot(container, [trace], layout, config);
+  Plotly.newPlot(container, data, layout, config);
   
-  // Store for theme updates
-  window._chartContainers = window._chartContainers || {};
-  window._chartContainers[wrapId] = container;
-}
-// ─── Theme Observer (Optimized Plotly Update) ─────────────────────────────
-window._chartThemeObserver = new MutationObserver(() => {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
-  const bgColor = isDark ? '#2a2a2a' : '#ffffff';
-  const gridColor = isDark ? '#444' : '#ddd';
-  
-  if (window._chartContainers) {
-    Object.values(window._chartContainers).forEach(container => {
-      if (container && container.data) {
-        Plotly.relayout(container, {
-          'paper_bgcolor': bgColor,
-          'font.color': textColor,
-          'scene.bgcolor': bgColor,
-          'scene.xaxis.gridcolor': gridColor,
-          'scene.yaxis.titlefont.color': textColor,
-          'scene.yaxis.tickfont.color': textColor,
-          'scene.yaxis.gridcolor': gridColor,
-          'scene.zaxis.gridcolor': gridColor
-        });
-
-        Plotly.restyle(container, {
-          'textfont.color': textColor,
-          'marker.line.color': isDark ? '#1a1a1a' : '#fff'
-        });
-      }
+  // Update chart on theme change
+  const observer = new MutationObserver(() => {
+    const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const newTextColor = nowDark ? '#E8E6E1' : '#2D2D2D';
+    const newBgColor = nowDark ? '#2a2a2a' : '#ffffff';
+    const newBorderColor = nowDark ? '#3a3a3a' : '#ffffff';
+    
+    Plotly.update(container, {
+      'marker.line.color': newBorderColor,
+      'textfont.color': newTextColor,
+      'outsidetextfont.color': newTextColor
+    }, {
+      'paper_bgcolor': newBgColor,
+      'plot_bgcolor': newBgColor,
+      'font.color': newTextColor
     });
-  }
-});
-
-// Observe theme attribute
-window._chartThemeObserver.observe(document.documentElement, {
-  attributes: true,
-  attributeFilter: ['data-theme']
-});
+  });
+  
+  observer.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  });
+}
