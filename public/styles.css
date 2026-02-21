@@ -1,3 +1,48 @@
+/* Remove mobile tap highlight */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+
+/* Type toggle buttons for Monthly/Yearly */
+.type-toggle-group {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-subtle);
+  padding: 4px;
+  border-radius: var(--r-md);
+}
+
+.type-toggle-btn {
+  padding: 6px 16px;
+  font-size: .85rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+}
+
+.type-toggle-btn.active {
+  background: var(--ink);
+  color: var(--ink-fg);
+}
+
+.type-toggle-btn:hover:not(.active) {
+  color: var(--text-1);
+}
+
+@media (max-width: 640px) {
+  .type-toggle-btn {
+    padding: 5px 12px;
+    font-size: .82rem;
+  }
+}
+
 /* =============================================
    FINANCE TRACKER — STYLES
    Beige/Black theme, bulletproof dark mode
@@ -985,6 +1030,45 @@ select:focus option { animation: fadeIn .1s ease; }
 @media (max-width: 400px) {
   .stats-row { grid-template-columns: 1fr; }
   .nav-tab { padding: 9px 18px; font-size: .85rem; }
+}
+
+
+/* Type toggle buttons for Monthly/Yearly */
+.type-toggle-group {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-subtle);
+  padding: 4px;
+  border-radius: var(--r-md);
+}
+
+.type-toggle-btn {
+  padding: 6px 16px;
+  font-size: .85rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+}
+
+.type-toggle-btn.active {
+  background: var(--ink);
+  color: var(--ink-fg);
+}
+
+.type-toggle-btn:hover:not(.active) {
+  color: var(--text-1);
+}
+
+@media (max-width: 640px) {
+  .type-toggle-btn {
+    padding: 5px 12px;
+    font-size: .82rem;
+  }
 }
 
 /* =============================================

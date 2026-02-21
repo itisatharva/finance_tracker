@@ -9,6 +9,8 @@ let startingBalance = 0;
 let editTxId        = null;
 let activeView      = 'dashboard';
 let activePeriod    = 'daily';
+let monthlyType     = 'expense';  // 'expense' or 'income'
+let yearlyType      = 'expense';  // 'expense' or 'income'
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 function hideLoader() {
@@ -138,6 +140,22 @@ function refreshCurrentPeriod() {
   if (activePeriod === 'yearly')   renderYearly();
   if (activePeriod === 'cashflow') renderCashflow();
 }
+
+
+// ─── Monthly/Yearly Type Toggle ──────────────────────────────────────────────
+window.setMonthlyType = function(type) {
+  monthlyType = type;
+  document.getElementById('btnMonthlyExpense').classList.toggle('active', type === 'expense');
+  document.getElementById('btnMonthlyIncome').classList.toggle('active', type === 'income');
+  renderMonthly();
+};
+
+window.setYearlyType = function(type) {
+  yearlyType = type;
+  document.getElementById('btnYearlyExpense').classList.toggle('active', type === 'expense');
+  document.getElementById('btnYearlyIncome').classList.toggle('active', type === 'income');
+  renderYearly();
+};
 
 // ─── Categories ──────────────────────────────────────────────────────────────
 async function loadCategories() {
@@ -606,7 +624,7 @@ function renderDaily() {
     resultEl.textContent = selTotal===0?'No spending on either day':'Same as previous day'; resultEl.className='cmp-result';
     arrowEl.textContent = '='; arrowEl.className='cmp-arrow flat';
   }
-  renderPieChart('dailyChartWrap', selExp);
+  renderPieChart('dailyChartWrap', selExp, 'expense');
 }
 document.getElementById('dailyDate').addEventListener('change', renderDaily);
 
@@ -620,25 +638,35 @@ function renderMonthly() {
     const d = toDate(t.selectedDate);
     return d.getFullYear()===y && d.getMonth()===m-1;
   });
-  const monthInc = monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const monthInc = monthTx.filter(t=>t.type==='income');
   const monthExp = monthTx.filter(t=>t.type==='expense');
+  const monthIncTotal = monthInc.reduce((s,t)=>s+t.amount,0);
   const monthExpTotal = monthExp.reduce((s,t)=>s+t.amount,0);
 
   // Update summary badges
-  document.getElementById('msIncome').textContent  = fmt(monthInc);
+  document.getElementById('msIncome').textContent  = fmt(monthIncTotal);
   document.getElementById('msExpense').textContent = fmt(monthExpTotal);
 
- renderPieChart('monthlyChartWrap', monthExp);
+  // Update label
+  const typeLabel = monthlyType === 'income' ? 'Income' : 'Expense';
+  document.getElementById('monthlyLabel').textContent = `Monthly ${typeLabel}`;
+
+  // Render chart and breakdown for selected type
+  const data = monthlyType === 'income' ? monthInc : monthExp;
+  renderPieChart('monthlyChartWrap', data, monthlyType);
 
   // Category breakdown
   const totals = {}; const colors = {};
-  monthExp.forEach(t => {
+  data.forEach(t => {
     totals[t.category] = (totals[t.category]||0) + t.amount;
-    colors[t.category] = catColorByName('expense', t.category);
+    colors[t.category] = catColorByName(monthlyType, t.category);
   });
   const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   const el = document.getElementById('breakdownList');
-  if (!sorted.length) { el.innerHTML='<div class="empty">No expenses this month</div>'; return; }
+  if (!sorted.length) { 
+    el.innerHTML=`<div class="empty">No ${monthlyType} this month</div>`; 
+    return; 
+  }
   el.innerHTML = '';
   sorted.forEach(([name, amt]) => {
     const div = document.createElement('div');
@@ -656,15 +684,20 @@ document.getElementById('monthlyDate').addEventListener('change', renderMonthly)
 function renderYearly() {
   const year = parseInt(document.getElementById('yearlyYear').value);
   if (!year) return;
-  const yearlyExp = transactions.filter(t => t.type==='expense' && toDate(t.selectedDate).getFullYear()===year);
-  const catSet = new Set(); yearlyExp.forEach(t => catSet.add(t.category));
+  
+  // Update label
+  const typeLabel = yearlyType === 'income' ? 'Income' : 'Expenses';
+  document.getElementById('yearlyLabel').textContent = `Monthly ${typeLabel} by Category`;
+  
+  const yearlyData = transactions.filter(t => t.type===yearlyType && toDate(t.selectedDate).getFullYear()===year);
+  const catSet = new Set(); yearlyData.forEach(t => catSet.add(t.category));
   if (!catSet.size) {
-    document.getElementById('yearlyBody').innerHTML = `<tr><td colspan="15" class="empty">No expense data for ${year}</td></tr>`;
+    document.getElementById('yearlyBody').innerHTML = `<tr><td colspan="15" class="empty">No ${yearlyType} data for ${year}</td></tr>`;
     return;
   }
   const data = {};
   catSet.forEach(c => { data[c] = Array(12).fill(0); });
-  yearlyExp.forEach(t => { data[t.category][toDate(t.selectedDate).getMonth()] += t.amount; });
+  yearlyData.forEach(t => { data[t.category][toDate(t.selectedDate).getMonth()] += t.amount; });
   const sorted = Object.keys(data).sort((a,b) => data[b].reduce((s,v)=>s+v,0) - data[a].reduce((s,v)=>s+v,0));
 
   const tbody = document.getElementById('yearlyBody');
@@ -737,18 +770,18 @@ function renderCashflow() {
 document.getElementById('cashflowYear').addEventListener('change', renderCashflow);
 
 // ─── Shared Pie/Doughnut chart ────────────────────────────────────────────────
-function renderPieChart(wrapId, expenses) {
+function renderPieChart(wrapId, txList, type) {
   const wrap = document.getElementById(wrapId);
-  if (!expenses.length) { 
-    wrap.innerHTML='<div class="empty">No expenses for this period</div>'; 
+  if (!txList.length) { 
+    wrap.innerHTML=`<div class="empty">No ${type} for this period</div>`; 
     return; 
   }
 
   const totals = {}; 
   const colors = {};
-  expenses.forEach(t => {
+  txList.forEach(t => {
     totals[t.category] = (totals[t.category]||0) + t.amount;
-    colors[t.category] = catColorByName('expense', t.category);
+    colors[t.category] = catColorByName(type, t.category);
   });
 
   const labels = Object.keys(totals);

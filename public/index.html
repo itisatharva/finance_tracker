@@ -185,7 +185,14 @@
 
     <!-- MONTHLY -->
     <div id="periodMonthly" class="hidden">
-      <div class="date-row" style="margin-bottom:16px;"><label>Month</label><input type="month" id="monthlyDate" /></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <div class="date-row" style="margin-bottom:0;"><label>Month</label><input type="month" id="monthlyDate" style="max-width:160px;" /></div>
+        <div class="type-toggle-group">
+          <button class="type-toggle-btn active" id="btnMonthlyExpense" onclick="setMonthlyType('expense')">Expense</button>
+          <button class="type-toggle-btn" id="btnMonthlyIncome" onclick="setMonthlyType('income')">Income</button>
+        </div>
+      </div>
+      <h2 id="monthlyLabel" style="margin-bottom:16px;font-size:1.25rem;color:var(--text-1);">Monthly Expense</h2>
       <!-- Monthly income/expense summary -->
       <div class="monthly-summary" id="monthlySummary">
         <div class="ms-item ms-income">
@@ -213,11 +220,17 @@
 
     <!-- YEARLY -->
     <div id="periodYearly" class="hidden">
-      <div class="date-row" style="margin-bottom:20px;"><label>Year</label>
-        <input type="number" id="yearlyYear" min="2000" max="2100" placeholder="2025" style="max-width:130px;" />
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <div class="date-row" style="margin-bottom:0;"><label>Year</label>
+          <input type="number" id="yearlyYear" min="2000" max="2100" placeholder="2025" style="max-width:130px;" />
+        </div>
+        <div class="type-toggle-group">
+          <button class="type-toggle-btn active" id="btnYearlyExpense" onclick="setYearlyType('expense')">Expense</button>
+          <button class="type-toggle-btn" id="btnYearlyIncome" onclick="setYearlyType('income')">Income</button>
+        </div>
       </div>
       <div class="yearly-wrap">
-        <div class="yearly-title">Monthly Expenses by Category</div>
+        <div class="yearly-title" id="yearlyLabel">Monthly Expenses by Category</div>
         <div class="yearly-scroll">
           <table class="yearly-tbl">
             <thead><tr>
