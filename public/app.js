@@ -34,7 +34,10 @@ window.firebaseReady.then(() => {
     const today = new Date();
     document.getElementById('txDate').valueAsDate  = today;
     document.getElementById('dailyDate').value     = toInputDate(today);
-    document.getElementById('monthlyDate').value   = today.toISOString().slice(0,7);
+    
+    // Initialize month dropdown with abbreviated names
+    initMonthDropdown(today);
+    
     document.getElementById('yearlyYear').value    = today.getFullYear();
     document.getElementById('cashflowYear').value  = today.getFullYear();
 
@@ -59,6 +62,33 @@ function fmt(n) {
 function vibrate() { if (navigator.vibrate) navigator.vibrate(40); }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Initialize month dropdown with current year and abbreviated month names
+function initMonthDropdown(currentDate) {
+  const select = document.getElementById('monthlyDate');
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = currentDate.getMonth();
+  
+  // Clear existing options
+  select.innerHTML = '';
+  
+  // Generate options for last 2 years and next year
+  for (let year = currentYear - 2; year <= currentYear + 1; year++) {
+    for (let month = 0; month < 12; month++) {
+      const option = document.createElement('option');
+      const value = `${year}-${String(month + 1).padStart(2, '0')}`;
+      option.value = value;
+      option.textContent = `${MONTHS[month]} ${year}`;
+      select.appendChild(option);
+      
+      // Select current month
+      if (year === currentYear && month === currentMonth) {
+        option.selected = true;
+      }
+    }
+  }
+}
+
 
 // ─── Settings Drawer ─────────────────────────────────────────────────────────
 function wireSettingsDrawer() {
@@ -318,12 +348,20 @@ function listenTransactions() {
     window.collection(window.db, 'users', uid, 'transactions'),
     window.orderBy('selectedDate', 'desc')
   );
+  let firstLoad = true;
   window.onSnapshot(q, snap => {
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTxList();
     renderStats();
     if (activeView === 'analytics') refreshCurrentPeriod();
     if (activeView === 'transactions') renderAllTxList();
+    
+    // Hide loader after first data load
+    if (firstLoad && window._dataLoading) {
+      firstLoad = false;
+      hideLoader();
+      window._dataLoading = false;
+    }
   });
 }
 
@@ -536,10 +574,11 @@ function renderStats() {
   const allExpense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const balance = startingBalance + allIncome - allExpense - pending;
 
-  document.getElementById('sIncome').textContent  = fmt(income);
-  document.getElementById('sExpense').textContent = fmt(expense);
-  document.getElementById('sBalance').textContent = fmt(balance);
-  document.getElementById('sPending').textContent = fmt(pending);
+  // Remove spinners and show values
+  document.getElementById('sIncome').innerHTML  = fmt(income);
+  document.getElementById('sExpense').innerHTML = fmt(expense);
+  document.getElementById('sBalance').innerHTML = fmt(balance);
+  document.getElementById('sPending').innerHTML = fmt(pending);
 
   // Update cash flow starting balance label
   const cfEl = document.getElementById('cfStartBal');
@@ -608,8 +647,8 @@ function renderDaily() {
   const selTotal  = selExp.reduce((s,t)=>s+t.amount,0);
   const prevTotal = prevExp.reduce((s,t)=>s+t.amount,0);
 
-  document.getElementById('cmpToday').textContent     = fmt(selTotal);
-  document.getElementById('cmpYesterday').textContent = fmt(prevTotal);
+  document.getElementById('cmpToday').innerHTML     = fmt(selTotal);
+  document.getElementById('cmpYesterday').innerHTML = fmt(prevTotal);
 
   const diff = selTotal - prevTotal;
   const resultEl = document.getElementById('cmpResult');
@@ -660,9 +699,22 @@ function renderMonthly() {
   const prevMonthIncTotal = prevMonthInc.reduce((s,t)=>s+t.amount,0);
   const prevMonthExpTotal = prevMonthExp.reduce((s,t)=>s+t.amount,0);
 
-  // Update summary badges
-  document.getElementById('msIncome').textContent  = fmt(monthIncTotal);
-  document.getElementById('msExpense').textContent = fmt(monthExpTotal);
+  // Update summary badges - remove spinners
+  document.getElementById('msIncome').innerHTML  = fmt(monthIncTotal);
+  document.getElementById('msExpense').innerHTML = fmt(monthExpTotal);
+  
+  // Update income vs expense arrow
+  const msArrow = document.getElementById('msArrow');
+  if (monthIncTotal > monthExpTotal) {
+    msArrow.textContent = '↓';
+    msArrow.style.color = 'var(--green)';
+  } else if (monthIncTotal < monthExpTotal) {
+    msArrow.textContent = '↑';
+    msArrow.style.color = 'var(--red)';
+  } else {
+    msArrow.textContent = '→';
+    msArrow.style.color = 'var(--text-3)';
+  }
 
   // Update label
   const typeLabel = monthlyType === 'income' ? 'Income' : 'Expense';
@@ -672,8 +724,8 @@ function renderMonthly() {
   const thisTotal = monthlyType === 'income' ? monthIncTotal : monthExpTotal;
   const lastTotal = monthlyType === 'income' ? prevMonthIncTotal : prevMonthExpTotal;
   
-  document.getElementById('monthlyThis').textContent = fmt(thisTotal);
-  document.getElementById('monthlyLast').textContent = fmt(lastTotal);
+  document.getElementById('monthlyThis').innerHTML = fmt(thisTotal);
+  document.getElementById('monthlyLast').innerHTML = fmt(lastTotal);
 
   const diff = thisTotal - lastTotal;
   const resultEl = document.getElementById('monthlyResult');

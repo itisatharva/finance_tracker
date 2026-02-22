@@ -171,9 +171,9 @@
         <div class="analytics-left">
           <div class="date-row"><label>Date</label><input type="date" id="dailyDate" /></div>
           <div class="cmp-card">
-            <div class="cmp-stat"><div class="cmp-lbl">Selected Day</div><div class="cmp-val" id="cmpToday">₹0</div></div>
+            <div class="cmp-stat"><div class="cmp-lbl">Selected Day</div><div class="cmp-val" id="cmpToday"><span class="loading-spinner"></span></div></div>
             <div class="cmp-arrow" id="cmpArrow">→</div>
-            <div class="cmp-stat"><div class="cmp-lbl">Previous Day</div><div class="cmp-val muted" id="cmpYesterday">₹0</div></div>
+            <div class="cmp-stat"><div class="cmp-lbl">Previous Day</div><div class="cmp-val muted" id="cmpYesterday"><span class="loading-spinner"></span></div></div>
             <div class="cmp-result" id="cmpResult">Select a date to see comparison</div>
           </div>
         </div>
@@ -186,7 +186,7 @@
     <!-- MONTHLY -->
     <div id="periodMonthly" class="hidden">
       <div class="period-header-row">
-        <div class="date-row" style="margin-bottom:0;"><label>Month</label><input type="month" id="monthlyDate" style="max-width:160px;" /></div>
+        <div class="date-row" style="margin-bottom:0;"><label>Month</label><select id="monthlyDate" style="max-width:160px;"></select></div>
         <div class="type-toggle-group">
           <button class="type-toggle-btn active" id="btnMonthlyExpense" onclick="setMonthlyType('expense')">Expense</button>
           <button class="type-toggle-btn" id="btnMonthlyIncome" onclick="setMonthlyType('income')">Income</button>
@@ -194,24 +194,26 @@
       </div>
       <h2 id="monthlyLabel" style="margin-bottom:16px;font-size:1.25rem;color:var(--text-1);">Monthly Expense</h2>
       
-      <!-- Monthly comparison card -->
-      <div class="cmp-card" style="margin-bottom:20px;">
-        <div class="cmp-stat"><div class="cmp-lbl">This Month</div><div class="cmp-val" id="monthlyThis">₹0</div></div>
-        <div class="cmp-arrow" id="monthlyArrow">→</div>
-        <div class="cmp-stat"><div class="cmp-lbl">Last Month</div><div class="cmp-val muted" id="monthlyLast">₹0</div></div>
-        <div class="cmp-result" id="monthlyResult">Select a month to see comparison</div>
-      </div>
-      
-      <!-- Monthly income/expense summary -->
-      <div class="monthly-summary" id="monthlySummary">
-        <div class="ms-item ms-income">
-          <div class="ms-lbl">Month Income</div>
-          <div class="ms-val" id="msIncome">₹0</div>
+      <div class="monthly-cards-row">
+        <!-- Monthly comparison card -->
+        <div class="cmp-card">
+          <div class="cmp-stat"><div class="cmp-lbl">This Month</div><div class="cmp-val" id="monthlyThis"><span class="loading-spinner"></span></div></div>
+          <div class="cmp-arrow" id="monthlyArrow">→</div>
+          <div class="cmp-stat"><div class="cmp-lbl">Last Month</div><div class="cmp-val muted" id="monthlyLast"><span class="loading-spinner"></span></div></div>
+          <div class="cmp-result" id="monthlyResult">Select a month to see comparison</div>
         </div>
-        <div class="ms-arrow">↓</div>
-        <div class="ms-item ms-expense">
-          <div class="ms-lbl">Month Expenses</div>
-          <div class="ms-val" id="msExpense">₹0</div>
+        
+        <!-- Monthly income/expense summary -->
+        <div class="monthly-summary" id="monthlySummary">
+          <div class="ms-item ms-income">
+            <div class="ms-lbl">Month Income</div>
+            <div class="ms-val" id="msIncome"><span class="loading-spinner"></span></div>
+          </div>
+          <div class="ms-arrow" id="msArrow">↓</div>
+          <div class="ms-item ms-expense">
+            <div class="ms-lbl">Month Expenses</div>
+            <div class="ms-val" id="msExpense"><span class="loading-spinner"></span></div>
+          </div>
         </div>
       </div>
       <div class="analytics-main" style="margin-top:0;">
