@@ -6,6 +6,13 @@
 
 
 /* Type toggle buttons for Monthly/Yearly */
+.period-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 .type-toggle-group {
   display: flex;
   gap: 6px;
@@ -36,9 +43,21 @@
   color: var(--text-1);
 }
 
+/* Mobile: Stack vertically */
 @media (max-width: 640px) {
+  .period-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .type-toggle-group {
+    width: 100%;
+  }
+  
   .type-toggle-btn {
-    padding: 5px 12px;
+    flex: 1;
+    padding: 8px 12px;
     font-size: .82rem;
   }
 }
@@ -1034,6 +1053,13 @@ select:focus option { animation: fadeIn .1s ease; }
 
 
 /* Type toggle buttons for Monthly/Yearly */
+.period-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 .type-toggle-group {
   display: flex;
   gap: 6px;
@@ -1064,9 +1090,21 @@ select:focus option { animation: fadeIn .1s ease; }
   color: var(--text-1);
 }
 
+/* Mobile: Stack vertically */
 @media (max-width: 640px) {
+  .period-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .type-toggle-group {
+    width: 100%;
+  }
+  
   .type-toggle-btn {
-    padding: 5px 12px;
+    flex: 1;
+    padding: 8px 12px;
     font-size: .82rem;
   }
 }
