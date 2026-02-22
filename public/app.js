@@ -634,14 +634,31 @@ function renderMonthly() {
   if (!val) return;
   const [y, m] = val.split('-').map(Number);
 
+  // Current month transactions
   const monthTx  = transactions.filter(t => {
     const d = toDate(t.selectedDate);
     return d.getFullYear()===y && d.getMonth()===m-1;
   });
+  
+  // Previous month transactions
+  const prevDate = new Date(y, m-1, 1);
+  prevDate.setMonth(prevDate.getMonth() - 1);
+  const prevY = prevDate.getFullYear();
+  const prevM = prevDate.getMonth();
+  const prevMonthTx = transactions.filter(t => {
+    const d = toDate(t.selectedDate);
+    return d.getFullYear()===prevY && d.getMonth()===prevM;
+  });
+
   const monthInc = monthTx.filter(t=>t.type==='income');
   const monthExp = monthTx.filter(t=>t.type==='expense');
   const monthIncTotal = monthInc.reduce((s,t)=>s+t.amount,0);
   const monthExpTotal = monthExp.reduce((s,t)=>s+t.amount,0);
+
+  const prevMonthInc = prevMonthTx.filter(t=>t.type==='income');
+  const prevMonthExp = prevMonthTx.filter(t=>t.type==='expense');
+  const prevMonthIncTotal = prevMonthInc.reduce((s,t)=>s+t.amount,0);
+  const prevMonthExpTotal = prevMonthExp.reduce((s,t)=>s+t.amount,0);
 
   // Update summary badges
   document.getElementById('msIncome').textContent  = fmt(monthIncTotal);
@@ -650,6 +667,34 @@ function renderMonthly() {
   // Update label
   const typeLabel = monthlyType === 'income' ? 'Income' : 'Expense';
   document.getElementById('monthlyLabel').textContent = `Monthly ${typeLabel}`;
+
+  // Comparison logic based on selected type
+  const thisTotal = monthlyType === 'income' ? monthIncTotal : monthExpTotal;
+  const lastTotal = monthlyType === 'income' ? prevMonthIncTotal : prevMonthExpTotal;
+  
+  document.getElementById('monthlyThis').textContent = fmt(thisTotal);
+  document.getElementById('monthlyLast').textContent = fmt(lastTotal);
+
+  const diff = thisTotal - lastTotal;
+  const resultEl = document.getElementById('monthlyResult');
+  const arrowEl  = document.getElementById('monthlyArrow');
+  
+  if (diff > 0) {
+    resultEl.textContent = `${fmt(diff)} more than last month`; 
+    resultEl.className='cmp-result neg';
+    arrowEl.textContent = '↑'; 
+    arrowEl.className = 'cmp-arrow up';
+  } else if (diff < 0) {
+    resultEl.textContent = `${fmt(Math.abs(diff))} less than last month`; 
+    resultEl.className='cmp-result pos';
+    arrowEl.textContent = '↓'; 
+    arrowEl.className = 'cmp-arrow down';
+  } else {
+    resultEl.textContent = thisTotal===0 ? 'No data for either month' : 'Same as last month'; 
+    resultEl.className='cmp-result';
+    arrowEl.textContent = '='; 
+    arrowEl.className='cmp-arrow flat';
+  }
 
   // Render chart and breakdown for selected type
   const data = monthlyType === 'income' ? monthInc : monthExp;

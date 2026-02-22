@@ -193,6 +193,15 @@
         </div>
       </div>
       <h2 id="monthlyLabel" style="margin-bottom:16px;font-size:1.25rem;color:var(--text-1);">Monthly Expense</h2>
+      
+      <!-- Monthly comparison card -->
+      <div class="cmp-card" style="margin-bottom:20px;">
+        <div class="cmp-stat"><div class="cmp-lbl">This Month</div><div class="cmp-val" id="monthlyThis">₹0</div></div>
+        <div class="cmp-arrow" id="monthlyArrow">→</div>
+        <div class="cmp-stat"><div class="cmp-lbl">Last Month</div><div class="cmp-val muted" id="monthlyLast">₹0</div></div>
+        <div class="cmp-result" id="monthlyResult">Select a month to see comparison</div>
+      </div>
+      
       <!-- Monthly income/expense summary -->
       <div class="monthly-summary" id="monthlySummary">
         <div class="ms-item ms-income">
