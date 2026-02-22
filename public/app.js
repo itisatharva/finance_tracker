@@ -17,12 +17,30 @@ function hideLoader() {
   const l = document.getElementById('pageLoader');
   if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
 }
+// Check if all data is loaded and hide loader
+function checkDataLoaded() {
+  const status = window._dataLoadStatus;
+  if (!status) return;
+  
+  if (status.categories && status.settings && status.transactions && status.pending) {
+    hideLoader();
+  }
+}
+
+
 
 window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) return;
-    hideLoader();
     uid = user.uid;
+    
+    // Track what data has loaded
+    window._dataLoadStatus = {
+      categories: false,
+      settings: false,
+      transactions: false,
+      pending: false
+    };
 
     // Account info
     document.getElementById('acctEmail').textContent = user.email || '—';
@@ -217,6 +235,7 @@ async function loadCategories() {
     await saveCategories();
   }
   populateCategoryDropdowns();
+  if (window._dataLoadStatus) { window._dataLoadStatus.categories = true; checkDataLoaded(); }
 }
 
 async function saveCategories() {
@@ -234,6 +253,7 @@ async function loadSettings() {
     const inp = document.getElementById('startingBalanceInput');
     if (inp) inp.value = startingBalance > 0 ? startingBalance : '';
   } catch(e) { console.error('loadSettings', e); }
+  if (window._dataLoadStatus) { window._dataLoadStatus.settings = true; checkDataLoaded(); }
 }
 
 async function saveSettings() {
@@ -292,6 +312,7 @@ window.openCatsModal = function() {
 window.closeCatsModal = function() {
   document.getElementById('catsModalBg').classList.remove('open');
   populateCategoryDropdowns();
+  if (window._dataLoadStatus) { window._dataLoadStatus.categories = true; checkDataLoaded(); }
 };
 window.addCat = async function(type) {
   const nameEl  = document.getElementById(type === 'income' ? 'newIncName'  : 'newExpName');
@@ -356,11 +377,13 @@ function listenTransactions() {
     if (activeView === 'analytics') refreshCurrentPeriod();
     if (activeView === 'transactions') renderAllTxList();
     
-    // Hide loader after first data load
-    if (firstLoad && window._dataLoading) {
+    // Mark as loaded on first snapshot
+    if (firstLoad) {
       firstLoad = false;
-      hideLoader();
-      window._dataLoading = false;
+      if (window._dataLoadStatus) { 
+        window._dataLoadStatus.transactions = true; 
+        checkDataLoaded(); 
+      }
     }
   });
 }
@@ -591,10 +614,20 @@ function listenPending() {
     window.collection(window.db, 'users', uid, 'pending'),
     window.orderBy('createdAt', 'desc')
   );
+  let firstLoad = true;
   window.onSnapshot(q, snap => {
     pendingAmounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderPendingList();
     renderStats();
+    
+    // Mark as loaded on first snapshot
+    if (firstLoad) {
+      firstLoad = false;
+      if (window._dataLoadStatus) { 
+        window._dataLoadStatus.pending = true; 
+        checkDataLoaded(); 
+      }
+    }
   });
 }
 
