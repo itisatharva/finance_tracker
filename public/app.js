@@ -1,14 +1,31 @@
 // app.js — Finance Tracker
 
-// CRITICAL: Override hideLoader immediately to prevent firebase-config from hiding it
-// We want to control when the loader hides (after all data loads)
-let _loaderHiddenByFirebase = false;
-const _originalHideLoader = window.hideLoader || function() {};
-window.hideLoader = function() {
-  _loaderHiddenByFirebase = true;
-  // Don't actually hide yet - we'll do it after data loads
-  console.log('[Loader] Firebase tried to hide loader - ignored');
-};
+// CRITICAL: Prevent redirects until we check auth properly
+(function() {
+  const originalReplace = window.location.replace;
+  let _redirectsBlocked = true;
+  
+  window.location.replace = function(url) {
+    if (_redirectsBlocked && url.includes('login.html')) {
+      console.log('[Auth] Blocked redirect to login - checking auth first');
+      return;
+    }
+    return originalReplace.call(window.location, url);
+  };
+  
+  // Unblock after 2 seconds or when app confirms auth state
+  window._allowRedirects = function() {
+    _redirectsBlocked = false;
+    console.log('[Auth] Redirects now allowed');
+  };
+  
+  setTimeout(() => {
+    if (_redirectsBlocked) {
+      console.log('[Auth] Auto-unblocking redirects after 2s');
+      _redirectsBlocked = false;
+    }
+  }, 2000);
+})();
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let uid             = null;
@@ -26,6 +43,7 @@ let yearlyType      = 'expense';  // 'expense' or 'income'
 function actuallyHideLoader() {
   const l = document.getElementById('pageLoader');
   if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
+  console.log('[Loader] Loader hidden');
 }
 // Check if all data is loaded and hide loader
 function checkDataLoaded() {
@@ -41,8 +59,14 @@ function checkDataLoaded() {
 
 window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
-    if (!user) return;
+    if (!user) {
+      console.log('[Auth] No user - allowing redirects');
+      if (window._allowRedirects) window._allowRedirects();
+      return;
+    }
     uid = user.uid;
+    console.log('[Auth] User logged in - allowing app redirects only');
+    if (window._allowRedirects) window._allowRedirects();
     
     // Track what data has loaded
     window._dataLoadStatus = {

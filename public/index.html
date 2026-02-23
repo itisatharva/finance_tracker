@@ -15,6 +15,12 @@
 <style>@keyframes loader-out{to{opacity:0;pointer-events:none;}}</style>
 </head>
 <body>
+<script>
+  // CRITICAL: Set flag BEFORE any other scripts run
+  window._appDataLoading = true;
+  console.log('[Init] Data loading flag set - loader will stay visible');
+</script>
+
 
 <!-- Page loader -->
 <div id="pageLoader" style="position:fixed;inset:0;background:var(--bg-page);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;">
@@ -95,10 +101,10 @@
     <div class="view-header"><h1>Dashboard</h1></div>
 
     <div class="stats-row">
-      <div class="stat-card income">  <div class="lbl">Monthly Income</div>   <div class="val" id="sIncome">₹0</div></div>
-      <div class="stat-card expense"> <div class="lbl">Monthly Expenses</div>  <div class="val" id="sExpense">₹0</div></div>
-      <div class="stat-card">         <div class="lbl">Balance</div>   <div class="val" id="sBalance">₹0</div></div>
-      <div class="stat-card pending"> <div class="lbl">Pending</div>   <div class="val" id="sPending">₹0</div></div>
+      <div class="stat-card income">  <div class="lbl">Monthly Income</div>   <div class="val" id="sIncome"><span class="loading-spinner"></span></div></div>
+      <div class="stat-card expense"> <div class="lbl">Monthly Expenses</div>  <div class="val" id="sExpense"><span class="loading-spinner"></span></div></div>
+      <div class="stat-card">         <div class="lbl">Balance</div>   <div class="val" id="sBalance"><span class="loading-spinner"></span></div></div>
+      <div class="stat-card pending"> <div class="lbl">Pending</div>   <div class="val" id="sPending"><span class="loading-spinner"></span></div></div>
     </div>
 
     <div class="dash-main">
