@@ -1,32 +1,5 @@
 // app.js — Finance Tracker
 
-// CRITICAL: Prevent redirects until we check auth properly
-(function() {
-  const originalReplace = window.location.replace;
-  let _redirectsBlocked = true;
-  
-  window.location.replace = function(url) {
-    if (_redirectsBlocked && url.includes('login.html')) {
-      console.log('[Auth] Blocked redirect to login - checking auth first');
-      return;
-    }
-    return originalReplace.call(window.location, url);
-  };
-  
-  // Unblock after 2 seconds or when app confirms auth state
-  window._allowRedirects = function() {
-    _redirectsBlocked = false;
-    console.log('[Auth] Redirects now allowed');
-  };
-  
-  setTimeout(() => {
-    if (_redirectsBlocked) {
-      console.log('[Auth] Auto-unblocking redirects after 2s');
-      _redirectsBlocked = false;
-    }
-  }, 2000);
-})();
-
 // ─── State ───────────────────────────────────────────────────────────────────
 let uid             = null;
 let transactions    = [];
@@ -36,45 +9,20 @@ let startingBalance = 0;
 let editTxId        = null;
 let activeView      = 'dashboard';
 let activePeriod    = 'daily';
-let monthlyType     = 'expense';  // 'expense' or 'income'
-let yearlyType      = 'expense';  // 'expense' or 'income'
+let monthlyType     = 'expense';
+let yearlyType      = 'expense';
 
 // ─── Init ────────────────────────────────────────────────────────────────────
-function actuallyHideLoader() {
+function hideLoader() {
   const l = document.getElementById('pageLoader');
   if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
-  console.log('[Loader] Loader hidden');
 }
-// Check if all data is loaded and hide loader
-function checkDataLoaded() {
-  const status = window._dataLoadStatus;
-  if (!status) return;
-  
-  if (status.categories && status.settings && status.transactions && status.pending) {
-    actuallyHideLoader();
-  }
-}
-
-
 
 window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
-    if (!user) {
-      console.log('[Auth] No user - allowing redirects');
-      if (window._allowRedirects) window._allowRedirects();
-      return;
-    }
+    if (!user) return;
+    hideLoader();
     uid = user.uid;
-    console.log('[Auth] User logged in - allowing app redirects only');
-    if (window._allowRedirects) window._allowRedirects();
-    
-    // Track what data has loaded
-    window._dataLoadStatus = {
-      categories: false,
-      settings: false,
-      transactions: false,
-      pending: false
-    };
 
     // Account info
     document.getElementById('acctEmail').textContent = user.email || '—';
@@ -86,10 +34,7 @@ window.firebaseReady.then(() => {
     const today = new Date();
     document.getElementById('txDate').valueAsDate  = today;
     document.getElementById('dailyDate').value     = toInputDate(today);
-    
-    // Initialize month dropdown with abbreviated names
     initMonthDropdown(today);
-    
     document.getElementById('yearlyYear').value    = today.getFullYear();
     document.getElementById('cashflowYear').value  = today.getFullYear();
 
@@ -114,17 +59,14 @@ function fmt(n) {
 function vibrate() { if (navigator.vibrate) navigator.vibrate(40); }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-// Initialize month dropdown with current year and abbreviated month names
+// Initialize month dropdown
 function initMonthDropdown(currentDate) {
   const select = document.getElementById('monthlyDate');
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
   
-  // Clear existing options
   select.innerHTML = '';
   
-  // Generate options for last 2 years and next year
   for (let year = currentYear - 2; year <= currentYear + 1; year++) {
     for (let month = 0; month < 12; month++) {
       const option = document.createElement('option');
@@ -133,13 +75,13 @@ function initMonthDropdown(currentDate) {
       option.textContent = `${MONTHS[month]} ${year}`;
       select.appendChild(option);
       
-      // Select current month
       if (year === currentYear && month === currentMonth) {
         option.selected = true;
       }
     }
   }
 }
+
 
 
 // ─── Settings Drawer ─────────────────────────────────────────────────────────
@@ -269,7 +211,6 @@ async function loadCategories() {
     await saveCategories();
   }
   populateCategoryDropdowns();
-  if (window._dataLoadStatus) { window._dataLoadStatus.categories = true; checkDataLoaded(); }
 }
 
 async function saveCategories() {
@@ -287,7 +228,6 @@ async function loadSettings() {
     const inp = document.getElementById('startingBalanceInput');
     if (inp) inp.value = startingBalance > 0 ? startingBalance : '';
   } catch(e) { console.error('loadSettings', e); }
-  if (window._dataLoadStatus) { window._dataLoadStatus.settings = true; checkDataLoaded(); }
 }
 
 async function saveSettings() {
@@ -346,7 +286,6 @@ window.openCatsModal = function() {
 window.closeCatsModal = function() {
   document.getElementById('catsModalBg').classList.remove('open');
   populateCategoryDropdowns();
-  if (window._dataLoadStatus) { window._dataLoadStatus.categories = true; checkDataLoaded(); }
 };
 window.addCat = async function(type) {
   const nameEl  = document.getElementById(type === 'income' ? 'newIncName'  : 'newExpName');
@@ -403,22 +342,12 @@ function listenTransactions() {
     window.collection(window.db, 'users', uid, 'transactions'),
     window.orderBy('selectedDate', 'desc')
   );
-  let firstLoad = true;
   window.onSnapshot(q, snap => {
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTxList();
     renderStats();
     if (activeView === 'analytics') refreshCurrentPeriod();
     if (activeView === 'transactions') renderAllTxList();
-    
-    // Mark as loaded on first snapshot
-    if (firstLoad) {
-      firstLoad = false;
-      if (window._dataLoadStatus) { 
-        window._dataLoadStatus.transactions = true; 
-        checkDataLoaded(); 
-      }
-    }
   });
 }
 
@@ -631,7 +560,6 @@ function renderStats() {
   const allExpense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const balance = startingBalance + allIncome - allExpense - pending;
 
-  // Remove spinners and show values
   document.getElementById('sIncome').innerHTML  = fmt(income);
   document.getElementById('sExpense').innerHTML = fmt(expense);
   document.getElementById('sBalance').innerHTML = fmt(balance);
@@ -648,20 +576,10 @@ function listenPending() {
     window.collection(window.db, 'users', uid, 'pending'),
     window.orderBy('createdAt', 'desc')
   );
-  let firstLoad = true;
   window.onSnapshot(q, snap => {
     pendingAmounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderPendingList();
     renderStats();
-    
-    // Mark as loaded on first snapshot
-    if (firstLoad) {
-      firstLoad = false;
-      if (window._dataLoadStatus) { 
-        window._dataLoadStatus.pending = true; 
-        checkDataLoaded(); 
-      }
-    }
   });
 }
 
@@ -714,8 +632,8 @@ function renderDaily() {
   const selTotal  = selExp.reduce((s,t)=>s+t.amount,0);
   const prevTotal = prevExp.reduce((s,t)=>s+t.amount,0);
 
-  document.getElementById('cmpToday').innerHTML     = fmt(selTotal);
-  document.getElementById('cmpYesterday').innerHTML = fmt(prevTotal);
+  document.getElementById('cmpToday').textContent     = fmt(selTotal);
+  document.getElementById('cmpYesterday').textContent = fmt(prevTotal);
 
   const diff = selTotal - prevTotal;
   const resultEl = document.getElementById('cmpResult');
@@ -740,13 +658,11 @@ function renderMonthly() {
   if (!val) return;
   const [y, m] = val.split('-').map(Number);
 
-  // Current month transactions
   const monthTx  = transactions.filter(t => {
     const d = toDate(t.selectedDate);
     return d.getFullYear()===y && d.getMonth()===m-1;
   });
   
-  // Previous month transactions
   const prevDate = new Date(y, m-1, 1);
   prevDate.setMonth(prevDate.getMonth() - 1);
   const prevY = prevDate.getFullYear();
@@ -766,11 +682,9 @@ function renderMonthly() {
   const prevMonthIncTotal = prevMonthInc.reduce((s,t)=>s+t.amount,0);
   const prevMonthExpTotal = prevMonthExp.reduce((s,t)=>s+t.amount,0);
 
-  // Update summary badges - remove spinners
-  document.getElementById('msIncome').innerHTML  = fmt(monthIncTotal);
-  document.getElementById('msExpense').innerHTML = fmt(monthExpTotal);
+  document.getElementById('msIncome').textContent  = fmt(monthIncTotal);
+  document.getElementById('msExpense').textContent = fmt(monthExpTotal);
   
-  // Update income vs expense arrow
   const msArrow = document.getElementById('msArrow');
   if (monthIncTotal > monthExpTotal) {
     msArrow.textContent = '↓';
@@ -783,16 +697,14 @@ function renderMonthly() {
     msArrow.style.color = 'var(--text-3)';
   }
 
-  // Update label
   const typeLabel = monthlyType === 'income' ? 'Income' : 'Expense';
   document.getElementById('monthlyLabel').textContent = `Monthly ${typeLabel}`;
 
-  // Comparison logic based on selected type
   const thisTotal = monthlyType === 'income' ? monthIncTotal : monthExpTotal;
   const lastTotal = monthlyType === 'income' ? prevMonthIncTotal : prevMonthExpTotal;
   
-  document.getElementById('monthlyThis').innerHTML = fmt(thisTotal);
-  document.getElementById('monthlyLast').innerHTML = fmt(lastTotal);
+  document.getElementById('monthlyThis').textContent = fmt(thisTotal);
+  document.getElementById('monthlyLast').textContent = fmt(lastTotal);
 
   const diff = thisTotal - lastTotal;
   const resultEl = document.getElementById('monthlyResult');
@@ -815,11 +727,9 @@ function renderMonthly() {
     arrowEl.className='cmp-arrow flat';
   }
 
-  // Render chart and breakdown for selected type
   const data = monthlyType === 'income' ? monthInc : monthExp;
   renderPieChart('monthlyChartWrap', data, monthlyType);
 
-  // Category breakdown
   const totals = {}; const colors = {};
   data.forEach(t => {
     totals[t.category] = (totals[t.category]||0) + t.amount;
@@ -849,7 +759,6 @@ function renderYearly() {
   const year = parseInt(document.getElementById('yearlyYear').value);
   if (!year) return;
   
-  // Update label
   const typeLabel = yearlyType === 'income' ? 'Income' : 'Expenses';
   document.getElementById('yearlyLabel').textContent = `Monthly ${typeLabel} by Category`;
   

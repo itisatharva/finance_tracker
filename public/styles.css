@@ -1,67 +1,3 @@
-/* Remove mobile tap highlight */
-* {
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-}
-
-
-/* Type toggle buttons for Monthly/Yearly */
-.period-header-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.type-toggle-group {
-  display: flex;
-  gap: 6px;
-  background: var(--bg-subtle);
-  padding: 4px;
-  border-radius: var(--r-md);
-}
-
-.type-toggle-btn {
-  padding: 6px 16px;
-  font-size: .85rem;
-  font-weight: 600;
-  border: none;
-  background: transparent;
-  color: var(--text-2);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  transition: all .2s;
-  font-family: inherit;
-}
-
-.type-toggle-btn.active {
-  background: var(--ink);
-  color: var(--ink-fg);
-}
-
-.type-toggle-btn:hover:not(.active) {
-  color: var(--text-1);
-}
-
-/* Mobile: Stack vertically */
-@media (max-width: 640px) {
-  .period-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  .type-toggle-group {
-    width: 100%;
-  }
-  
-  .type-toggle-btn {
-    flex: 1;
-    padding: 8px 12px;
-    font-size: .82rem;
-  }
-}
-
 /* =============================================
    FINANCE TRACKER — STYLES
    Beige/Black theme, bulletproof dark mode
@@ -1051,64 +987,6 @@ select:focus option { animation: fadeIn .1s ease; }
   .nav-tab { padding: 9px 18px; font-size: .85rem; }
 }
 
-
-/* Type toggle buttons for Monthly/Yearly */
-.period-header-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.type-toggle-group {
-  display: flex;
-  gap: 6px;
-  background: var(--bg-subtle);
-  padding: 4px;
-  border-radius: var(--r-md);
-}
-
-.type-toggle-btn {
-  padding: 6px 16px;
-  font-size: .85rem;
-  font-weight: 600;
-  border: none;
-  background: transparent;
-  color: var(--text-2);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  transition: all .2s;
-  font-family: inherit;
-}
-
-.type-toggle-btn.active {
-  background: var(--ink);
-  color: var(--ink-fg);
-}
-
-.type-toggle-btn:hover:not(.active) {
-  color: var(--text-1);
-}
-
-/* Mobile: Stack vertically */
-@media (max-width: 640px) {
-  .period-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-  
-  .type-toggle-group {
-    width: 100%;
-  }
-  
-  .type-toggle-btn {
-    flex: 1;
-    padding: 8px 12px;
-    font-size: .82rem;
-  }
-}
-
 /* =============================================
    ADDITIONS — Auth cards, Monthly summary,
    Cash Flow table, spinner removal
@@ -1267,18 +1145,57 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* ---------- SETTINGS FIELD ---------- */
 .settings-field { padding: 4px 0; }
 
-/* Monthly cards side-by-side on desktop */
+/* Remove mobile tap highlight */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Period header row */
+.period-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Type toggle buttons */
+.type-toggle-group {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-subtle);
+  padding: 4px;
+  border-radius: var(--r-md);
+}
+
+.type-toggle-btn {
+  padding: 6px 16px;
+  font-size: .85rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+}
+
+.type-toggle-btn.active {
+  background: var(--ink);
+  color: var(--ink-fg);
+}
+
+.type-toggle-btn:hover:not(.active) {
+  color: var(--text-1);
+}
+
+/* Monthly cards side-by-side */
 .monthly-cards-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-bottom: 20px;
-}
-
-@media (max-width: 768px) {
-  .monthly-cards-row {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Loading spinner */
@@ -1294,4 +1211,29 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .monthly-cards-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .period-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .type-toggle-group {
+    width: 100%;
+  }
+  
+  .type-toggle-btn {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: .82rem;
+  }
 }
