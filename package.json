@@ -4,7 +4,7 @@
   "description": "Track your income and expenses effortlessly",
   "main": "public/index.html",
   "scripts": {
-    "build": "echo 'Build step disabled - firebase-config.js is hardcoded'",
+    "build": "echo 'Build disabled - using GitHub secrets'",
     "deploy": "firebase deploy",
     "dev": "firebase emulators:start"
   },

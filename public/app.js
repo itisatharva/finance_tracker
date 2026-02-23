@@ -1,5 +1,15 @@
 // app.js — Finance Tracker
 
+// CRITICAL: Override hideLoader immediately to prevent firebase-config from hiding it
+// We want to control when the loader hides (after all data loads)
+let _loaderHiddenByFirebase = false;
+const _originalHideLoader = window.hideLoader || function() {};
+window.hideLoader = function() {
+  _loaderHiddenByFirebase = true;
+  // Don't actually hide yet - we'll do it after data loads
+  console.log('[Loader] Firebase tried to hide loader - ignored');
+};
+
 // ─── State ───────────────────────────────────────────────────────────────────
 let uid             = null;
 let transactions    = [];
@@ -13,7 +23,7 @@ let monthlyType     = 'expense';  // 'expense' or 'income'
 let yearlyType      = 'expense';  // 'expense' or 'income'
 
 // ─── Init ────────────────────────────────────────────────────────────────────
-function hideLoader() {
+function actuallyHideLoader() {
   const l = document.getElementById('pageLoader');
   if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
 }
@@ -23,7 +33,7 @@ function checkDataLoaded() {
   if (!status) return;
   
   if (status.categories && status.settings && status.transactions && status.pending) {
-    hideLoader();
+    actuallyHideLoader();
   }
 }
 
