@@ -21,8 +21,23 @@ function hideLoader() {
 window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) return;
-    hideLoader();
     uid = user.uid;
+    
+    // Track what data needs to load before hiding loader
+    window._dataLoaded = {
+      categories: false,
+      settings: false,
+      transactions: false,
+      pending: false
+    };
+    
+    window._checkAllDataLoaded = function() {
+      const d = window._dataLoaded;
+      if (d.categories && d.settings && d.transactions && d.pending) {
+        console.log('[App] All data loaded, hiding loader');
+        hideLoader();
+      }
+    };
 
     // Account info
     document.getElementById('acctEmail').textContent = user.email || '—';
@@ -211,6 +226,10 @@ async function loadCategories() {
     await saveCategories();
   }
   populateCategoryDropdowns();
+  if (window._dataLoaded) { 
+    window._dataLoaded.categories = true; 
+    window._checkAllDataLoaded(); 
+  }
 }
 
 async function saveCategories() {
@@ -228,6 +247,7 @@ async function loadSettings() {
     const inp = document.getElementById('startingBalanceInput');
     if (inp) inp.value = startingBalance > 0 ? startingBalance : '';
   } catch(e) { console.error('loadSettings', e); }
+  if (window._dataLoaded) { window._dataLoaded.settings = true; window._checkAllDataLoaded(); }
 }
 
 async function saveSettings() {
@@ -342,12 +362,19 @@ function listenTransactions() {
     window.collection(window.db, 'users', uid, 'transactions'),
     window.orderBy('selectedDate', 'desc')
   );
+  let firstLoad = true;
   window.onSnapshot(q, snap => {
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderTxList();
     renderStats();
     if (activeView === 'analytics') refreshCurrentPeriod();
     if (activeView === 'transactions') renderAllTxList();
+    
+    if (firstLoad && window._dataLoaded) {
+      firstLoad = false;
+      window._dataLoaded.transactions = true;
+      window._checkAllDataLoaded();
+    }
   });
 }
 
@@ -576,10 +603,17 @@ function listenPending() {
     window.collection(window.db, 'users', uid, 'pending'),
     window.orderBy('createdAt', 'desc')
   );
+  let firstLoad = true;
   window.onSnapshot(q, snap => {
     pendingAmounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderPendingList();
     renderStats();
+    
+    if (firstLoad && window._dataLoaded) {
+      firstLoad = false;
+      window._dataLoaded.pending = true;
+      window._checkAllDataLoaded();
+    }
   });
 }
 
