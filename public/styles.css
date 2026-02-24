@@ -1241,3 +1241,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     font-size: .82rem;
   }
 }
+
+/* Smooth fade animations */
+.tx-item { transition: opacity 0.3s ease-in-out; }

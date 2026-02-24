@@ -9,6 +9,8 @@ let startingBalance = 0;
 let editTxId        = null;
 let activeView      = 'dashboard';
 let activePeriod    = 'daily';
+let isInitialLoad   = true;  // Track first load
+let hasLoadedStats  = false; // Track if stats loaded once
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
 
@@ -441,41 +443,60 @@ function txSorted(list) {
 
 function renderTxList() {
   const el = document.getElementById('txList');
-  if (!transactions.length) { el.innerHTML = '<div class="empty">No transactions yet</div>'; return; }
+  if (!transactions.length) { 
+    el.innerHTML = '<div class="empty">No transactions yet</div>'; 
+    return; 
+  }
   
-  // Fade out existing items
+  // Always fade out existing items first
   const existingItems = el.querySelectorAll('.tx-item');
-  existingItems.forEach(item => item.style.opacity = '0');
+  if (existingItems.length > 0) {
+    existingItems.forEach(item => item.style.opacity = '0');
+    setTimeout(() => renderTxItems(el, true), 200);
+  } else {
+    // First load: render items that will fade in
+    renderTxItems(el, isInitialLoad);
+    if (isInitialLoad) isInitialLoad = false;
+  }
+}
+
+function renderTxItems(el, shouldAnimate) {
+  el.innerHTML = '';
   
-  setTimeout(() => {
-    el.innerHTML = '';
+  txSorted(transactions).slice(0, 5).forEach((tx, index) => {
+    const d     = toDate(tx.selectedDate);
+    const color = catColorByName(tx.type, tx.category);
+    const div   = document.createElement('div');
+    div.className = 'tx-item';
     
-    txSorted(transactions).slice(0, 5).forEach((tx, index) => {
-      const d     = toDate(tx.selectedDate);
-      const color = catColorByName(tx.type, tx.category);
-      const div   = document.createElement('div');
-      div.className = 'tx-item';
+    // Start hidden for animation
+    if (shouldAnimate) {
       div.style.opacity = '0';
-      div.innerHTML = `
-        <div class="tx-meta">
-          <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
-          ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
-          <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-        </div>
-        <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-        <div class="tx-actions">
-          <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
-          <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
-        </div>
-      `;
-      el.appendChild(div);
-      
-      // Fade in with stagger
+    }
+    
+    div.innerHTML = `
+      <div class="tx-meta">
+        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
+        ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
+        <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      </div>
+      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+      <div class="tx-actions">
+        <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
+        <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
+      </div>
+    `;
+    el.appendChild(div);
+    
+    // Cascade fade in
+    if (shouldAnimate) {
       setTimeout(() => {
-        div.style.opacity = '1';
-      }, index * 50); // 50ms delay between each item
-    });
-  }, existingItems.length > 0 ? 200 : 0); // Wait for fade out if items exist
+        requestAnimationFrame(() => {
+          div.style.opacity = '1';
+        });
+      }, index * 80); // 80ms stagger between items
+    }
+  });
 }
 
 function renderAllTxList() {
