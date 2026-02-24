@@ -2,7 +2,6 @@
 
 // ─── State ───────────────────────────────────────────────────────────────────
 let uid             = null;
-let isFirstLoad     = true;
 let transactions    = [];
 let pendingAmounts  = [];
 let categories      = { income: [], expense: [] };
@@ -442,27 +441,66 @@ function txSorted(list) {
 
 function renderTxList() {
   const el = document.getElementById('txList');
-  if (!transactions.length) { el.innerHTML = '<div class="empty">No transactions yet</div>'; return; }
-  el.innerHTML = '';
-  txSorted(transactions).slice(0, 20).forEach(tx => {
-    const d     = toDate(tx.selectedDate);
-    const color = catColorByName(tx.type, tx.category);
-    const div   = document.createElement('div');
-    div.className = 'tx-item';
-    div.innerHTML = `
-      <div class="tx-meta">
-        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
-        ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
-        <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-      </div>
-      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-      <div class="tx-actions">
-        <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
-        <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
-      </div>
-    `;
-    el.appendChild(div);
-  });
+  if (!transactions.length) { 
+    el.innerHTML = '<div class="empty">No transactions yet</div>'; 
+    return; 
+  }
+  
+  // Check if list is currently empty or has the "empty" message (first load)
+  const isEmpty = el.children.length === 0 || el.querySelector('.empty') !== null;
+  
+  if (isEmpty) {
+    // First load: build list invisibly, then cascade fade in
+    el.innerHTML = '';
+    
+    txSorted(transactions).slice(0, 5).forEach((tx, index) => {
+      const d     = toDate(tx.selectedDate);
+      const color = catColorByName(tx.type, tx.category);
+      const div   = document.createElement('div');
+      div.className = 'tx-item';
+      div.style.opacity = '0';
+      div.innerHTML = `
+        <div class="tx-meta">
+          <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
+          ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
+          <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+        </div>
+        <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+        <div class="tx-actions">
+          <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
+          <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
+        </div>
+      `;
+      el.appendChild(div);
+      
+      // Cascade fade in - start after stats animation (600ms)
+      setTimeout(() => {
+        div.style.opacity = '1';
+      }, 600 + (index * 80));
+    });
+  } else {
+    // Subsequent updates: instant
+    el.innerHTML = '';
+    txSorted(transactions).slice(0, 5).forEach(tx => {
+      const d     = toDate(tx.selectedDate);
+      const color = catColorByName(tx.type, tx.category);
+      const div   = document.createElement('div');
+      div.className = 'tx-item';
+      div.innerHTML = `
+        <div class="tx-meta">
+          <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
+          ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
+          <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+        </div>
+        <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+        <div class="tx-actions">
+          <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
+          <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
+        </div>
+      `;
+      el.appendChild(div);
+    });
+  }
 }
 
 function renderAllTxList() {
@@ -588,34 +626,37 @@ function renderStats() {
   const allExpense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const balance = startingBalance + allIncome - allExpense - pending;
 
-    const incomeEl = document.getElementById('sIncome');
+  const incomeEl = document.getElementById('sIncome');
   const expenseEl = document.getElementById('sExpense');
   const balanceEl = document.getElementById('sBalance');
   const pendingEl = document.getElementById('sPending');
   
-  // Set opacity 0 first
-  [incomeEl, expenseEl, balanceEl, pendingEl].forEach(el => {
-    el.style.opacity = '0';
-  });
+  const elements = [incomeEl, expenseEl, balanceEl, pendingEl];
+  const values = [fmt(income), fmt(expense), fmt(balance), fmt(pending)];
   
-  incomeEl.innerHTML  = fmt(income);
-  expenseEl.innerHTML = fmt(expense);
-  balanceEl.innerHTML = fmt(balance);
-  pendingEl.innerHTML = fmt(pending);
+  // Check if ANY element has a spinner (first load)
+  const hasSpinners = incomeEl && incomeEl.querySelector('.loading-spinner') !== null;
   
-  // Fade in after a tiny delay
-  setTimeout(() => {
-    [incomeEl, expenseEl, balanceEl, pendingEl].forEach(el => {
-      el.style.opacity = '1';
-    });
-  }, 50);
+  if (hasSpinners) {
+    // First load with spinners: fade out spinners, then fade in values
+    elements.forEach(el => el.style.opacity = '0');
+    
+    setTimeout(() => {
+      elements.forEach((el, i) => el.innerHTML = values[i]);
+      // Force reflow
+      void incomeEl.offsetWidth;
+      elements.forEach(el => el.style.opacity = '1');
+    }, 300);
+  } else {
+    // No spinners: instant update
+    elements.forEach((el, i) => el.innerHTML = values[i]);
+  }
 
   // Update cash flow starting balance label
   const cfEl = document.getElementById('cfStartBal');
   if (cfEl) cfEl.textContent = fmt(startingBalance);
 }
 
-// ─── Pending Amounts ──────────────────────────────────────────────────────────
 function listenPending() {
   const q = window.query(
     window.collection(window.db, 'users', uid, 'pending'),
