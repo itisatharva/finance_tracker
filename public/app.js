@@ -587,21 +587,27 @@ function renderStats() {
   const allExpense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const balance = startingBalance + allIncome - allExpense - pending;
 
-  const incomeEl = document.getElementById('sIncome');
+    const incomeEl = document.getElementById('sIncome');
   const expenseEl = document.getElementById('sExpense');
   const balanceEl = document.getElementById('sBalance');
   const pendingEl = document.getElementById('sPending');
+  
+  // Set opacity 0 first
+  [incomeEl, expenseEl, balanceEl, pendingEl].forEach(el => {
+    el.style.opacity = '0';
+  });
   
   incomeEl.innerHTML  = fmt(income);
   expenseEl.innerHTML = fmt(expense);
   balanceEl.innerHTML = fmt(balance);
   pendingEl.innerHTML = fmt(pending);
   
-  // Add fade-in animation
-  incomeEl.classList.add('fade-in');
-  expenseEl.classList.add('fade-in');
-  balanceEl.classList.add('fade-in');
-  pendingEl.classList.add('fade-in');
+  // Fade in after a tiny delay
+  setTimeout(() => {
+    [incomeEl, expenseEl, balanceEl, pendingEl].forEach(el => {
+      el.style.opacity = '1';
+    });
+  }, 50);
 
   // Update cash flow starting balance label
   const cfEl = document.getElementById('cfStartBal');
