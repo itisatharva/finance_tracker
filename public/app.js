@@ -627,11 +627,22 @@ function renderStats() {
   const balanceEl = document.getElementById('sBalance');
   const pendingEl = document.getElementById('sPending');
   
-  // Update values - CSS animation handles the fade-in
+  // Set opacity 0 first
+  [incomeEl, expenseEl, balanceEl, pendingEl].forEach(el => {
+    el.style.opacity = '0';
+  });
+  
   incomeEl.innerHTML  = fmt(income);
   expenseEl.innerHTML = fmt(expense);
   balanceEl.innerHTML = fmt(balance);
   pendingEl.innerHTML = fmt(pending);
+  
+  // Fade in after a tiny delay
+  setTimeout(() => {
+    [incomeEl, expenseEl, balanceEl, pendingEl].forEach(el => {
+      el.style.opacity = '1';
+    });
+  }, 50);
 
   // Update cash flow starting balance label
   const cfEl = document.getElementById('cfStartBal');
