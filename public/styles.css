@@ -1244,72 +1244,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ========== HEATMAP ========== */
 #heatmapGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
   width: fit-content;
 }
-
-.heatmap-months-row {
-  display: grid;
-  grid-auto-columns: 12px;
-  gap: 3px;
-  margin-bottom: 4px;
-  padding-left: 30px;
-}
-
-.heatmap-month-label {
-  font-size: .72rem;
-  font-weight: 600;
-  color: var(--text-3);
-  text-align: left;
-}
-
-.heatmap-row {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 12px;
-  gap: 3px;
-  align-items: center;
-}
-
-.heatmap-day-label {
-  width: 26px;
-  font-size: .7rem;
-  color: var(--text-3);
-  text-align: right;
-  padding-right: 4px;
-}
-
-.heatmap-day {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease;
-}
-
-.heatmap-day:hover:not(.empty) {
-  transform: scale(1.4);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  border-color: var(--ink);
-  z-index: 10;
-}
-
-.heatmap-day.empty {
-  background: transparent;
-  border: none;
-  cursor: default;
-}
-
-/* Intensity levels */
-.heatmap-day.level-0 { background: var(--bg-subtle); }
-.heatmap-day.level-1 { background: #d4edda; border-color: #c3e6cb; }
-.heatmap-day.level-2 { background: #9dd49d; border-color: #8bc98b; }
-.heatmap-day.level-3 { background: #52b788; border-color: #40a574; }
-.heatmap-day.level-4 { background: #2d6a4f; border-color: #1f4a37; }
 
 .heatmap-legend-box {
   width: 12px;
@@ -1331,10 +1267,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   white-space: nowrap;
-}
-
-.heatmap-tooltip.show {
-  opacity: 1;
+  display: none;
 }
 
 .stat-mini {

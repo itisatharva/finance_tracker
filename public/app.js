@@ -936,8 +936,11 @@ document.getElementById('yearlyYear').addEventListener('change', renderYearly);
 // ─── Analytics: Heatmap ──────────────────────────────────────────────────────
 function renderHeatmap() {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
   const sixMonthsAgo = new Date(today);
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
   
   // Get transactions from last 6 months
   const relevantTx = transactions.filter(t => {
@@ -961,21 +964,18 @@ function renderHeatmap() {
     return dailyTotals[dateKey].expense + dailyTotals[dateKey].income; // total
   };
   
-  // Get all values to determine intensity levels
+  // Get all values for stats
   const allValues = Object.keys(dailyTotals).map(k => getValue(k)).filter(v => v > 0);
-  const maxValue = allValues.length ? Math.max(...allValues) : 0;
-  
-  // Calculate stats
   const activeDays = allValues.length;
   const avgValue = activeDays ? allValues.reduce((sum, v) => sum + v, 0) / activeDays : 0;
-  const highestValue = maxValue;
-  const lowestValue = allValues.length ? Math.min(...allValues.filter(v => v > 0)) : 0;
+  const highestValue = allValues.length ? Math.max(...allValues) : 0;
+  const lowestValue = allValues.length ? Math.min(...allValues) : 0;
   
-  // Find dates with highest/lowest values
+  // Find dates
   let highestDate = '-';
   let lowestDate = '-';
   if (activeDays > 0) {
-    for (const [dateKey, data] of Object.entries(dailyTotals)) {
+    for (const [dateKey] of Object.entries(dailyTotals)) {
       const val = getValue(dateKey);
       if (val === highestValue) {
         highestDate = new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -992,117 +992,177 @@ function renderHeatmap() {
   document.getElementById('hmAverage').textContent = fmt(avgValue);
   document.getElementById('hmDays').textContent = activeDays;
   
-  // === GitHub-style grid rendering ===
+  // === Render Grid ===
   const grid = document.getElementById('heatmapGrid');
   grid.innerHTML = '';
   
-  // Calculate start date (go back to most recent Sunday)
+  // Start from the most recent Sunday before 6 months ago
   const startDate = new Date(sixMonthsAgo);
-  startDate.setDate(startDate.getDate() - startDate.getDay()); // Go to Sunday
-  
-  // Calculate number of weeks to show
-  const endDate = new Date(today);
-  const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-  const numWeeks = Math.ceil(daysDiff / 7);
-  
-  // Create month labels row
-  const monthsRow = document.createElement('div');
-  monthsRow.className = 'heatmap-months-row';
-  monthsRow.innerHTML = '<div class="heatmap-day-label"></div>'; // Empty corner
-  
-  let currentMonth = -1;
-  let weekIndex = 0;
-  
-  // First pass: create month labels
-  for (let week = 0; week < numWeeks; week++) {
-    const weekStart = new Date(startDate);
-    weekStart.setDate(weekStart.getDate() + week * 7);
-    
-    const month = weekStart.getMonth();
-    if (month !== currentMonth) {
-      const monthLabel = document.createElement('div');
-      monthLabel.className = 'heatmap-month-label';
-      monthLabel.textContent = weekStart.toLocaleDateString('en-US', { month: 'short' });
-      monthLabel.style.gridColumn = (week + 2) + ' / span 4'; // Position it
-      monthsRow.appendChild(monthLabel);
-      currentMonth = month;
-    }
+  while (startDate.getDay() !== 0) { // Go back to Sunday
+    startDate.setDate(startDate.getDate() - 1);
   }
   
-  grid.appendChild(monthsRow);
+  // Calculate weeks needed
+  const daysDiff = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+  const weeksNeeded = Math.ceil(daysDiff / 7);
   
-  // Create 7 rows (Sun-Sat)
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  
-  for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
-    const row = document.createElement('div');
-    row.className = 'heatmap-row';
-    
-    // Add day label (Sun, Mon, etc.) - but only show Mon, Wed, Fri
-    const dayLabel = document.createElement('div');
-    dayLabel.className = 'heatmap-day-label';
-    if (dayOfWeek % 2 === 1) { // Show Mon, Wed, Fri (indices 1, 3, 5)
-      dayLabel.textContent = dayLabels[dayOfWeek];
-    }
-    row.appendChild(dayLabel);
-    
-    // Add cells for each week
-    for (let week = 0; week < numWeeks; week++) {
+  // Build 2D array [week][day]
+  const weeks = [];
+  for (let w = 0; w < weeksNeeded; w++) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
       const date = new Date(startDate);
-      date.setDate(date.getDate() + week * 7 + dayOfWeek);
-      
+      date.setDate(startDate.getDate() + w * 7 + d);
+      week.push(date);
+    }
+    weeks.push(week);
+  }
+  
+  // Create container with proper structure
+  const container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.gap = '16px';
+  
+  // Day labels column
+  const labelsCol = document.createElement('div');
+  labelsCol.style.display = 'flex';
+  labelsCol.style.flexDirection = 'column';
+  labelsCol.style.gap = '3px';
+  labelsCol.style.paddingTop = '20px'; // Space for month labels
+  
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  dayNames.forEach((name, idx) => {
+    const label = document.createElement('div');
+    label.textContent = (idx % 2 === 1) ? name : ''; // Only show Mon, Wed, Fri
+    label.style.fontSize = '.7rem';
+    label.style.color = 'var(--text-3)';
+    label.style.height = '12px';
+    label.style.display = 'flex';
+    label.style.alignItems = 'center';
+    label.style.paddingRight = '4px';
+    labelsCol.appendChild(label);
+  });
+  
+  container.appendChild(labelsCol);
+  
+  // Weeks container
+  const weeksContainer = document.createElement('div');
+  weeksContainer.style.display = 'flex';
+  weeksContainer.style.gap = '3px';
+  
+  let currentMonth = -1;
+  
+  weeks.forEach((week, weekIdx) => {
+    const weekCol = document.createElement('div');
+    weekCol.style.display = 'flex';
+    weekCol.style.flexDirection = 'column';
+    weekCol.style.gap = '3px';
+    
+    // Month label for first week of each month
+    const firstDayOfWeek = week[0];
+    const monthOfWeek = firstDayOfWeek.getMonth();
+    
+    const monthLabel = document.createElement('div');
+    monthLabel.style.height = '16px';
+    monthLabel.style.fontSize = '.72rem';
+    monthLabel.style.fontWeight = '600';
+    monthLabel.style.color = 'var(--text-3)';
+    monthLabel.style.marginBottom = '4px';
+    
+    if (monthOfWeek !== currentMonth) {
+      monthLabel.textContent = firstDayOfWeek.toLocaleDateString('en-US', { month: 'short' });
+      currentMonth = monthOfWeek;
+    }
+    weekCol.appendChild(monthLabel);
+    
+    // Add cells for each day in the week
+    week.forEach(date => {
       const cell = document.createElement('div');
-      cell.className = 'heatmap-day';
+      cell.style.width = '12px';
+      cell.style.height = '12px';
+      cell.style.borderRadius = '2px';
+      cell.style.border = '1px solid var(--border)';
+      cell.style.cursor = 'pointer';
+      cell.style.transition = 'transform .12s ease';
       
-      // Don't show future dates or dates before our range
-      if (date > today || date < sixMonthsAgo) {
-        cell.classList.add('empty');
-        row.appendChild(cell);
-        continue;
+      // Skip if outside our range
+      if (date < sixMonthsAgo || date > today) {
+        cell.style.background = 'transparent';
+        cell.style.border = 'none';
+        cell.style.cursor = 'default';
+        weekCol.appendChild(cell);
+        return;
       }
       
       const dateKey = date.toISOString().split('T')[0];
       const value = getValue(dateKey);
       
-      // Calculate intensity level (0-4)
+      // Calculate level based on ₹100 intervals
       let level = 0;
-      if (value > 0 && maxValue > 0) {
-        const percent = value / maxValue;
-        if (percent > 0.75) level = 4;
-        else if (percent > 0.5) level = 3;
-        else if (percent > 0.25) level = 2;
-        else level = 1;
+      if (value > 0) {
+        if (value > 300) level = 4;
+        else if (value > 200) level = 3;
+        else if (value > 100) level = 2;
+        else level = 1; // ₹0.01-100
       }
       
-      cell.classList.add('level-' + level);
+      // Set color based on level
+      const colors = [
+        'var(--bg-subtle)',
+        '#d4edda',
+        '#9dd49d',
+        '#52b788',
+        '#2d6a4f'
+      ];
+      const borderColors = [
+        'var(--border)',
+        '#c3e6cb',
+        '#8bc98b',
+        '#40a574',
+        '#1f4a37'
+      ];
       
-      // Store date for tooltip
-      cell.dataset.date = dateKey;
-      cell.dataset.value = value;
+      cell.style.background = colors[level];
+      cell.style.borderColor = borderColors[level];
       
-      // Tooltip on hover
+      // Tooltip
       cell.addEventListener('mouseenter', (e) => {
         const tooltip = document.getElementById('heatmapTooltip');
-        const d = new Date(dateKey);
-        const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
         
-        tooltip.innerHTML = dateStr + '<br><strong>' + fmt(value) + '</strong>';
-        tooltip.classList.add('show');
+        if (value > 0) {
+          tooltip.innerHTML = dateStr + '<br><strong>' + fmt(value) + '</strong>';
+        } else {
+          tooltip.innerHTML = dateStr + '<br>No transactions';
+        }
+        
+        tooltip.style.display = 'block';
+        tooltip.style.opacity = '1';
         
         const rect = e.target.getBoundingClientRect();
-        tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
-        tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
+        tooltip.style.left = (rect.left + rect.width / 2 - 60) + 'px';
+        tooltip.style.top = (rect.top - 50) + 'px';
+        
+        cell.style.transform = 'scale(1.4)';
+        cell.style.zIndex = '10';
       });
       
       cell.addEventListener('mouseleave', () => {
-        document.getElementById('heatmapTooltip').classList.remove('show');
+        document.getElementById('heatmapTooltip').style.opacity = '0';
+        cell.style.transform = 'scale(1)';
+        setTimeout(() => {
+          document.getElementById('heatmapTooltip').style.display = 'none';
+        }, 150);
       });
       
-      row.appendChild(cell);
-    }
+      weekCol.appendChild(cell);
+    });
     
-    grid.appendChild(row);
-  }
+    weeksContainer.appendChild(weekCol);
+  });
+  
+  container.appendChild(weeksContainer);
+  grid.appendChild(container);
 }
 
 // ─── Analytics: Cash Flow ────────────────────────────────────────────────────
