@@ -312,10 +312,21 @@ window.addCat = async function(type) {
   const colorEl = document.getElementById(type === 'income' ? 'newIncColor' : 'newExpColor');
   const name = nameEl.value.trim();
   if (!name) { alert('Enter a category name'); return; }
-  categories[type].push({ name, color: colorEl.value });
+  
+  const newCat = { name, color: colorEl.value, budget: null };
+  if (type === 'expense') {
+    const budgetEl = document.getElementById('newExpBudget');
+    if (budgetEl && budgetEl.value) newCat.budget = parseFloat(budgetEl.value);
+  }
+  
+  categories[type].push(newCat);
   await saveCategories();
   renderCatLists();
   nameEl.value = '';
+  if (type === 'expense') {
+    const budgetEl = document.getElementById('newExpBudget');
+    if (budgetEl) budgetEl.value = '';
+  }
 };
 window.removeCat = async function(type, idx) {
   if (!confirm('Remove this category?')) return;
@@ -335,20 +346,29 @@ window.updateCatColor = async function(type, idx, color) {
   await saveCategories();
 };
 
+window.updateCatBudget = async function(type, idx, budget) {
+  if (typeof categories[type][idx] === 'string') categories[type][idx] = { name: categories[type][idx], color: '#666', budget: null };
+  categories[type][idx].budget = budget ? parseFloat(budget) : null;
+  await saveCategories();
+};
+
 function renderCatLists() {
   ['income','expense'].forEach(type => {
     const el = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
     el.innerHTML = '';
     categories[type].forEach((c, i) => {
       const color = catColor(c);
+      const budget = typeof c === 'object' ? c.budget : null;
       const div = document.createElement('div');
       div.className = 'cat-item';
+      const budgetInput = type === 'expense' ? `<input type="number" value="${budget || ''}" placeholder="Budget" style="max-width:100px;font-size:.85rem;margin-right:8px;" min="0" step="0.01" onchange="updateCatBudget('${type}',${i},this.value)">` : '';
       div.innerHTML = `
         <div class="cat-color-wrap" title="Click to change color">
           <input type="color" value="${color}" onchange="updateCatColor('${type}',${i},this.value)">
           <span class="cat-color-swatch" style="background:${color}"></span>
         </div>
         <span class="cat-name">${catName(c)}</span>
+        ${budgetInput}
         <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
       `;
       el.appendChild(div);
@@ -441,66 +461,27 @@ function txSorted(list) {
 
 function renderTxList() {
   const el = document.getElementById('txList');
-  if (!transactions.length) { 
-    el.innerHTML = '<div class="empty">No transactions yet</div>'; 
-    return; 
-  }
-  
-  // Check if list is currently empty or has the "empty" message (first load)
-  const isEmpty = el.children.length === 0 || el.querySelector('.empty') !== null;
-  
-  if (isEmpty) {
-    // First load: build list invisibly, then cascade fade in
-    el.innerHTML = '';
-    
-    txSorted(transactions).slice(0, 5).forEach((tx, index) => {
-      const d     = toDate(tx.selectedDate);
-      const color = catColorByName(tx.type, tx.category);
-      const div   = document.createElement('div');
-      div.className = 'tx-item';
-      div.style.opacity = '0';
-      div.innerHTML = `
-        <div class="tx-meta">
-          <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
-          ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
-          <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-        </div>
-        <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-        <div class="tx-actions">
-          <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
-          <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
-        </div>
-      `;
-      el.appendChild(div);
-      
-      // Cascade fade in - start after stats animation (600ms)
-      setTimeout(() => {
-        div.style.opacity = '1';
-      }, 600 + (index * 80));
-    });
-  } else {
-    // Subsequent updates: instant
-    el.innerHTML = '';
-    txSorted(transactions).slice(0, 5).forEach(tx => {
-      const d     = toDate(tx.selectedDate);
-      const color = catColorByName(tx.type, tx.category);
-      const div   = document.createElement('div');
-      div.className = 'tx-item';
-      div.innerHTML = `
-        <div class="tx-meta">
-          <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
-          ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
-          <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
-        </div>
-        <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-        <div class="tx-actions">
-          <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
-          <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
-        </div>
-      `;
-      el.appendChild(div);
-    });
-  }
+  if (!transactions.length) { el.innerHTML = '<div class="empty">No transactions yet</div>'; return; }
+  el.innerHTML = '';
+  txSorted(transactions).slice(0, 20).forEach(tx => {
+    const d     = toDate(tx.selectedDate);
+    const color = catColorByName(tx.type, tx.category);
+    const div   = document.createElement('div');
+    div.className = 'tx-item';
+    div.innerHTML = `
+      <div class="tx-meta">
+        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
+        ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
+        <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      </div>
+      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+      <div class="tx-actions">
+        <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
+        <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
+      </div>
+    `;
+    el.appendChild(div);
+  });
 }
 
 function renderAllTxList() {
@@ -626,37 +607,34 @@ function renderStats() {
   const allExpense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
   const balance = startingBalance + allIncome - allExpense - pending;
 
-  const incomeEl = document.getElementById('sIncome');
+    const incomeEl = document.getElementById('sIncome');
   const expenseEl = document.getElementById('sExpense');
   const balanceEl = document.getElementById('sBalance');
   const pendingEl = document.getElementById('sPending');
   
-  const elements = [incomeEl, expenseEl, balanceEl, pendingEl];
-  const values = [fmt(income), fmt(expense), fmt(balance), fmt(pending)];
+  // Set opacity 0 first
+  [incomeEl, expenseEl, balanceEl, pendingEl].forEach(el => {
+    el.style.opacity = '0';
+  });
   
-  // Check if ANY element has a spinner (first load)
-  const hasSpinners = incomeEl && incomeEl.querySelector('.loading-spinner') !== null;
+  incomeEl.innerHTML  = fmt(income);
+  expenseEl.innerHTML = fmt(expense);
+  balanceEl.innerHTML = fmt(balance);
+  pendingEl.innerHTML = fmt(pending);
   
-  if (hasSpinners) {
-    // First load with spinners: fade out spinners, then fade in values
-    elements.forEach(el => el.style.opacity = '0');
-    
-    setTimeout(() => {
-      elements.forEach((el, i) => el.innerHTML = values[i]);
-      // Force reflow
-      void incomeEl.offsetWidth;
-      elements.forEach(el => el.style.opacity = '1');
-    }, 300);
-  } else {
-    // No spinners: instant update
-    elements.forEach((el, i) => el.innerHTML = values[i]);
-  }
+  // Fade in after a tiny delay
+  setTimeout(() => {
+    [incomeEl, expenseEl, balanceEl, pendingEl].forEach(el => {
+      el.style.opacity = '1';
+    });
+  }, 50);
 
   // Update cash flow starting balance label
   const cfEl = document.getElementById('cfStartBal');
   if (cfEl) cfEl.textContent = fmt(startingBalance);
 }
 
+// ─── Pending Amounts ──────────────────────────────────────────────────────────
 function listenPending() {
   const q = window.query(
     window.collection(window.db, 'users', uid, 'pending'),
@@ -838,8 +816,29 @@ function renderMonthly() {
   sorted.forEach(([name, amt]) => {
     const div = document.createElement('div');
     div.className = 'breakdown-item';
+    
+    // Get budget for this category (only for expenses)
+    let budgetHtml = '';
+    if (monthlyType === 'expense') {
+      const cat = categories.expense.find(c => catName(c) === name);
+      const budget = cat && typeof cat === 'object' ? cat.budget : null;
+      if (budget) {
+        const remaining = budget - amt;
+        const isOver = remaining < 0;
+        const budgetColor = isOver ? 'var(--red)' : 'var(--green)';
+        const budgetText = isOver ? `₹${fmt(Math.abs(remaining)).slice(1)} over` : `₹${fmt(remaining).slice(1)} left`;
+        budgetHtml = `<div class="b-budget" style="color:${budgetColor};font-size:.8rem;margin-top:2px;">${budgetText}</div>`;
+      }
+    }
+    
     div.innerHTML = `
-      <div class="b-name"><div class="b-dot" style="background:${colors[name]}"></div>${name}</div>
+      <div class="b-name">
+        <div class="b-dot" style="background:${colors[name]}"></div>
+        <div>
+          <div>${name}</div>
+          ${budgetHtml}
+        </div>
+      </div>
       <div class="b-amt">${fmt(amt)}</div>
     `;
     el.appendChild(div);
