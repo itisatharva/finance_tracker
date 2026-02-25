@@ -11,7 +11,6 @@ let activeView      = 'dashboard';
 let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
-let heatmapType     = 'total';
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 function hideLoader() {
@@ -127,6 +126,9 @@ function wireSettingsDrawer() {
   btnCats.addEventListener('click', () => { closeDrawer(); openCatsModal(); });
 
   btnSaveBal.addEventListener('click', async () => {
+  const btnImportCSV = document.getElementById('btnImportCSV');
+  if (btnImportCSV) btnImportCSV.addEventListener('click', () => { closeDrawer(); openImportModal(); });
+
     const raw = balInput.value.replace(/,/g,'').trim();
     const val = parseFloat(raw);
     if (isNaN(val) || val < 0) { alert('Enter a valid starting balance (e.g. 10000)'); return; }
@@ -134,7 +136,6 @@ function wireSettingsDrawer() {
     await saveSettings();
     renderStats();
     if (activePeriod === 'cashflow') renderCashflow();
-  if (activePeriod === 'heatmap')  renderHeatmap();
     btnSaveBal.textContent = '✓ Saved!';
     btnSaveBal.style.background = 'var(--green)';
     btnSaveBal.style.color = '#fff';
@@ -160,7 +161,7 @@ window.showView = function(v) {
 };
 
 // ─── Period switching ─────────────────────────────────────────────────────────
-const PERIODS = ['daily','monthly','yearly','heatmap','cashflow'];
+const PERIODS = ['daily','monthly','yearly','cashflow'];
 
 window.showPeriod = function(p) {
   activePeriod = p;
@@ -180,7 +181,6 @@ function refreshCurrentPeriod() {
   if (activePeriod === 'monthly')  renderMonthly();
   if (activePeriod === 'yearly')   renderYearly();
   if (activePeriod === 'cashflow') renderCashflow();
-  if (activePeriod === 'heatmap')  renderHeatmap();
 }
 
 
@@ -302,15 +302,6 @@ function populateCategoryDropdowns() {
 }
 
 // ─── Categories Modal ────────────────────────────────────────────────────────
-window.setHeatmapType = function(type) {
-  heatmapType = type;
-  ['Expense', 'Income', 'Total'].forEach(t => {
-    const btn = document.getElementById('btnHeatmap' + t);
-    if (btn) btn.classList.toggle('active', t.toLowerCase() === type);
-  });
-  renderHeatmap();
-};
-
 window.openCatsModal = function() {
   renderCatLists();
   document.getElementById('catsModalBg').classList.add('open');
@@ -324,21 +315,10 @@ window.addCat = async function(type) {
   const colorEl = document.getElementById(type === 'income' ? 'newIncColor' : 'newExpColor');
   const name = nameEl.value.trim();
   if (!name) { alert('Enter a category name'); return; }
-  
-  const newCat = { name, color: colorEl.value, budget: null };
-  if (type === 'expense') {
-    const budgetEl = document.getElementById('newExpBudget');
-    if (budgetEl && budgetEl.value) newCat.budget = parseFloat(budgetEl.value);
-  }
-  
-  categories[type].push(newCat);
+  categories[type].push({ name, color: colorEl.value });
   await saveCategories();
   renderCatLists();
   nameEl.value = '';
-  if (type === 'expense') {
-    const budgetEl = document.getElementById('newExpBudget');
-    if (budgetEl) budgetEl.value = '';
-  }
 };
 window.removeCat = async function(type, idx) {
   if (!confirm('Remove this category?')) return;
@@ -358,37 +338,208 @@ window.updateCatColor = async function(type, idx, color) {
   await saveCategories();
 };
 
-window.updateCatBudget = async function(type, idx, budget) {
-  if (typeof categories[type][idx] === 'string') {
-    categories[type][idx] = { name: categories[type][idx], color: '#666', budget: null };
-  }
-  categories[type][idx].budget = budget ? parseFloat(budget) : null;
-  await saveCategories();
-};
-
 function renderCatLists() {
   ['income','expense'].forEach(type => {
     const el = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
     el.innerHTML = '';
     categories[type].forEach((c, i) => {
       const color = catColor(c);
-      const budget = typeof c === 'object' ? c.budget : null;
       const div = document.createElement('div');
       div.className = 'cat-item';
-      const budgetInput = type === 'expense' ? `<input type="number" value="${budget || ''}" placeholder="Budget" style="max-width:100px;font-size:.85rem;margin-right:8px;" min="0" step="0.01" onchange="updateCatBudget('${type}',${i},this.value)">` : '';
       div.innerHTML = `
         <div class="cat-color-wrap" title="Click to change color">
           <input type="color" value="${color}" onchange="updateCatColor('${type}',${i},this.value)">
           <span class="cat-color-swatch" style="background:${color}"></span>
         </div>
         <span class="cat-name">${catName(c)}</span>
-        ${budgetInput}
         <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
       `;
       el.appendChild(div);
     });
   });
 }
+
+// ─── CSV Import ──────────────────────────────────────────────────────────────
+window.openImportModal = function() {
+  document.getElementById('csvInput').value = '';
+  document.getElementById('importPreview').style.display = 'none';
+  document.getElementById('importError').style.display = 'none';
+  document.getElementById('importModalBg').classList.add('open');
+};
+
+window.closeImportModal = function() {
+  document.getElementById('importModalBg').classList.remove('open');
+};
+
+window.previewImport = function() {
+  const csvText = document.getElementById('csvInput').value.trim();
+  const errorEl = document.getElementById('importError');
+  const previewEl = document.getElementById('importPreview');
+  const previewList = document.getElementById('importPreviewList');
+  
+  errorEl.style.display = 'none';
+  previewEl.style.display = 'none';
+  
+  if (!csvText) {
+    errorEl.textContent = 'Please paste CSV data first';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  try {
+    const parsed = parseCSV(csvText);
+    if (parsed.length === 0) {
+      errorEl.textContent = 'No valid transactions found';
+      errorEl.style.display = 'block';
+      return;
+    }
+    
+    previewList.innerHTML = parsed.slice(0, 10).map(tx => 
+      `<div style="padding:4px 0;font-size:.85rem;">
+        ${tx.date} • ${tx.type} • ${tx.category} • ₹${tx.amount} • ${tx.description}
+      </div>`
+    ).join('') + (parsed.length > 10 ? `<div style="padding:8px 0;color:var(--text-3);">...and ${parsed.length - 10} more</div>` : '');
+    
+    previewEl.style.display = 'block';
+  } catch (err) {
+    errorEl.textContent = 'Error: ' + err.message;
+    errorEl.style.display = 'block';
+  }
+};
+
+window.executeImport = async function() {
+  const csvText = document.getElementById('csvInput').value.trim();
+  const errorEl = document.getElementById('importError');
+  const previewEl = document.getElementById('importPreview');
+  const previewList = document.getElementById('importPreviewList');
+  const importBtn = document.querySelector('#importModalBg .modal-foot .btn-primary');
+  
+  if (!csvText) {
+    errorEl.textContent = 'Please paste CSV data first';
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  try {
+    const parsed = parseCSV(csvText);
+    if (parsed.length === 0) throw new Error('No valid transactions found');
+    
+    importBtn.disabled = true;
+    importBtn.textContent = 'Importing...';
+    
+    previewEl.style.display = 'block';
+    previewList.innerHTML = `<div style="color:var(--text-2);">Starting import of ${parsed.length} transactions...</div>`;
+    
+    let imported = 0;
+    let failed = 0;
+    const errors = [];
+    
+    for (let i = 0; i < parsed.length; i++) {
+      const tx = parsed[i];
+      
+      try {
+        await window.addDoc(
+          window.collection(window.db, 'users', uid, 'transactions'),
+          {
+            type: tx.type,
+            category: tx.category,
+            amount: tx.amount,
+            description: tx.description,
+            selectedDate: tx.dateObj,
+            createdAt: window.serverTimestamp()
+          }
+        );
+        imported++;
+        
+        if (i % 10 === 0 || i === parsed.length - 1) {
+          importBtn.textContent = `Importing... ${imported}/${parsed.length}`;
+          previewList.innerHTML = `<div style="color:var(--green);font-weight:600;">✓ Imported ${imported} of ${parsed.length}</div>`;
+        }
+        
+        if (i % 20 === 0 && i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        
+      } catch (err) {
+        failed++;
+        errors.push(`Row ${i + 2}: ${err.message}`);
+        console.error('Import error:', tx, err);
+      }
+    }
+    
+    if (failed > 0) {
+      errorEl.innerHTML = `<strong>Imported ${imported}, Failed ${failed}</strong><br>${errors.slice(0, 3).join('<br>')}`;
+      errorEl.style.display = 'block';
+    }
+    
+    importBtn.textContent = `✓ Imported ${imported}!`;
+    importBtn.style.background = 'var(--green)';
+    previewList.innerHTML = `<div style="color:var(--green);font-weight:700;font-size:1rem;">✓ Successfully imported ${imported} transactions!</div>`;
+    
+    setTimeout(() => {
+      closeImportModal();
+      importBtn.disabled = false;
+      importBtn.textContent = 'Import';
+      importBtn.style.background = '';
+    }, 2000);
+    
+  } catch (err) {
+    errorEl.textContent = 'Import failed: ' + err.message;
+    errorEl.style.display = 'block';
+    importBtn.disabled = false;
+    importBtn.textContent = 'Import';
+  }
+};
+
+function parseCSV(csvText) {
+  const lines = csvText.split('\n').map(l => l.trim()).filter(l => l);
+  const results = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    if (i === 0 && line.toLowerCase().includes('date')) continue;
+    if (!line) continue;
+    
+    const parts = line.split(',').map(p => p.trim());
+    if (parts.length < 4) continue;
+    
+    const dateStr = parts[0];
+    const type = parts[1].toLowerCase();
+    const category = parts[2];
+    const amountStr = parts[3];
+    const description = parts.slice(4).join(',').replace(/^["']|["']$/g, '');
+    
+    if (type !== 'income' && type !== 'expense') continue;
+    
+    const amount = parseFloat(amountStr.replace(/[^0-9.]/g, ''));
+    if (isNaN(amount) || amount <= 0) continue;
+    
+    const dateParts = dateStr.split('/');
+    if (dateParts.length !== 3) continue;
+    
+    const month = parseInt(dateParts[0]);
+    const day = parseInt(dateParts[1]);
+    const year = parseInt(dateParts[2]);
+    
+    if (isNaN(month) || isNaN(day) || isNaN(year)) continue;
+    if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+    
+    const dateObj = new Date(year, month - 1, day, 12, 0, 0);
+    
+    results.push({
+      date: dateStr,
+      type,
+      category,
+      amount,
+      description: description || '',
+      dateObj
+    });
+  }
+  
+  return results;
+}
+
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
 function listenTransactions() {
@@ -873,27 +1024,8 @@ function renderMonthly() {
   sorted.forEach(([name, amt]) => {
     const div = document.createElement('div');
     div.className = 'breakdown-item';
-    
-    // Get budget for this category (only for expenses)
-    let budgetHtml = '';
-    if (monthlyType === 'expense') {
-      const cat = categories.expense.find(c => catName(c) === name);
-      const budget = cat && typeof cat === 'object' ? cat.budget : null;
-      if (budget) {
-        const remaining = budget - amt;
-        const isOver = remaining < 0;
-        const budgetColor = isOver ? 'var(--red)' : 'var(--green)';
-        const budgetText = isOver ? `₹${fmt(Math.abs(remaining)).slice(1)} over` : `₹${fmt(remaining).slice(1)} left`;
-        budgetHtml = `<div class="b-budget" style="color:${budgetColor};font-size:1.1rem;font-weight:700;margin-left:auto;margin-right:12px;">${budgetText}</div>`;
-      }
-    }
-    
     div.innerHTML = `
-      <div class="b-name">
-        <div class="b-dot" style="background:${colors[name]}"></div>
-        <span>${name}</span>
-      </div>
-      ${budgetHtml}
+      <div class="b-name"><div class="b-dot" style="background:${colors[name]}"></div>${name}</div>
       <div class="b-amt">${fmt(amt)}</div>
     `;
     el.appendChild(div);
@@ -932,238 +1064,6 @@ function renderYearly() {
   });
 }
 document.getElementById('yearlyYear').addEventListener('change', renderYearly);
-
-// ─── Analytics: Heatmap ──────────────────────────────────────────────────────
-function renderHeatmap() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const sixMonthsAgo = new Date(today);
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  sixMonthsAgo.setHours(0, 0, 0, 0);
-  
-  // Get transactions from last 6 months
-  const relevantTx = transactions.filter(t => {
-    const d = toDate(t.selectedDate || t.createdAt);
-    return d >= sixMonthsAgo && d <= today;
-  });
-  
-  // Calculate daily totals
-  const dailyTotals = {};
-  relevantTx.forEach(t => {
-    const dateKey = toDate(t.selectedDate || t.createdAt).toISOString().split('T')[0];
-    if (!dailyTotals[dateKey]) dailyTotals[dateKey] = { income: 0, expense: 0 };
-    dailyTotals[dateKey][t.type] += t.amount;
-  });
-  
-  // Determine what to show based on heatmapType
-  const getValue = (dateKey) => {
-    if (!dailyTotals[dateKey]) return 0;
-    if (heatmapType === 'income') return dailyTotals[dateKey].income;
-    if (heatmapType === 'expense') return dailyTotals[dateKey].expense;
-    return dailyTotals[dateKey].expense + dailyTotals[dateKey].income; // total
-  };
-  
-  // Get all values for stats
-  const allValues = Object.keys(dailyTotals).map(k => getValue(k)).filter(v => v > 0);
-  const activeDays = allValues.length;
-  const avgValue = activeDays ? allValues.reduce((sum, v) => sum + v, 0) / activeDays : 0;
-  const highestValue = allValues.length ? Math.max(...allValues) : 0;
-  const lowestValue = allValues.length ? Math.min(...allValues) : 0;
-  
-  // Find dates
-  let highestDate = '-';
-  let lowestDate = '-';
-  if (activeDays > 0) {
-    for (const [dateKey] of Object.entries(dailyTotals)) {
-      const val = getValue(dateKey);
-      if (val === highestValue) {
-        highestDate = new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-      }
-      if (val === lowestValue && val > 0) {
-        lowestDate = new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-      }
-    }
-  }
-  
-  // Update stats
-  document.getElementById('hmHighest').textContent = highestDate + ' - ' + fmt(highestValue);
-  document.getElementById('hmLowest').textContent = lowestDate + ' - ' + fmt(lowestValue);
-  document.getElementById('hmAverage').textContent = fmt(avgValue);
-  document.getElementById('hmDays').textContent = activeDays;
-  
-  // === Render Grid ===
-  const grid = document.getElementById('heatmapGrid');
-  grid.innerHTML = '';
-  
-  // Start from the most recent Sunday before 6 months ago
-  const startDate = new Date(sixMonthsAgo);
-  while (startDate.getDay() !== 0) { // Go back to Sunday
-    startDate.setDate(startDate.getDate() - 1);
-  }
-  
-  // Calculate weeks needed
-  const daysDiff = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
-  const weeksNeeded = Math.ceil(daysDiff / 7);
-  
-  // Build 2D array [week][day]
-  const weeks = [];
-  for (let w = 0; w < weeksNeeded; w++) {
-    const week = [];
-    for (let d = 0; d < 7; d++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + w * 7 + d);
-      week.push(date);
-    }
-    weeks.push(week);
-  }
-  
-  // Create container with proper structure
-  const container = document.createElement('div');
-  container.style.display = 'flex';
-  container.style.gap = '16px';
-  
-  // Day labels column
-  const labelsCol = document.createElement('div');
-  labelsCol.style.display = 'flex';
-  labelsCol.style.flexDirection = 'column';
-  labelsCol.style.gap = '3px';
-  labelsCol.style.paddingTop = '20px'; // Space for month labels
-  
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  dayNames.forEach((name, idx) => {
-    const label = document.createElement('div');
-    label.textContent = (idx % 2 === 1) ? name : ''; // Only show Mon, Wed, Fri
-    label.style.fontSize = '.7rem';
-    label.style.color = 'var(--text-3)';
-    label.style.height = '12px';
-    label.style.display = 'flex';
-    label.style.alignItems = 'center';
-    label.style.paddingRight = '4px';
-    labelsCol.appendChild(label);
-  });
-  
-  container.appendChild(labelsCol);
-  
-  // Weeks container
-  const weeksContainer = document.createElement('div');
-  weeksContainer.style.display = 'flex';
-  weeksContainer.style.gap = '3px';
-  
-  let currentMonth = -1;
-  
-  weeks.forEach((week, weekIdx) => {
-    const weekCol = document.createElement('div');
-    weekCol.style.display = 'flex';
-    weekCol.style.flexDirection = 'column';
-    weekCol.style.gap = '3px';
-    
-    // Month label for first week of each month
-    const firstDayOfWeek = week[0];
-    const monthOfWeek = firstDayOfWeek.getMonth();
-    
-    const monthLabel = document.createElement('div');
-    monthLabel.style.height = '16px';
-    monthLabel.style.fontSize = '.72rem';
-    monthLabel.style.fontWeight = '600';
-    monthLabel.style.color = 'var(--text-3)';
-    monthLabel.style.marginBottom = '4px';
-    
-    if (monthOfWeek !== currentMonth) {
-      monthLabel.textContent = firstDayOfWeek.toLocaleDateString('en-US', { month: 'short' });
-      currentMonth = monthOfWeek;
-    }
-    weekCol.appendChild(monthLabel);
-    
-    // Add cells for each day in the week
-    week.forEach(date => {
-      const cell = document.createElement('div');
-      cell.style.width = '12px';
-      cell.style.height = '12px';
-      cell.style.borderRadius = '2px';
-      cell.style.border = '1px solid var(--border)';
-      cell.style.cursor = 'pointer';
-      cell.style.transition = 'transform .12s ease';
-      
-      // Skip if outside our range
-      if (date < sixMonthsAgo || date > today) {
-        cell.style.background = 'transparent';
-        cell.style.border = 'none';
-        cell.style.cursor = 'default';
-        weekCol.appendChild(cell);
-        return;
-      }
-      
-      const dateKey = date.toISOString().split('T')[0];
-      const value = getValue(dateKey);
-      
-      // Calculate level based on ₹100 intervals
-      let level = 0;
-      if (value > 0) {
-        if (value > 300) level = 4;
-        else if (value > 200) level = 3;
-        else if (value > 100) level = 2;
-        else level = 1; // ₹0.01-100
-      }
-      
-      // Set color based on level
-      const colors = [
-        'var(--bg-subtle)',
-        '#d4edda',
-        '#9dd49d',
-        '#52b788',
-        '#2d6a4f'
-      ];
-      const borderColors = [
-        'var(--border)',
-        '#c3e6cb',
-        '#8bc98b',
-        '#40a574',
-        '#1f4a37'
-      ];
-      
-      cell.style.background = colors[level];
-      cell.style.borderColor = borderColors[level];
-      
-      // Tooltip
-      cell.addEventListener('mouseenter', (e) => {
-        const tooltip = document.getElementById('heatmapTooltip');
-        const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-        
-        if (value > 0) {
-          tooltip.innerHTML = dateStr + '<br><strong>' + fmt(value) + '</strong>';
-        } else {
-          tooltip.innerHTML = dateStr + '<br>No transactions';
-        }
-        
-        tooltip.style.display = 'block';
-        tooltip.style.opacity = '1';
-        
-        const rect = e.target.getBoundingClientRect();
-        tooltip.style.left = (rect.left + rect.width / 2 - 60) + 'px';
-        tooltip.style.top = (rect.top - 50) + 'px';
-        
-        cell.style.transform = 'scale(1.4)';
-        cell.style.zIndex = '10';
-      });
-      
-      cell.addEventListener('mouseleave', () => {
-        document.getElementById('heatmapTooltip').style.opacity = '0';
-        cell.style.transform = 'scale(1)';
-        setTimeout(() => {
-          document.getElementById('heatmapTooltip').style.display = 'none';
-        }, 150);
-      });
-      
-      weekCol.appendChild(cell);
-    });
-    
-    weeksContainer.appendChild(weekCol);
-  });
-  
-  container.appendChild(weeksContainer);
-  grid.appendChild(container);
-}
 
 // ─── Analytics: Cash Flow ────────────────────────────────────────────────────
 // Income - Expense per month, carrying balance forward from startingBalance

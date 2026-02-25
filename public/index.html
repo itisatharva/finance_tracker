@@ -69,6 +69,9 @@
       <button class="settings-row" id="btnOpenCats">
         <span>Manage Categories</span><span class="row-icon">→</span>
       </button>
+      <button class="settings-row" id="btnImportCSV">
+        <span>Import Transactions (CSV)</span><span class="row-icon">→</span>
+      </button>
     </div>
 
     <div class="settings-group">
@@ -162,7 +165,6 @@
       <button class="period-tab active" id="ptDaily"     onclick="showPeriod('daily')">Daily</button>
       <button class="period-tab"        id="ptMonthly"   onclick="showPeriod('monthly')">Monthly</button>
       <button class="period-tab"        id="ptYearly"    onclick="showPeriod('yearly')">Yearly</button>
-      <button class="period-tab"        id="ptHeatmap"   onclick="showPeriod('heatmap')">Heatmap</button>
       <button class="period-tab"        id="ptCashflow"  onclick="showPeriod('cashflow')">Cash Flow</button>
     </div>
 
@@ -254,57 +256,6 @@
             </tr></thead>
             <tbody id="yearlyBody"><tr><td colspan="15" class="empty">Enter a year above</td></tr></tbody>
           </table>
-        </div>
-      </div>
-    </div>
-
-    
-    <!-- HEATMAP -->
-    <div id="periodHeatmap" class="hidden">
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-          <h2>Spending Heatmap</h2>
-          <div class="type-toggle-group" style="background:transparent;padding:0;">
-            <button class="type-toggle-btn" id="btnHeatmapExpense" onclick="setHeatmapType('expense')" style="padding:6px 14px;">Expense</button>
-            <button class="type-toggle-btn" id="btnHeatmapIncome" onclick="setHeatmapType('income')" style="padding:6px 14px;">Income</button>
-            <button class="type-toggle-btn active" id="btnHeatmapTotal" onclick="setHeatmapType('total')" style="padding:6px 14px;">Total</button>
-          </div>
-        </div>
-        <p style="color:var(--text-3);font-size:.88rem;margin-bottom:16px;">Daily spending intensity over the last 6 months. Darker colors indicate higher spending.</p>
-        
-        <div style="overflow-x:auto;padding:12px 4px;">
-          <div id="heatmapGrid"></div>
-        </div>
-        
-        <div id="heatmapLegend" style="display:flex;align-items:center;gap:8px;margin-top:20px;font-size:.82rem;color:var(--text-3);">
-          <span>Less</span>
-          <div class="heatmap-legend-box" style="background:var(--bg-subtle);"></div>
-          <div class="heatmap-legend-box" style="background:#d4edda;"></div>
-          <div class="heatmap-legend-box" style="background:#9dd49d;"></div>
-          <div class="heatmap-legend-box" style="background:#52b788;"></div>
-          <div class="heatmap-legend-box" style="background:#2d6a4f;"></div>
-          <span>More</span>
-        </div>
-        
-        <div id="heatmapTooltip" class="heatmap-tooltip"></div>
-        
-        <div id="heatmapStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:24px;padding-top:24px;border-top:1.5px solid var(--border);">
-          <div class="stat-mini">
-            <div class="stat-mini-lbl">Highest Day</div>
-            <div class="stat-mini-val" id="hmHighest">-</div>
-          </div>
-          <div class="stat-mini">
-            <div class="stat-mini-lbl">Lowest Day</div>
-            <div class="stat-mini-val" id="hmLowest">-</div>
-          </div>
-          <div class="stat-mini">
-            <div class="stat-mini-lbl">Average/Day</div>
-            <div class="stat-mini-val" id="hmAverage">-</div>
-          </div>
-          <div class="stat-mini">
-            <div class="stat-mini-lbl">Total Days</div>
-            <div class="stat-mini-val" id="hmDays">-</div>
-          </div>
         </div>
       </div>
     </div>
@@ -422,5 +373,45 @@
 <script type="module" src="theme.js"></script>
 <script type="module" src="firebase-config.js"></script>
 <script type="module" src="app.js"></script>
+
+<!-- IMPORT CSV MODAL -->
+<div class="modal-backdrop" id="importModalBg">
+  <div class="modal-box" style="max-width:700px;">
+    <div class="modal-head">
+      <h2>Import Transactions</h2>
+      <button class="btn-close-settings" onclick="closeImportModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-2);font-size:.9rem;margin-bottom:16px;">
+        Paste your CSV data below. Format: <code>Date,Type,Category,Amount,Description</code>
+      </p>
+      
+      <div style="background:var(--bg-subtle);padding:12px;border-radius:var(--r-md);margin-bottom:16px;font-family:monospace;font-size:.82rem;color:var(--text-2);">
+        <strong>Example:</strong><br>
+        01/02/2026,income,Salary,4000,Money from Baba<br>
+        01/02/2026,expense,Bills & Utilities,3100,Room Bill<br>
+        01/02/2026,expense,Transport,211.44,Train ticket
+      </div>
+      
+      <div style="margin-bottom:16px;">
+        <label style="display:block;margin-bottom:8px;font-weight:600;">CSV Data:</label>
+        <textarea id="csvInput" rows="12" style="width:100%;font-family:monospace;font-size:.85rem;padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md);background:var(--bg-page);color:var(--text-1);resize:vertical;" placeholder="Paste CSV here..."></textarea>
+      </div>
+      
+      <div id="importPreview" style="display:none;margin-top:16px;padding:16px;background:var(--bg-subtle);border-radius:var(--r-md);max-height:200px;overflow-y:auto;">
+        <strong style="display:block;margin-bottom:8px;">Preview:</strong>
+        <div id="importPreviewList"></div>
+      </div>
+      
+      <div id="importError" style="display:none;margin-top:12px;padding:12px;background:rgba(232,69,69,0.1);color:var(--red);border-radius:var(--r-md);font-size:.88rem;"></div>
+    </div>
+    <div class="modal-foot" style="display:flex;gap:8px;">
+      <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+      <button class="btn btn-secondary" onclick="previewImport()">Preview</button>
+      <button class="btn btn-primary" onclick="executeImport()">Import</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
