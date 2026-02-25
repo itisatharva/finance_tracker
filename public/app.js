@@ -872,18 +872,16 @@ function renderMonthly() {
         const isOver = remaining < 0;
         const budgetColor = isOver ? 'var(--red)' : 'var(--green)';
         const budgetText = isOver ? `₹${fmt(Math.abs(remaining)).slice(1)} over` : `₹${fmt(remaining).slice(1)} left`;
-        budgetHtml = `<div class="b-budget" style="color:${budgetColor};font-size:.8rem;margin-top:2px;">${budgetText}</div>`;
+        budgetHtml = `<div class="b-budget" style="color:${budgetColor};font-size:1.1rem;font-weight:700;margin-left:auto;margin-right:12px;">${budgetText}</div>`;
       }
     }
     
     div.innerHTML = `
       <div class="b-name">
         <div class="b-dot" style="background:${colors[name]}"></div>
-        <div>
-          <div>${name}</div>
-          ${budgetHtml}
-        </div>
+        <span>${name}</span>
       </div>
+      ${budgetHtml}
       <div class="b-amt">${fmt(amt)}</div>
     `;
     el.appendChild(div);
