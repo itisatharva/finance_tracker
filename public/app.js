@@ -938,7 +938,6 @@ function renderHeatmap() {
   const today = new Date();
   const sixMonthsAgo = new Date(today);
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  sixMonthsAgo.setDate(1);
   
   // Get transactions from last 6 months
   const relevantTx = transactions.filter(t => {
@@ -970,9 +969,9 @@ function renderHeatmap() {
   const activeDays = allValues.length;
   const avgValue = activeDays ? allValues.reduce((sum, v) => sum + v, 0) / activeDays : 0;
   const highestValue = maxValue;
-  const lowestValue = allValues.length ? Math.min(...allValues) : 0;
+  const lowestValue = allValues.length ? Math.min(...allValues.filter(v => v > 0)) : 0;
   
-  // Find the date with highest value
+  // Find dates with highest/lowest values
   let highestDate = '-';
   let lowestDate = '-';
   if (activeDays > 0) {
@@ -993,52 +992,77 @@ function renderHeatmap() {
   document.getElementById('hmAverage').textContent = fmt(avgValue);
   document.getElementById('hmDays').textContent = activeDays;
   
-  // Render grid
+  // === GitHub-style grid rendering ===
   const grid = document.getElementById('heatmapGrid');
   grid.innerHTML = '';
   
-  // Group by month
-  const current = new Date(sixMonthsAgo);
-  current.setDate(1);
+  // Calculate start date (go back to most recent Sunday)
+  const startDate = new Date(sixMonthsAgo);
+  startDate.setDate(startDate.getDate() - startDate.getDay()); // Go to Sunday
   
-  while (current <= today) {
-    const month = current.getMonth();
-    const year = current.getFullYear();
-    const monthLabel = current.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  // Calculate number of weeks to show
+  const endDate = new Date(today);
+  const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+  const numWeeks = Math.ceil(daysDiff / 7);
+  
+  // Create month labels row
+  const monthsRow = document.createElement('div');
+  monthsRow.className = 'heatmap-months-row';
+  monthsRow.innerHTML = '<div class="heatmap-day-label"></div>'; // Empty corner
+  
+  let currentMonth = -1;
+  let weekIndex = 0;
+  
+  // First pass: create month labels
+  for (let week = 0; week < numWeeks; week++) {
+    const weekStart = new Date(startDate);
+    weekStart.setDate(weekStart.getDate() + week * 7);
     
-    const monthDiv = document.createElement('div');
-    monthDiv.className = 'heatmap-month';
-    
-    const label = document.createElement('div');
-    label.className = 'heatmap-month-label';
-    label.textContent = monthLabel;
-    monthDiv.appendChild(label);
-    
-    // Get all days in this month
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
-    
-    // Create weeks for this month
-    let weekDiv = document.createElement('div');
-    weekDiv.className = 'heatmap-week';
-    
-    // Add empty cells for days before month starts
-    for (let i = 0; i < firstDay; i++) {
-      const emptyDay = document.createElement('div');
-      emptyDay.className = 'heatmap-day empty';
-      weekDiv.appendChild(emptyDay);
+    const month = weekStart.getMonth();
+    if (month !== currentMonth) {
+      const monthLabel = document.createElement('div');
+      monthLabel.className = 'heatmap-month-label';
+      monthLabel.textContent = weekStart.toLocaleDateString('en-US', { month: 'short' });
+      monthLabel.style.gridColumn = (week + 2) + ' / span 4'; // Position it
+      monthsRow.appendChild(monthLabel);
+      currentMonth = month;
     }
+  }
+  
+  grid.appendChild(monthsRow);
+  
+  // Create 7 rows (Sun-Sat)
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  
+  for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+    const row = document.createElement('div');
+    row.className = 'heatmap-row';
     
-    // Add days
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      if (date > today) break;
+    // Add day label (Sun, Mon, etc.) - but only show Mon, Wed, Fri
+    const dayLabel = document.createElement('div');
+    dayLabel.className = 'heatmap-day-label';
+    if (dayOfWeek % 2 === 1) { // Show Mon, Wed, Fri (indices 1, 3, 5)
+      dayLabel.textContent = dayLabels[dayOfWeek];
+    }
+    row.appendChild(dayLabel);
+    
+    // Add cells for each week
+    for (let week = 0; week < numWeeks; week++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + week * 7 + dayOfWeek);
+      
+      const cell = document.createElement('div');
+      cell.className = 'heatmap-day';
+      
+      // Don't show future dates or dates before our range
+      if (date > today || date < sixMonthsAgo) {
+        cell.classList.add('empty');
+        row.appendChild(cell);
+        continue;
+      }
       
       const dateKey = date.toISOString().split('T')[0];
       const value = getValue(dateKey);
-      
-      const dayDiv = document.createElement('div');
-      dayDiv.className = 'heatmap-day';
       
       // Calculate intensity level (0-4)
       let level = 0;
@@ -1047,61 +1071,39 @@ function renderHeatmap() {
         if (percent > 0.75) level = 4;
         else if (percent > 0.5) level = 3;
         else if (percent > 0.25) level = 2;
-        else if (percent > 0) level = 1;
+        else level = 1;
       }
       
-      dayDiv.classList.add('level-' + level);
+      cell.classList.add('level-' + level);
       
-      // Tooltip
-      dayDiv.addEventListener('mouseenter', (e) => {
+      // Store date for tooltip
+      cell.dataset.date = dateKey;
+      cell.dataset.value = value;
+      
+      // Tooltip on hover
+      cell.addEventListener('mouseenter', (e) => {
         const tooltip = document.getElementById('heatmapTooltip');
-        const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const d = new Date(dateKey);
+        const dateStr = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
         
-        let tooltipText = dateStr;
-        if (value > 0) {
-          tooltipText += '<br>' + fmt(value);
-          if (heatmapType === 'total' && dailyTotals[dateKey]) {
-            tooltipText += '<br><span style="font-size:.75rem;">Income: ' + fmt(dailyTotals[dateKey].income) + '</span>';
-            tooltipText += '<br><span style="font-size:.75rem;">Expense: ' + fmt(dailyTotals[dateKey].expense) + '</span>';
-          }
-        } else {
-          tooltipText += '<br>No transactions';
-        }
-        
-        tooltip.innerHTML = tooltipText;
+        tooltip.innerHTML = dateStr + '<br><strong>' + fmt(value) + '</strong>';
         tooltip.classList.add('show');
         
         const rect = e.target.getBoundingClientRect();
-        tooltip.style.left = rect.left + 'px';
+        tooltip.style.left = (rect.left + rect.width / 2 - tooltip.offsetWidth / 2) + 'px';
         tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
       });
       
-      dayDiv.addEventListener('mouseleave', () => {
+      cell.addEventListener('mouseleave', () => {
         document.getElementById('heatmapTooltip').classList.remove('show');
       });
       
-      weekDiv.appendChild(dayDiv);
-      
-      // Start new week on Sunday
-      if ((firstDay + day) % 7 === 0 && day < daysInMonth) {
-        monthDiv.appendChild(weekDiv);
-        weekDiv = document.createElement('div');
-        weekDiv.className = 'heatmap-week';
-      }
+      row.appendChild(cell);
     }
     
-    // Append last week if not empty
-    if (weekDiv.children.length > 0) {
-      monthDiv.appendChild(weekDiv);
-    }
-    
-    grid.appendChild(monthDiv);
-    
-    // Move to next month
-    current.setMonth(current.getMonth() + 1);
+    grid.appendChild(row);
   }
 }
-
 
 // ─── Analytics: Cash Flow ────────────────────────────────────────────────────
 // Income - Expense per month, carrying balance forward from startingBalance
