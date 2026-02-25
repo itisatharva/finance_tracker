@@ -11,6 +11,7 @@ let activeView      = 'dashboard';
 let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
+let heatmapType     = 'total';
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 function hideLoader() {
@@ -133,6 +134,7 @@ function wireSettingsDrawer() {
     await saveSettings();
     renderStats();
     if (activePeriod === 'cashflow') renderCashflow();
+  if (activePeriod === 'heatmap')  renderHeatmap();
     btnSaveBal.textContent = '✓ Saved!';
     btnSaveBal.style.background = 'var(--green)';
     btnSaveBal.style.color = '#fff';
@@ -158,7 +160,7 @@ window.showView = function(v) {
 };
 
 // ─── Period switching ─────────────────────────────────────────────────────────
-const PERIODS = ['daily','monthly','yearly','cashflow'];
+const PERIODS = ['daily','monthly','yearly','heatmap','cashflow'];
 
 window.showPeriod = function(p) {
   activePeriod = p;
@@ -178,6 +180,7 @@ function refreshCurrentPeriod() {
   if (activePeriod === 'monthly')  renderMonthly();
   if (activePeriod === 'yearly')   renderYearly();
   if (activePeriod === 'cashflow') renderCashflow();
+  if (activePeriod === 'heatmap')  renderHeatmap();
 }
 
 
@@ -299,6 +302,15 @@ function populateCategoryDropdowns() {
 }
 
 // ─── Categories Modal ────────────────────────────────────────────────────────
+window.setHeatmapType = function(type) {
+  heatmapType = type;
+  ['Expense', 'Income', 'Total'].forEach(t => {
+    const btn = document.getElementById('btnHeatmap' + t);
+    if (btn) btn.classList.toggle('active', t.toLowerCase() === type);
+  });
+  renderHeatmap();
+};
+
 window.openCatsModal = function() {
   renderCatLists();
   document.getElementById('catsModalBg').classList.add('open');
@@ -920,6 +932,176 @@ function renderYearly() {
   });
 }
 document.getElementById('yearlyYear').addEventListener('change', renderYearly);
+
+// ─── Analytics: Heatmap ──────────────────────────────────────────────────────
+function renderHeatmap() {
+  const today = new Date();
+  const sixMonthsAgo = new Date(today);
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  sixMonthsAgo.setDate(1);
+  
+  // Get transactions from last 6 months
+  const relevantTx = transactions.filter(t => {
+    const d = toDate(t.selectedDate || t.createdAt);
+    return d >= sixMonthsAgo && d <= today;
+  });
+  
+  // Calculate daily totals
+  const dailyTotals = {};
+  relevantTx.forEach(t => {
+    const dateKey = toDate(t.selectedDate || t.createdAt).toISOString().split('T')[0];
+    if (!dailyTotals[dateKey]) dailyTotals[dateKey] = { income: 0, expense: 0 };
+    dailyTotals[dateKey][t.type] += t.amount;
+  });
+  
+  // Determine what to show based on heatmapType
+  const getValue = (dateKey) => {
+    if (!dailyTotals[dateKey]) return 0;
+    if (heatmapType === 'income') return dailyTotals[dateKey].income;
+    if (heatmapType === 'expense') return dailyTotals[dateKey].expense;
+    return dailyTotals[dateKey].expense + dailyTotals[dateKey].income; // total
+  };
+  
+  // Get all values to determine intensity levels
+  const allValues = Object.keys(dailyTotals).map(k => getValue(k)).filter(v => v > 0);
+  const maxValue = allValues.length ? Math.max(...allValues) : 0;
+  
+  // Calculate stats
+  const activeDays = allValues.length;
+  const avgValue = activeDays ? allValues.reduce((sum, v) => sum + v, 0) / activeDays : 0;
+  const highestValue = maxValue;
+  const lowestValue = allValues.length ? Math.min(...allValues) : 0;
+  
+  // Find the date with highest value
+  let highestDate = '-';
+  let lowestDate = '-';
+  if (activeDays > 0) {
+    for (const [dateKey, data] of Object.entries(dailyTotals)) {
+      const val = getValue(dateKey);
+      if (val === highestValue) {
+        highestDate = new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      }
+      if (val === lowestValue && val > 0) {
+        lowestDate = new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      }
+    }
+  }
+  
+  // Update stats
+  document.getElementById('hmHighest').textContent = highestDate + ' - ' + fmt(highestValue);
+  document.getElementById('hmLowest').textContent = lowestDate + ' - ' + fmt(lowestValue);
+  document.getElementById('hmAverage').textContent = fmt(avgValue);
+  document.getElementById('hmDays').textContent = activeDays;
+  
+  // Render grid
+  const grid = document.getElementById('heatmapGrid');
+  grid.innerHTML = '';
+  
+  // Group by month
+  const current = new Date(sixMonthsAgo);
+  current.setDate(1);
+  
+  while (current <= today) {
+    const month = current.getMonth();
+    const year = current.getFullYear();
+    const monthLabel = current.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    
+    const monthDiv = document.createElement('div');
+    monthDiv.className = 'heatmap-month';
+    
+    const label = document.createElement('div');
+    label.className = 'heatmap-month-label';
+    label.textContent = monthLabel;
+    monthDiv.appendChild(label);
+    
+    // Get all days in this month
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
+    
+    // Create weeks for this month
+    let weekDiv = document.createElement('div');
+    weekDiv.className = 'heatmap-week';
+    
+    // Add empty cells for days before month starts
+    for (let i = 0; i < firstDay; i++) {
+      const emptyDay = document.createElement('div');
+      emptyDay.className = 'heatmap-day empty';
+      weekDiv.appendChild(emptyDay);
+    }
+    
+    // Add days
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      if (date > today) break;
+      
+      const dateKey = date.toISOString().split('T')[0];
+      const value = getValue(dateKey);
+      
+      const dayDiv = document.createElement('div');
+      dayDiv.className = 'heatmap-day';
+      
+      // Calculate intensity level (0-4)
+      let level = 0;
+      if (value > 0 && maxValue > 0) {
+        const percent = value / maxValue;
+        if (percent > 0.75) level = 4;
+        else if (percent > 0.5) level = 3;
+        else if (percent > 0.25) level = 2;
+        else if (percent > 0) level = 1;
+      }
+      
+      dayDiv.classList.add('level-' + level);
+      
+      // Tooltip
+      dayDiv.addEventListener('mouseenter', (e) => {
+        const tooltip = document.getElementById('heatmapTooltip');
+        const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        
+        let tooltipText = dateStr;
+        if (value > 0) {
+          tooltipText += '<br>' + fmt(value);
+          if (heatmapType === 'total' && dailyTotals[dateKey]) {
+            tooltipText += '<br><span style="font-size:.75rem;">Income: ' + fmt(dailyTotals[dateKey].income) + '</span>';
+            tooltipText += '<br><span style="font-size:.75rem;">Expense: ' + fmt(dailyTotals[dateKey].expense) + '</span>';
+          }
+        } else {
+          tooltipText += '<br>No transactions';
+        }
+        
+        tooltip.innerHTML = tooltipText;
+        tooltip.classList.add('show');
+        
+        const rect = e.target.getBoundingClientRect();
+        tooltip.style.left = rect.left + 'px';
+        tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
+      });
+      
+      dayDiv.addEventListener('mouseleave', () => {
+        document.getElementById('heatmapTooltip').classList.remove('show');
+      });
+      
+      weekDiv.appendChild(dayDiv);
+      
+      // Start new week on Sunday
+      if ((firstDay + day) % 7 === 0 && day < daysInMonth) {
+        monthDiv.appendChild(weekDiv);
+        weekDiv = document.createElement('div');
+        weekDiv.className = 'heatmap-week';
+      }
+    }
+    
+    // Append last week if not empty
+    if (weekDiv.children.length > 0) {
+      monthDiv.appendChild(weekDiv);
+    }
+    
+    grid.appendChild(monthDiv);
+    
+    // Move to next month
+    current.setMonth(current.getMonth() + 1);
+  }
+}
+
 
 // ─── Analytics: Cash Flow ────────────────────────────────────────────────────
 // Income - Expense per month, carrying balance forward from startingBalance

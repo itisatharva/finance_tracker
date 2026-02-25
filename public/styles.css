@@ -1241,3 +1241,116 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     font-size: .82rem;
   }
 }
+
+/* ========== HEATMAP ========== */
+#heatmapGrid {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  min-width: fit-content;
+}
+
+.heatmap-month {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.heatmap-month-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin-bottom: 4px;
+  height: 16px;
+}
+
+.heatmap-week {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.heatmap-day {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+
+.heatmap-day:hover {
+  transform: scale(1.3);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  border-color: var(--ink);
+  z-index: 10;
+}
+
+.heatmap-day.empty {
+  background: transparent;
+  border: none;
+  cursor: default;
+}
+
+.heatmap-day.empty:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Intensity levels */
+.heatmap-day.level-0 { background: var(--bg-subtle); }
+.heatmap-day.level-1 { background: #d4edda; }
+.heatmap-day.level-2 { background: #9dd49d; }
+.heatmap-day.level-3 { background: #52b788; }
+.heatmap-day.level-4 { background: #2d6a4f; }
+
+.heatmap-legend-box {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+.heatmap-tooltip {
+  position: fixed;
+  background: var(--ink);
+  color: var(--ink-fg);
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  font-size: .82rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  white-space: nowrap;
+}
+
+.heatmap-tooltip.show {
+  opacity: 1;
+}
+
+.stat-mini {
+  background: var(--bg-subtle);
+  padding: 12px 16px;
+  border-radius: var(--r-lg);
+  border: 1.5px solid var(--border);
+}
+
+.stat-mini-lbl {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 4px;
+}
+
+.stat-mini-val {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}

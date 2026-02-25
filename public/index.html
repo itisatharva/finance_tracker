@@ -162,6 +162,7 @@
       <button class="period-tab active" id="ptDaily"     onclick="showPeriod('daily')">Daily</button>
       <button class="period-tab"        id="ptMonthly"   onclick="showPeriod('monthly')">Monthly</button>
       <button class="period-tab"        id="ptYearly"    onclick="showPeriod('yearly')">Yearly</button>
+      <button class="period-tab"        id="ptHeatmap"   onclick="showPeriod('heatmap')">Heatmap</button>
       <button class="period-tab"        id="ptCashflow"  onclick="showPeriod('cashflow')">Cash Flow</button>
     </div>
 
@@ -253,6 +254,57 @@
             </tr></thead>
             <tbody id="yearlyBody"><tr><td colspan="15" class="empty">Enter a year above</td></tr></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    
+    <!-- HEATMAP -->
+    <div id="periodHeatmap" class="hidden">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+          <h2>Spending Heatmap</h2>
+          <div class="type-toggle-group" style="background:transparent;padding:0;">
+            <button class="type-toggle-btn" id="btnHeatmapExpense" onclick="setHeatmapType('expense')" style="padding:6px 14px;">Expense</button>
+            <button class="type-toggle-btn" id="btnHeatmapIncome" onclick="setHeatmapType('income')" style="padding:6px 14px;">Income</button>
+            <button class="type-toggle-btn active" id="btnHeatmapTotal" onclick="setHeatmapType('total')" style="padding:6px 14px;">Total</button>
+          </div>
+        </div>
+        <p style="color:var(--text-3);font-size:.88rem;margin-bottom:20px;">Daily spending intensity over the last 6 months. Darker colors indicate higher spending.</p>
+        
+        <div id="heatmapContainer" style="overflow-x:auto;padding:8px 0;">
+          <div id="heatmapGrid"></div>
+        </div>
+        
+        <div id="heatmapLegend" style="display:flex;align-items:center;gap:8px;margin-top:20px;font-size:.82rem;color:var(--text-3);">
+          <span>Less</span>
+          <div class="heatmap-legend-box" style="background:var(--bg-subtle);"></div>
+          <div class="heatmap-legend-box" style="background:#d4edda;"></div>
+          <div class="heatmap-legend-box" style="background:#9dd49d;"></div>
+          <div class="heatmap-legend-box" style="background:#52b788;"></div>
+          <div class="heatmap-legend-box" style="background:#2d6a4f;"></div>
+          <span>More</span>
+        </div>
+        
+        <div id="heatmapTooltip" class="heatmap-tooltip"></div>
+        
+        <div id="heatmapStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:24px;padding-top:24px;border-top:1.5px solid var(--border);">
+          <div class="stat-mini">
+            <div class="stat-mini-lbl">Highest Day</div>
+            <div class="stat-mini-val" id="hmHighest">-</div>
+          </div>
+          <div class="stat-mini">
+            <div class="stat-mini-lbl">Lowest Day</div>
+            <div class="stat-mini-val" id="hmLowest">-</div>
+          </div>
+          <div class="stat-mini">
+            <div class="stat-mini-lbl">Average/Day</div>
+            <div class="stat-mini-val" id="hmAverage">-</div>
+          </div>
+          <div class="stat-mini">
+            <div class="stat-mini-lbl">Total Days</div>
+            <div class="stat-mini-val" id="hmDays">-</div>
+          </div>
         </div>
       </div>
     </div>
