@@ -312,10 +312,21 @@ window.addCat = async function(type) {
   const colorEl = document.getElementById(type === 'income' ? 'newIncColor' : 'newExpColor');
   const name = nameEl.value.trim();
   if (!name) { alert('Enter a category name'); return; }
-  categories[type].push({ name, color: colorEl.value });
+  
+  const newCat = { name, color: colorEl.value, budget: null };
+  if (type === 'expense') {
+    const budgetEl = document.getElementById('newExpBudget');
+    if (budgetEl && budgetEl.value) newCat.budget = parseFloat(budgetEl.value);
+  }
+  
+  categories[type].push(newCat);
   await saveCategories();
   renderCatLists();
   nameEl.value = '';
+  if (type === 'expense') {
+    const budgetEl = document.getElementById('newExpBudget');
+    if (budgetEl) budgetEl.value = '';
+  }
 };
 window.removeCat = async function(type, idx) {
   if (!confirm('Remove this category?')) return;
@@ -335,20 +346,31 @@ window.updateCatColor = async function(type, idx, color) {
   await saveCategories();
 };
 
+window.updateCatBudget = async function(type, idx, budget) {
+  if (typeof categories[type][idx] === 'string') {
+    categories[type][idx] = { name: categories[type][idx], color: '#666', budget: null };
+  }
+  categories[type][idx].budget = budget ? parseFloat(budget) : null;
+  await saveCategories();
+};
+
 function renderCatLists() {
   ['income','expense'].forEach(type => {
     const el = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
     el.innerHTML = '';
     categories[type].forEach((c, i) => {
       const color = catColor(c);
+      const budget = typeof c === 'object' ? c.budget : null;
       const div = document.createElement('div');
       div.className = 'cat-item';
+      const budgetInput = type === 'expense' ? `<input type="number" value="${budget || ''}" placeholder="Budget" style="max-width:100px;font-size:.85rem;margin-right:8px;" min="0" step="0.01" onchange="updateCatBudget('${type}',${i},this.value)">` : '';
       div.innerHTML = `
         <div class="cat-color-wrap" title="Click to change color">
           <input type="color" value="${color}" onchange="updateCatColor('${type}',${i},this.value)">
           <span class="cat-color-swatch" style="background:${color}"></span>
         </div>
         <span class="cat-name">${catName(c)}</span>
+        ${budgetInput}
         <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
       `;
       el.appendChild(div);
@@ -839,8 +861,29 @@ function renderMonthly() {
   sorted.forEach(([name, amt]) => {
     const div = document.createElement('div');
     div.className = 'breakdown-item';
+    
+    // Get budget for this category (only for expenses)
+    let budgetHtml = '';
+    if (monthlyType === 'expense') {
+      const cat = categories.expense.find(c => catName(c) === name);
+      const budget = cat && typeof cat === 'object' ? cat.budget : null;
+      if (budget) {
+        const remaining = budget - amt;
+        const isOver = remaining < 0;
+        const budgetColor = isOver ? 'var(--red)' : 'var(--green)';
+        const budgetText = isOver ? `₹${fmt(Math.abs(remaining)).slice(1)} over` : `₹${fmt(remaining).slice(1)} left`;
+        budgetHtml = `<div class="b-budget" style="color:${budgetColor};font-size:.8rem;margin-top:2px;">${budgetText}</div>`;
+      }
+    }
+    
     div.innerHTML = `
-      <div class="b-name"><div class="b-dot" style="background:${colors[name]}"></div>${name}</div>
+      <div class="b-name">
+        <div class="b-dot" style="background:${colors[name]}"></div>
+        <div>
+          <div>${name}</div>
+          ${budgetHtml}
+        </div>
+      </div>
       <div class="b-amt">${fmt(amt)}</div>
     `;
     el.appendChild(div);
