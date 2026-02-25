@@ -2,23 +2,23 @@
 
 const DEFAULTS = {
   expense: [
-    { name: 'Food & Dining',    color: '#E84545' },
-    { name: 'Transport',        color: '#f97316' },
-    { name: 'Shopping',         color: '#ec4899' },
-    { name: 'Bills & Utilities',color: '#f59e0b' },
-    { name: 'Entertainment',    color: '#a855f7' },
-    { name: 'Healthcare',       color: '#14b8a6' },
-    { name: 'Education',        color: '#3b82f6' },
-    { name: 'Travel',           color: '#06b6d4' },
-    { name: 'Other',            color: '#6b7280' },
+    { name: 'Food & Dining',    color: '#E84545', budget: null },
+    { name: 'Transport',        color: '#f97316', budget: null },
+    { name: 'Shopping',         color: '#ec4899', budget: null },
+    { name: 'Bills & Utilities',color: '#f59e0b', budget: null },
+    { name: 'Entertainment',    color: '#a855f7', budget: null },
+    { name: 'Healthcare',       color: '#14b8a6', budget: null },
+    { name: 'Education',        color: '#3b82f6', budget: null },
+    { name: 'Travel',           color: '#06b6d4', budget: null },
+    { name: 'Other',            color: '#6b7280', budget: null },
   ],
   income: [
-    { name: 'Salary',     color: '#0FA974' },
-    { name: 'Freelance',  color: '#3b82f6' },
-    { name: 'Business',   color: '#8b5cf6' },
-    { name: 'Investment', color: '#06b6d4' },
-    { name: 'Gift',       color: '#ec4899' },
-    { name: 'Other',      color: '#6366f1' },
+    { name: 'Salary',     color: '#0FA974', budget: null },
+    { name: 'Freelance',  color: '#3b82f6', budget: null },
+    { name: 'Business',   color: '#8b5cf6', budget: null },
+    { name: 'Investment', color: '#06b6d4', budget: null },
+    { name: 'Gift',       color: '#ec4899', budget: null },
+    { name: 'Other',      color: '#6366f1', budget: null },
   ],
 };
 
@@ -34,12 +34,14 @@ function renderLists() {
     cats[type].forEach((cat, i) => {
       const div = document.createElement('div');
       div.className = 'cat-item';
+      const budgetInput = type === 'expense' ? `<input type="number" value="${cat.budget || ''}" placeholder="Budget" style="max-width:100px;font-size:.85rem;" min="0" step="0.01" oninput="updateBudget('${type}',${i},this.value)">` : '';
       div.innerHTML = `
         <div class="cat-color-wrap" title="Click to change colour">
           <input type="color" value="${cat.color}" oninput="updateColor('${type}',${i},this.value)">
           <span class="cat-color-swatch" style="background:${cat.color}"></span>
         </div>
         <span class="cat-name">${cat.name}</span>
+        ${budgetInput}
         <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
       `;
       el.appendChild(div);
@@ -54,6 +56,10 @@ window.updateColor = function(type, idx, color) {
   if (swatches[idx]) swatches[idx].style.background = color;
 };
 
+window.updateBudget = function(type, idx, budget) {
+  cats[type][idx].budget = budget ? parseFloat(budget) : null;
+};
+
 window.removeCat = function(type, idx) {
   cats[type].splice(idx, 1);
   renderLists();
@@ -65,9 +71,17 @@ window.addCat = function(type) {
   const name    = document.getElementById(nameId).value.trim();
   const color   = document.getElementById(colorId).value;
   if (!name) { document.getElementById(nameId).focus(); return; }
-  cats[type].push({ name, color });
+  
+  const newCat = { name, color, budget: null };
+  if (type === 'expense') {
+    const budgetVal = document.getElementById('newExpBudget').value;
+    if (budgetVal) newCat.budget = parseFloat(budgetVal);
+  }
+  
+  cats[type].push(newCat);
   renderLists();
   document.getElementById(nameId).value = '';
+  if (type === 'expense') document.getElementById('newExpBudget').value = '';
 };
 
 window.saveAndContinue = async function() {
