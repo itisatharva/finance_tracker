@@ -973,7 +973,7 @@ select:focus option { animation: fadeIn .1s ease; }
 @media (max-width: 640px) {
   .container { padding: 20px 16px 60px; }
   .nav { flex-direction: row; flex-wrap: wrap; width: 100%; gap: 6px; }
-  .nav-tab { flex: 0 0 calc(32% - 2px); padding: 10px 8px; text-align: center; font-size: .82rem; }
+  .nav-tab { flex: 0 0 34%; padding: 10px 8px; text-align: center; font-size: .82rem; }
   .stats-row { grid-template-columns: 1fr 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .pending-form { grid-template-columns: 1fr; }
