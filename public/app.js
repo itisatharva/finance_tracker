@@ -216,6 +216,20 @@ window.setHeatmapType = function(type) {
     const btn = document.getElementById('btnHeatmap' + t);
     if (btn) btn.classList.toggle('active', t.toLowerCase() === type);
   });
+  
+  // Show/hide income and expense cards based on mode
+  const incomeCard = document.getElementById('hmIncomeCard');
+  const expenseCard = document.getElementById('hmExpenseCard');
+  if (incomeCard && expenseCard) {
+    if (type === 'total') {
+      incomeCard.style.display = 'block';
+      expenseCard.style.display = 'block';
+    } else {
+      incomeCard.style.display = 'none';
+      expenseCard.style.display = 'none';
+    }
+  }
+  
   renderHeatmap();
 };
 
@@ -517,10 +531,27 @@ window.addCat = async function(type) {
   const colorEl = document.getElementById(type === 'income' ? 'newIncColor' : 'newExpColor');
   const name = nameEl.value.trim();
   if (!name) { alert('Enter a category name'); return; }
-  categories[type].push({ name, color: colorEl.value });
+  
+  const newCat = { name, color: colorEl.value, budget: null };
+  
+  // Handle budget for expenses
+  if (type === 'expense') {
+    const budgetEl = document.getElementById('newExpBudget');
+    if (budgetEl && budgetEl.value) {
+      newCat.budget = parseFloat(budgetEl.value);
+    }
+  }
+  
+  categories[type].push(newCat);
   await saveCategories();
   renderCatLists();
   nameEl.value = '';
+  
+  // Clear budget input
+  if (type === 'expense') {
+    const budgetEl = document.getElementById('newExpBudget');
+    if (budgetEl) budgetEl.value = '';
+  }
 };
 window.removeCat = async function(type, idx) {
   if (!confirm('Remove this category?')) return;
@@ -540,20 +571,35 @@ window.updateCatColor = async function(type, idx, color) {
   await saveCategories();
 };
 
+window.updateCatBudget = async function(type, idx, budget) {
+  if (typeof categories[type][idx] === 'string') {
+    categories[type][idx] = { name: categories[type][idx], color: '#666', budget: null };
+  }
+  categories[type][idx].budget = budget ? parseFloat(budget) : null;
+  await saveCategories();
+};
+
 function renderCatLists() {
   ['income','expense'].forEach(type => {
     const el = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
     el.innerHTML = '';
     categories[type].forEach((c, i) => {
       const color = catColor(c);
+      const budget = typeof c === 'object' ? c.budget : null;
       const div = document.createElement('div');
       div.className = 'cat-item';
+      
+      const budgetInput = type === 'expense' ? 
+        `<input type="number" value="${budget || ''}" placeholder="Budget" style="max-width:100px;font-size:.85rem;margin-right:8px;" min="0" step="0.01" onchange="updateCatBudget('${type}',${i},this.value)">` 
+        : '';
+      
       div.innerHTML = `
         <div class="cat-color-wrap" title="Click to change color">
           <input type="color" value="${color}" onchange="updateCatColor('${type}',${i},this.value)">
           <span class="cat-color-swatch" style="background:${color}"></span>
         </div>
         <span class="cat-name">${catName(c)}</span>
+        ${budgetInput}
         <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
       `;
       el.appendChild(div);
@@ -1044,8 +1090,24 @@ function renderMonthly() {
   sorted.forEach(([name, amt]) => {
     const div = document.createElement('div');
     div.className = 'breakdown-item';
+    
+    // Get budget for this category (only for expenses)
+    let budgetHtml = '';
+    if (monthlyType === 'expense') {
+      const cat = categories.expense.find(c => catName(c) === name);
+      const budget = cat && typeof cat === 'object' ? cat.budget : null;
+      if (budget) {
+        const remaining = budget - amt;
+        const isOver = remaining < 0;
+        const budgetColor = isOver ? 'var(--red)' : 'var(--green)';
+        const budgetText = isOver ? `₹${fmt(Math.abs(remaining)).slice(1)} over` : `₹${fmt(remaining).slice(1)} left`;
+        budgetHtml = `<div class="b-budget" style="color:${budgetColor};font-size:1.1rem;font-weight:700;margin-left:auto;margin-right:12px;">${budgetText}</div>`;
+      }
+    }
+    
     div.innerHTML = `
-      <div class="b-name"><div class="b-dot" style="background:${colors[name]}"></div>${name}</div>
+      <div class="b-name"><div class="b-dot" style="background:${colors[name]}"></div><span>${name}</span></div>
+      ${budgetHtml}
       <div class="b-amt">${fmt(amt)}</div>
     `;
     el.appendChild(div);
@@ -1086,6 +1148,9 @@ function renderYearly() {
 document.getElementById('yearlyYear').addEventListener('change', renderYearly);
 
 // ─── Analytics: Heatmap ──────────────────────────────────────────────────────
+let heatmapMonth = new Date().getMonth();
+let heatmapYear = new Date().getFullYear();
+
 function renderHeatmap() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -1113,30 +1178,60 @@ function renderHeatmap() {
     return dailyTotals[dateKey].expense + dailyTotals[dateKey].income;
   };
   
-  const allValues = Object.keys(dailyTotals).map(k => getValue(k)).filter(v => v > 0);
-  const activeDays = allValues.length;
-  const avgValue = activeDays ? allValues.reduce((sum, v) => sum + v, 0) / activeDays : 0;
-  const highestValue = allValues.length ? Math.max(...allValues) : 0;
-  const lowestValue = allValues.length ? Math.min(...allValues) : 0;
+  // Calculate MONTHLY stats for selected month
+  const monthStart = new Date(heatmapYear, heatmapMonth, 1);
+  const monthEnd = new Date(heatmapYear, heatmapMonth + 1, 0);
+  
+  const monthlyTx = transactions.filter(t => {
+    const d = toDate(t.selectedDate || t.createdAt);
+    return d >= monthStart && d <= monthEnd;
+  });
+  
+  const monthlyValues = [];
+  let monthlyIncome = 0;
+  let monthlyExpense = 0;
+  
+  monthlyTx.forEach(t => {
+    if (t.type === 'income') monthlyIncome += t.amount;
+    else monthlyExpense += t.amount;
+    
+    const dateKey = toDate(t.selectedDate || t.createdAt).toISOString().split('T')[0];
+    const val = getValue(dateKey);
+    if (val > 0 && !monthlyValues.includes(val)) monthlyValues.push(val);
+  });
+  
+  const monthlyDays = monthlyValues.length;
+  const monthlyAvg = monthlyDays > 0 ? monthlyValues.reduce((sum, v) => sum + v, 0) / monthlyDays : 0;
+  const monthlyHigh = monthlyValues.length > 0 ? Math.max(...monthlyValues) : 0;
+  const monthlyLow = monthlyValues.length > 0 ? Math.min(...monthlyValues) : 0;
   
   let highestDate = '-';
   let lowestDate = '-';
-  if (activeDays > 0) {
+  
+  if (monthlyDays > 0) {
     for (const [dateKey] of Object.entries(dailyTotals)) {
-      const val = getValue(dateKey);
-      if (val === highestValue) {
-        highestDate = new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-      }
-      if (val === lowestValue && val > 0) {
-        lowestDate = new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      const d = new Date(dateKey);
+      if (d.getMonth() === heatmapMonth && d.getFullYear() === heatmapYear) {
+        const val = getValue(dateKey);
+        if (val === monthlyHigh) {
+          highestDate = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        }
+        if (val === monthlyLow && val > 0) {
+          lowestDate = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+        }
       }
     }
   }
   
-  document.getElementById('hmHighest').textContent = highestDate + ' - ' + fmt(highestValue);
-  document.getElementById('hmLowest').textContent = lowestDate + ' - ' + fmt(lowestValue);
-  document.getElementById('hmAverage').textContent = fmt(avgValue);
-  document.getElementById('hmDays').textContent = activeDays;
+  document.getElementById('hmHighest').textContent = highestDate + ' - ' + fmt(monthlyHigh);
+  document.getElementById('hmLowest').textContent = lowestDate + ' - ' + fmt(monthlyLow);
+  document.getElementById('hmAverage').textContent = fmt(monthlyAvg);
+  document.getElementById('hmDays').textContent = monthlyDays;
+  
+  if (heatmapType === 'total') {
+    document.getElementById('hmIncome').textContent = fmt(monthlyIncome);
+    document.getElementById('hmExpense').textContent = fmt(monthlyExpense);
+  }
   
   const grid = document.getElementById('heatmapGrid');
   grid.innerHTML = '';
@@ -1221,6 +1316,7 @@ function renderHeatmap() {
       cell.style.border = '1px solid var(--border)';
       cell.style.cursor = 'pointer';
       cell.style.transition = 'transform .12s ease';
+      cell.style.position = 'relative';
       
       if (date < sixMonthsAgo || date > today) {
         cell.style.background = 'transparent';
@@ -1251,29 +1347,56 @@ function renderHeatmap() {
         const tooltip = document.getElementById('heatmapTooltip');
         const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
         
-        if (value > 0) {
-          tooltip.innerHTML = dateStr + '<br><strong>' + fmt(value) + '</strong>';
+        const dayData = dailyTotals[dateKey] || { income: 0, expense: 0 };
+        
+        let tooltipHTML = `<strong>${dateStr}</strong><br>`;
+        
+        if (heatmapType === 'expense') {
+          if (dayData.expense > 0) {
+            tooltipHTML += `Expense: ${fmt(dayData.expense)}`;
+          } else {
+            tooltipHTML += 'No expenses';
+          }
+        } else if (heatmapType === 'income') {
+          if (dayData.income > 0) {
+            tooltipHTML += `Income: ${fmt(dayData.income)}`;
+          } else {
+            tooltipHTML += 'No income';
+          }
         } else {
-          tooltip.innerHTML = dateStr + '<br>No transactions';
+          // Total mode - show both
+          if (dayData.income > 0 || dayData.expense > 0) {
+            if (dayData.income > 0) tooltipHTML += `Income: ${fmt(dayData.income)}<br>`;
+            if (dayData.expense > 0) tooltipHTML += `Expense: ${fmt(dayData.expense)}`;
+          } else {
+            tooltipHTML += 'No transactions';
+          }
         }
         
+        tooltip.innerHTML = tooltipHTML;
         tooltip.style.display = 'block';
         tooltip.style.opacity = '1';
         
         const rect = e.target.getBoundingClientRect();
-        tooltip.style.left = (rect.left + rect.width / 2 - 60) + 'px';
-        tooltip.style.top = (rect.top - 50) + 'px';
+        const tooltipWidth = 150;
+        tooltip.style.left = Math.max(10, rect.left + rect.width / 2 - tooltipWidth / 2) + 'px';
+        tooltip.style.top = (rect.top - 65) + 'px';
+        tooltip.style.width = tooltipWidth + 'px';
         
         cell.style.transform = 'scale(1.4)';
-        cell.style.zIndex = '10';
+        cell.style.zIndex = '100';
       });
       
       cell.addEventListener('mouseleave', () => {
-        document.getElementById('heatmapTooltip').style.opacity = '0';
+        const tooltip = document.getElementById('heatmapTooltip');
+        tooltip.style.opacity = '0';
         cell.style.transform = 'scale(1)';
+        cell.style.zIndex = '1';
         setTimeout(() => {
-          document.getElementById('heatmapTooltip').style.display = 'none';
-        }, 150);
+          if (tooltip.style.opacity === '0') {
+            tooltip.style.display = 'none';
+          }
+        }, 200);
       });
       
       weekCol.appendChild(cell);
@@ -1284,7 +1407,47 @@ function renderHeatmap() {
   
   container.appendChild(weeksContainer);
   grid.appendChild(container);
+  
+  // Update month selector
+  updateHeatmapMonthSelector();
 }
+
+function updateHeatmapMonthSelector() {
+  const select = document.getElementById('heatmapMonthSelect');
+  if (!select) return;
+  
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                      'July', 'August', 'September', 'October', 'November', 'December'];
+  
+  select.innerHTML = '';
+  
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+  
+  for (let i = 0; i < 12; i++) {
+    const m = (currentMonth - i + 12) % 12;
+    const y = currentYear - Math.floor((currentMonth - i) < 0 ? 1 : 0);
+    
+    const option = document.createElement('option');
+    option.value = `${y}-${m}`;
+    option.textContent = `${monthNames[m]} ${y}`;
+    
+    if (m === heatmapMonth && y === heatmapYear) {
+      option.selected = true;
+    }
+    
+    select.appendChild(option);
+  }
+}
+
+window.changeHeatmapMonth = function() {
+  const select = document.getElementById('heatmapMonthSelect');
+  const [year, month] = select.value.split('-');
+  heatmapYear = parseInt(year);
+  heatmapMonth = parseInt(month);
+  renderHeatmap();
+};
 
 // ─── Analytics: Cash Flow ────────────────────────────────────────────────────
 // Income - Expense per month, carrying balance forward from startingBalance
