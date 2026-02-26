@@ -11,7 +11,6 @@ let activeView      = 'dashboard';
 let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
-let heatmapType     = 'total';
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 function hideLoader() {
@@ -117,7 +116,6 @@ function wireSettingsDrawer() {
   btnOpen.addEventListener('click', openDrawer);
   btnClose.addEventListener('click', closeDrawer);
   backdrop.addEventListener('click', closeDrawer);
-  // Wire up Import CSV button
   const btnImportCSV = document.getElementById('btnImportCSV');
   if (btnImportCSV) {
     btnImportCSV.addEventListener('click', () => {
@@ -146,7 +144,6 @@ function wireSettingsDrawer() {
     await saveSettings();
     renderStats();
     if (activePeriod === 'cashflow') renderCashflow();
-  if (activePeriod === 'heatmap')  renderHeatmap();
     btnSaveBal.textContent = '✓ Saved!';
     btnSaveBal.style.background = 'var(--green)';
     btnSaveBal.style.color = '#fff';
@@ -172,7 +169,7 @@ window.showView = function(v) {
 };
 
 // ─── Period switching ─────────────────────────────────────────────────────────
-const PERIODS = ['daily','monthly','yearly','heatmap','cashflow'];
+const PERIODS = ['daily','monthly','yearly','cashflow'];
 
 window.showPeriod = function(p) {
   activePeriod = p;
@@ -192,7 +189,6 @@ function refreshCurrentPeriod() {
   if (activePeriod === 'monthly')  renderMonthly();
   if (activePeriod === 'yearly')   renderYearly();
   if (activePeriod === 'cashflow') renderCashflow();
-  if (activePeriod === 'heatmap')  renderHeatmap();
 }
 
 
@@ -210,29 +206,6 @@ window.setYearlyType = function(type) {
   document.getElementById('btnYearlyIncome').classList.toggle('active', type === 'income');
   renderYearly();
 };
-window.setHeatmapType = function(type) {
-  heatmapType = type;
-  ['Expense', 'Income', 'Total'].forEach(t => {
-    const btn = document.getElementById('btnHeatmap' + t);
-    if (btn) btn.classList.toggle('active', t.toLowerCase() === type);
-  });
-  
-  // Show/hide income and expense cards based on mode
-  const incomeCard = document.getElementById('hmIncomeCard');
-  const expenseCard = document.getElementById('hmExpenseCard');
-  if (incomeCard && expenseCard) {
-    if (type === 'total') {
-      incomeCard.style.display = 'block';
-      expenseCard.style.display = 'block';
-    } else {
-      incomeCard.style.display = 'none';
-      expenseCard.style.display = 'none';
-    }
-  }
-  
-  renderHeatmap();
-};
-
 
 // ─── Categories ──────────────────────────────────────────────────────────────
 async function loadCategories() {
@@ -533,21 +506,15 @@ window.addCat = async function(type) {
   if (!name) { alert('Enter a category name'); return; }
   
   const newCat = { name, color: colorEl.value, budget: null };
-  
-  // Handle budget for expenses
   if (type === 'expense') {
     const budgetEl = document.getElementById('newExpBudget');
-    if (budgetEl && budgetEl.value) {
-      newCat.budget = parseFloat(budgetEl.value);
-    }
+    if (budgetEl && budgetEl.value) newCat.budget = parseFloat(budgetEl.value);
   }
   
   categories[type].push(newCat);
   await saveCategories();
   renderCatLists();
   nameEl.value = '';
-  
-  // Clear budget input
   if (type === 'expense') {
     const budgetEl = document.getElementById('newExpBudget');
     if (budgetEl) budgetEl.value = '';
@@ -1091,7 +1058,6 @@ function renderMonthly() {
     const div = document.createElement('div');
     div.className = 'breakdown-item';
     
-    // Get budget for this category (only for expenses)
     let budgetHtml = '';
     if (monthlyType === 'expense') {
       const cat = categories.expense.find(c => catName(c) === name);
@@ -1146,314 +1112,6 @@ function renderYearly() {
   });
 }
 document.getElementById('yearlyYear').addEventListener('change', renderYearly);
-
-// ─── Analytics: Heatmap ──────────────────────────────────────────────────────
-let heatmapMonth = new Date().getMonth();
-let heatmapYear = new Date().getFullYear();
-
-function renderHeatmap() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  // Go back 6 months
-  const sixMonthsAgo = new Date(today);
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-  sixMonthsAgo.setHours(0, 0, 0, 0);
-  
-  // Helper function to create consistent date key from Date object
-  const makeDateKey = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
-  
-  // Get all transactions and build daily totals
-  const dailyTotals = {};
-  
-  transactions.forEach(t => {
-    const txDate = toDate(t.selectedDate || t.createdAt);
-    if (txDate < sixMonthsAgo || txDate > today) return;
-    
-    const dateKey = makeDateKey(txDate);
-    if (!dailyTotals[dateKey]) dailyTotals[dateKey] = { income: 0, expense: 0 };
-    dailyTotals[dateKey][t.type] += t.amount;
-  });
-  
-  const getValue = (dateKey) => {
-    if (!dailyTotals[dateKey]) return 0;
-    if (heatmapType === 'income') return dailyTotals[dateKey].income;
-    if (heatmapType === 'expense') return dailyTotals[dateKey].expense;
-    return dailyTotals[dateKey].expense + dailyTotals[dateKey].income;
-  };
-  
-  // Calculate MONTHLY stats for selected month
-  const monthStart = new Date(heatmapYear, heatmapMonth, 1);
-  monthStart.setHours(0, 0, 0, 0);
-  const monthEnd = new Date(heatmapYear, heatmapMonth + 1, 0);
-  monthEnd.setHours(23, 59, 59, 999);
-  
-  let monthlyIncome = 0;
-  let monthlyExpense = 0;
-  const monthlyValuesMap = new Map();
-  
-  transactions.forEach(t => {
-    const txDate = toDate(t.selectedDate || t.createdAt);
-    if (txDate < monthStart || txDate > monthEnd) return;
-    
-    if (t.type === 'income') monthlyIncome += t.amount;
-    else monthlyExpense += t.amount;
-    
-    const dateKey = makeDateKey(txDate);
-    const val = getValue(dateKey);
-    if (val > 0) monthlyValuesMap.set(dateKey, val);
-  });
-  
-  const monthlyValues = Array.from(monthlyValuesMap.values());
-  const monthlyDays = monthlyValues.length;
-  const monthlyAvg = monthlyDays > 0 ? monthlyValues.reduce((sum, v) => sum + v, 0) / monthlyDays : 0;
-  const monthlyHigh = monthlyValues.length > 0 ? Math.max(...monthlyValues) : 0;
-  const monthlyLow = monthlyValues.length > 0 ? Math.min(...monthlyValues.filter(v => v > 0)) : 0;
-  
-  let highestDate = '-';
-  let lowestDate = '-';
-  
-  if (monthlyDays > 0) {
-    for (const [dateKey, val] of monthlyValuesMap.entries()) {
-      const [y, m, d] = dateKey.split('-').map(Number);
-      if (m - 1 !== heatmapMonth || y !== heatmapYear) continue;
-      
-      if (val === monthlyHigh) {
-        const date = new Date(y, m - 1, d);
-        highestDate = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-      }
-      if (val === monthlyLow && val > 0) {
-        const date = new Date(y, m - 1, d);
-        lowestDate = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-      }
-    }
-  }
-  
-  document.getElementById('hmHighest').textContent = highestDate + ' - ' + fmt(monthlyHigh);
-  document.getElementById('hmLowest').textContent = lowestDate + ' - ' + fmt(monthlyLow);
-  document.getElementById('hmAverage').textContent = fmt(monthlyAvg);
-  document.getElementById('hmDays').textContent = monthlyDays;
-  
-  if (heatmapType === 'total') {
-    document.getElementById('hmIncome').textContent = fmt(monthlyIncome);
-    document.getElementById('hmExpense').textContent = fmt(monthlyExpense);
-  }
-  
-  // Render grid
-  const grid = document.getElementById('heatmapGrid');
-  grid.innerHTML = '';
-  
-  // Find the first Sunday on or before sixMonthsAgo
-  const startDate = new Date(sixMonthsAgo);
-  while (startDate.getDay() !== 0) {
-    startDate.setDate(startDate.getDate() - 1);
-  }
-  
-  // Calculate weeks needed
-  const totalDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
-  const weeksNeeded = Math.ceil(totalDays / 7);
-  
-  // Build the grid
-  const container = document.createElement('div');
-  container.style.cssText = 'display:flex;gap:16px;';
-  
-  // Day labels
-  const labelsCol = document.createElement('div');
-  labelsCol.style.cssText = 'display:flex;flex-direction:column;gap:3px;padding-top:24px;';
-  
-  ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((name, idx) => {
-    const label = document.createElement('div');
-    label.textContent = idx % 2 === 1 ? name : '';
-    label.style.cssText = 'font-size:.7rem;color:var(--text-3);height:12px;display:flex;align-items:center;padding-right:4px;';
-    labelsCol.appendChild(label);
-  });
-  container.appendChild(labelsCol);
-  
-  // Weeks container
-  const weeksContainer = document.createElement('div');
-  weeksContainer.style.cssText = 'display:flex;gap:3px;';
-  
-  let lastShownMonth = -1;
-  
-  for (let weekIdx = 0; weekIdx < weeksNeeded; weekIdx++) {
-    const weekCol = document.createElement('div');
-    weekCol.style.cssText = 'display:flex;flex-direction:column;gap:3px;';
-    
-    // Determine if we should show a month label for this week
-    const monthLabel = document.createElement('div');
-    monthLabel.style.cssText = 'height:20px;font-size:.72rem;font-weight:600;color:var(--text-3);margin-bottom:4px;text-align:center;';
-    
-    // Check the first day of this week
-    const weekStartDate = new Date(startDate);
-    weekStartDate.setDate(startDate.getDate() + weekIdx * 7);
-    
-    // Show month label if this is the first week OR if this week contains the 1st of a new month
-    let showLabel = false;
-    
-    if (weekIdx === 0) {
-      // First week - always show month
-      monthLabel.textContent = weekStartDate.toLocaleDateString('en-US', { month: 'short' });
-      lastShownMonth = weekStartDate.getMonth();
-      showLabel = true;
-    } else {
-      // Check each day in this week to find the 1st of a new month
-      for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
-        const checkDate = new Date(startDate);
-        checkDate.setDate(startDate.getDate() + weekIdx * 7 + dayIdx);
-        
-        // If this day is the 1st AND it's a different month than we've shown
-        if (checkDate.getDate() === 1 && checkDate.getMonth() !== lastShownMonth && checkDate >= sixMonthsAgo && checkDate <= today) {
-          monthLabel.textContent = checkDate.toLocaleDateString('en-US', { month: 'short' });
-          lastShownMonth = checkDate.getMonth();
-          showLabel = true;
-          break;
-        }
-      }
-    }
-    
-    weekCol.appendChild(monthLabel);
-    
-    // Add the 7 days for this week
-    for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
-      const cellDate = new Date(startDate);
-      cellDate.setDate(startDate.getDate() + weekIdx * 7 + dayIdx);
-      cellDate.setHours(0, 0, 0, 0);
-      
-      const cell = document.createElement('div');
-      cell.style.cssText = 'width:12px;height:12px;border-radius:2px;cursor:pointer;transition:transform .12s ease;';
-      
-      // Add title for debugging/verification
-      const cellDateStr = cellDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-      cell.title = cellDateStr;
-      
-      // Check if this date is out of range
-      if (cellDate < sixMonthsAgo || cellDate > today) {
-        cell.style.cssText += 'background:transparent;border:none;cursor:default;';
-        weekCol.appendChild(cell);
-        continue;
-      }
-      
-      // Get the value for this date
-      const dateKey = makeDateKey(cellDate);
-      const value = getValue(dateKey);
-      const dayData = dailyTotals[dateKey] || { income: 0, expense: 0 };
-      
-      // Determine color level
-      let level = 0;
-      if (value > 0) {
-        if (value > 300) level = 4;
-        else if (value > 200) level = 3;
-        else if (value > 100) level = 2;
-        else level = 1;
-      }
-      
-      const colors = ['var(--bg-subtle)', '#d4edda', '#9dd49d', '#52b788', '#2d6a4f'];
-      const borders = ['var(--border)', '#c3e6cb', '#8bc98b', '#40a574', '#1f4a37'];
-      
-      cell.style.background = colors[level];
-      cell.style.border = '1px solid ' + borders[level];
-      
-      // Add hover functionality
-      const cellDateCopy = new Date(cellDate);
-      
-      cell.addEventListener('mouseenter', function(e) {
-        const tooltip = document.getElementById('heatmapTooltip');
-        const dateStr = cellDateCopy.toLocaleDateString('en-IN', { 
-          day: 'numeric', 
-          month: 'short', 
-          year: 'numeric' 
-        });
-        
-        let html = '<strong>' + dateStr + '</strong><br>';
-        
-        if (heatmapType === 'expense') {
-          html += dayData.expense > 0 ? 'Expense: ' + fmt(dayData.expense) : 'No expenses';
-        } else if (heatmapType === 'income') {
-          html += dayData.income > 0 ? 'Income: ' + fmt(dayData.income) : 'No income';
-        } else {
-          if (dayData.income > 0 || dayData.expense > 0) {
-            if (dayData.income > 0) html += 'Income: ' + fmt(dayData.income) + '<br>';
-            if (dayData.expense > 0) html += 'Expense: ' + fmt(dayData.expense);
-          } else {
-            html += 'No transactions';
-          }
-        }
-        
-        tooltip.innerHTML = html;
-        tooltip.style.display = 'block';
-        setTimeout(() => { tooltip.style.opacity = '1'; }, 10);
-        
-        const rect = e.target.getBoundingClientRect();
-        tooltip.style.left = Math.max(10, rect.left + 6 - 75) + 'px';
-        tooltip.style.top = (rect.top - 70) + 'px';
-        
-        this.style.transform = 'scale(1.5)';
-        this.style.zIndex = '100';
-      });
-      
-      cell.addEventListener('mouseleave', function() {
-        const tooltip = document.getElementById('heatmapTooltip');
-        tooltip.style.opacity = '0';
-        this.style.transform = 'scale(1)';
-        this.style.zIndex = '1';
-        setTimeout(() => {
-          if (tooltip.style.opacity === '0') tooltip.style.display = 'none';
-        }, 200);
-      });
-      
-      weekCol.appendChild(cell);
-    }
-    
-    weeksContainer.appendChild(weekCol);
-  }
-  
-  container.appendChild(weeksContainer);
-  grid.appendChild(container);
-  
-  updateHeatmapMonthSelector();
-}
-
-function updateHeatmapMonthSelector() {
-  const select = document.getElementById('heatmapMonthSelect');
-  if (!select) return;
-  
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                      'July', 'August', 'September', 'October', 'November', 'December'];
-  
-  select.innerHTML = '';
-  
-  const today = new Date();
-  const currentMonth = today.getMonth();
-  const currentYear = today.getFullYear();
-  
-  for (let i = 0; i < 12; i++) {
-    const m = (currentMonth - i + 12) % 12;
-    const y = currentYear - Math.floor((currentMonth - i) < 0 ? 1 : 0);
-    
-    const option = document.createElement('option');
-    option.value = `${y}-${m}`;
-    option.textContent = `${monthNames[m]} ${y}`;
-    
-    if (m === heatmapMonth && y === heatmapYear) {
-      option.selected = true;
-    }
-    
-    select.appendChild(option);
-  }
-}
-
-window.changeHeatmapMonth = function() {
-  const select = document.getElementById('heatmapMonthSelect');
-  const [year, month] = select.value.split('-');
-  heatmapYear = parseInt(year);
-  heatmapMonth = parseInt(month);
-  renderHeatmap();
-};
 
 // ─── Analytics: Cash Flow ────────────────────────────────────────────────────
 // Income - Expense per month, carrying balance forward from startingBalance
