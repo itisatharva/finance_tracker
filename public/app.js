@@ -1155,18 +1155,27 @@ function renderHeatmap() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
+  // Go back 6 months
   const sixMonthsAgo = new Date(today);
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
   sixMonthsAgo.setHours(0, 0, 0, 0);
   
-  const relevantTx = transactions.filter(t => {
-    const d = toDate(t.selectedDate || t.createdAt);
-    return d >= sixMonthsAgo && d <= today;
-  });
+  // Helper function to create consistent date key from Date object
+  const makeDateKey = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
   
+  // Get all transactions and build daily totals
   const dailyTotals = {};
-  relevantTx.forEach(t => {
-    const dateKey = toDate(t.selectedDate || t.createdAt).toISOString().split('T')[0];
+  
+  transactions.forEach(t => {
+    const txDate = toDate(t.selectedDate || t.createdAt);
+    if (txDate < sixMonthsAgo || txDate > today) return;
+    
+    const dateKey = makeDateKey(txDate);
     if (!dailyTotals[dateKey]) dailyTotals[dateKey] = { income: 0, expense: 0 };
     dailyTotals[dateKey][t.type] += t.amount;
   });
@@ -1180,45 +1189,47 @@ function renderHeatmap() {
   
   // Calculate MONTHLY stats for selected month
   const monthStart = new Date(heatmapYear, heatmapMonth, 1);
+  monthStart.setHours(0, 0, 0, 0);
   const monthEnd = new Date(heatmapYear, heatmapMonth + 1, 0);
+  monthEnd.setHours(23, 59, 59, 999);
   
-  const monthlyTx = transactions.filter(t => {
-    const d = toDate(t.selectedDate || t.createdAt);
-    return d >= monthStart && d <= monthEnd;
-  });
-  
-  const monthlyValues = [];
   let monthlyIncome = 0;
   let monthlyExpense = 0;
+  const monthlyValuesMap = new Map();
   
-  monthlyTx.forEach(t => {
+  transactions.forEach(t => {
+    const txDate = toDate(t.selectedDate || t.createdAt);
+    if (txDate < monthStart || txDate > monthEnd) return;
+    
     if (t.type === 'income') monthlyIncome += t.amount;
     else monthlyExpense += t.amount;
     
-    const dateKey = toDate(t.selectedDate || t.createdAt).toISOString().split('T')[0];
+    const dateKey = makeDateKey(txDate);
     const val = getValue(dateKey);
-    if (val > 0 && !monthlyValues.includes(val)) monthlyValues.push(val);
+    if (val > 0) monthlyValuesMap.set(dateKey, val);
   });
   
+  const monthlyValues = Array.from(monthlyValuesMap.values());
   const monthlyDays = monthlyValues.length;
   const monthlyAvg = monthlyDays > 0 ? monthlyValues.reduce((sum, v) => sum + v, 0) / monthlyDays : 0;
   const monthlyHigh = monthlyValues.length > 0 ? Math.max(...monthlyValues) : 0;
-  const monthlyLow = monthlyValues.length > 0 ? Math.min(...monthlyValues) : 0;
+  const monthlyLow = monthlyValues.length > 0 ? Math.min(...monthlyValues.filter(v => v > 0)) : 0;
   
   let highestDate = '-';
   let lowestDate = '-';
   
   if (monthlyDays > 0) {
-    for (const [dateKey] of Object.entries(dailyTotals)) {
-      const d = new Date(dateKey);
-      if (d.getMonth() === heatmapMonth && d.getFullYear() === heatmapYear) {
-        const val = getValue(dateKey);
-        if (val === monthlyHigh) {
-          highestDate = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-        }
-        if (val === monthlyLow && val > 0) {
-          lowestDate = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-        }
+    for (const [dateKey, val] of monthlyValuesMap.entries()) {
+      const [y, m, d] = dateKey.split('-').map(Number);
+      if (m - 1 !== heatmapMonth || y !== heatmapYear) continue;
+      
+      if (val === monthlyHigh) {
+        const date = new Date(y, m - 1, d);
+        highestDate = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      }
+      if (val === monthlyLow && val > 0) {
+        const date = new Date(y, m - 1, d);
+        lowestDate = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
       }
     }
   }
@@ -1233,102 +1244,106 @@ function renderHeatmap() {
     document.getElementById('hmExpense').textContent = fmt(monthlyExpense);
   }
   
+  // Render grid
   const grid = document.getElementById('heatmapGrid');
   grid.innerHTML = '';
   
+  // Find the first Sunday on or before sixMonthsAgo
   const startDate = new Date(sixMonthsAgo);
   while (startDate.getDay() !== 0) {
     startDate.setDate(startDate.getDate() - 1);
   }
   
-  const daysDiff = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
-  const weeksNeeded = Math.ceil(daysDiff / 7);
+  // Calculate weeks needed
+  const totalDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)) + 1;
+  const weeksNeeded = Math.ceil(totalDays / 7);
   
-  const weeks = [];
-  for (let w = 0; w < weeksNeeded; w++) {
-    const week = [];
-    for (let d = 0; d < 7; d++) {
-      const date = new Date(startDate);
-      date.setDate(startDate.getDate() + w * 7 + d);
-      week.push(date);
-    }
-    weeks.push(week);
-  }
-  
+  // Build the grid
   const container = document.createElement('div');
-  container.style.display = 'flex';
-  container.style.gap = '16px';
+  container.style.cssText = 'display:flex;gap:16px;';
   
+  // Day labels
   const labelsCol = document.createElement('div');
-  labelsCol.style.display = 'flex';
-  labelsCol.style.flexDirection = 'column';
-  labelsCol.style.gap = '3px';
-  labelsCol.style.paddingTop = '20px';
+  labelsCol.style.cssText = 'display:flex;flex-direction:column;gap:3px;padding-top:24px;';
   
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  dayNames.forEach((name, idx) => {
+  ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((name, idx) => {
     const label = document.createElement('div');
-    label.textContent = (idx % 2 === 1) ? name : '';
-    label.style.fontSize = '.7rem';
-    label.style.color = 'var(--text-3)';
-    label.style.height = '12px';
-    label.style.display = 'flex';
-    label.style.alignItems = 'center';
-    label.style.paddingRight = '4px';
+    label.textContent = idx % 2 === 1 ? name : '';
+    label.style.cssText = 'font-size:.7rem;color:var(--text-3);height:12px;display:flex;align-items:center;padding-right:4px;';
     labelsCol.appendChild(label);
   });
-  
   container.appendChild(labelsCol);
   
+  // Weeks container
   const weeksContainer = document.createElement('div');
-  weeksContainer.style.display = 'flex';
-  weeksContainer.style.gap = '3px';
+  weeksContainer.style.cssText = 'display:flex;gap:3px;';
   
-  let currentMonth = -1;
+  let lastShownMonth = -1;
   
-  weeks.forEach((week) => {
+  for (let weekIdx = 0; weekIdx < weeksNeeded; weekIdx++) {
     const weekCol = document.createElement('div');
-    weekCol.style.display = 'flex';
-    weekCol.style.flexDirection = 'column';
-    weekCol.style.gap = '3px';
+    weekCol.style.cssText = 'display:flex;flex-direction:column;gap:3px;';
     
-    const firstDayOfWeek = week[0];
-    const monthOfWeek = firstDayOfWeek.getMonth();
-    
+    // Determine if we should show a month label for this week
     const monthLabel = document.createElement('div');
-    monthLabel.style.height = '16px';
-    monthLabel.style.fontSize = '.72rem';
-    monthLabel.style.fontWeight = '600';
-    monthLabel.style.color = 'var(--text-3)';
-    monthLabel.style.marginBottom = '4px';
+    monthLabel.style.cssText = 'height:20px;font-size:.72rem;font-weight:600;color:var(--text-3);margin-bottom:4px;text-align:center;';
     
-    if (monthOfWeek !== currentMonth) {
-      monthLabel.textContent = firstDayOfWeek.toLocaleDateString('en-US', { month: 'short' });
-      currentMonth = monthOfWeek;
+    // Check the first day of this week
+    const weekStartDate = new Date(startDate);
+    weekStartDate.setDate(startDate.getDate() + weekIdx * 7);
+    
+    // Show month label if this is the first week OR if this week contains the 1st of a new month
+    let showLabel = false;
+    
+    if (weekIdx === 0) {
+      // First week - always show month
+      monthLabel.textContent = weekStartDate.toLocaleDateString('en-US', { month: 'short' });
+      lastShownMonth = weekStartDate.getMonth();
+      showLabel = true;
+    } else {
+      // Check each day in this week to find the 1st of a new month
+      for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+        const checkDate = new Date(startDate);
+        checkDate.setDate(startDate.getDate() + weekIdx * 7 + dayIdx);
+        
+        // If this day is the 1st AND it's a different month than we've shown
+        if (checkDate.getDate() === 1 && checkDate.getMonth() !== lastShownMonth && checkDate >= sixMonthsAgo && checkDate <= today) {
+          monthLabel.textContent = checkDate.toLocaleDateString('en-US', { month: 'short' });
+          lastShownMonth = checkDate.getMonth();
+          showLabel = true;
+          break;
+        }
+      }
     }
+    
     weekCol.appendChild(monthLabel);
     
-    week.forEach(date => {
-      const cell = document.createElement('div');
-      cell.style.width = '12px';
-      cell.style.height = '12px';
-      cell.style.borderRadius = '2px';
-      cell.style.border = '1px solid var(--border)';
-      cell.style.cursor = 'pointer';
-      cell.style.transition = 'transform .12s ease';
-      cell.style.position = 'relative';
+    // Add the 7 days for this week
+    for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+      const cellDate = new Date(startDate);
+      cellDate.setDate(startDate.getDate() + weekIdx * 7 + dayIdx);
+      cellDate.setHours(0, 0, 0, 0);
       
-      if (date < sixMonthsAgo || date > today) {
-        cell.style.background = 'transparent';
-        cell.style.border = 'none';
-        cell.style.cursor = 'default';
+      const cell = document.createElement('div');
+      cell.style.cssText = 'width:12px;height:12px;border-radius:2px;cursor:pointer;transition:transform .12s ease;';
+      
+      // Add title for debugging/verification
+      const cellDateStr = cellDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      cell.title = cellDateStr;
+      
+      // Check if this date is out of range
+      if (cellDate < sixMonthsAgo || cellDate > today) {
+        cell.style.cssText += 'background:transparent;border:none;cursor:default;';
         weekCol.appendChild(cell);
-        return;
+        continue;
       }
       
-      const dateKey = date.toISOString().split('T')[0];
+      // Get the value for this date
+      const dateKey = makeDateKey(cellDate);
       const value = getValue(dateKey);
+      const dayData = dailyTotals[dateKey] || { income: 0, expense: 0 };
       
+      // Determine color level
       let level = 0;
       if (value > 0) {
         if (value > 300) level = 4;
@@ -1338,77 +1353,68 @@ function renderHeatmap() {
       }
       
       const colors = ['var(--bg-subtle)', '#d4edda', '#9dd49d', '#52b788', '#2d6a4f'];
-      const borderColors = ['var(--border)', '#c3e6cb', '#8bc98b', '#40a574', '#1f4a37'];
+      const borders = ['var(--border)', '#c3e6cb', '#8bc98b', '#40a574', '#1f4a37'];
       
       cell.style.background = colors[level];
-      cell.style.borderColor = borderColors[level];
+      cell.style.border = '1px solid ' + borders[level];
       
-      cell.addEventListener('mouseenter', (e) => {
+      // Add hover functionality
+      const cellDateCopy = new Date(cellDate);
+      
+      cell.addEventListener('mouseenter', function(e) {
         const tooltip = document.getElementById('heatmapTooltip');
-        const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const dateStr = cellDateCopy.toLocaleDateString('en-IN', { 
+          day: 'numeric', 
+          month: 'short', 
+          year: 'numeric' 
+        });
         
-        const dayData = dailyTotals[dateKey] || { income: 0, expense: 0 };
-        
-        let tooltipHTML = `<strong>${dateStr}</strong><br>`;
+        let html = '<strong>' + dateStr + '</strong><br>';
         
         if (heatmapType === 'expense') {
-          if (dayData.expense > 0) {
-            tooltipHTML += `Expense: ${fmt(dayData.expense)}`;
-          } else {
-            tooltipHTML += 'No expenses';
-          }
+          html += dayData.expense > 0 ? 'Expense: ' + fmt(dayData.expense) : 'No expenses';
         } else if (heatmapType === 'income') {
-          if (dayData.income > 0) {
-            tooltipHTML += `Income: ${fmt(dayData.income)}`;
-          } else {
-            tooltipHTML += 'No income';
-          }
+          html += dayData.income > 0 ? 'Income: ' + fmt(dayData.income) : 'No income';
         } else {
-          // Total mode - show both
           if (dayData.income > 0 || dayData.expense > 0) {
-            if (dayData.income > 0) tooltipHTML += `Income: ${fmt(dayData.income)}<br>`;
-            if (dayData.expense > 0) tooltipHTML += `Expense: ${fmt(dayData.expense)}`;
+            if (dayData.income > 0) html += 'Income: ' + fmt(dayData.income) + '<br>';
+            if (dayData.expense > 0) html += 'Expense: ' + fmt(dayData.expense);
           } else {
-            tooltipHTML += 'No transactions';
+            html += 'No transactions';
           }
         }
         
-        tooltip.innerHTML = tooltipHTML;
+        tooltip.innerHTML = html;
         tooltip.style.display = 'block';
-        tooltip.style.opacity = '1';
+        setTimeout(() => { tooltip.style.opacity = '1'; }, 10);
         
         const rect = e.target.getBoundingClientRect();
-        const tooltipWidth = 150;
-        tooltip.style.left = Math.max(10, rect.left + rect.width / 2 - tooltipWidth / 2) + 'px';
-        tooltip.style.top = (rect.top - 65) + 'px';
-        tooltip.style.width = tooltipWidth + 'px';
+        tooltip.style.left = Math.max(10, rect.left + 6 - 75) + 'px';
+        tooltip.style.top = (rect.top - 70) + 'px';
         
-        cell.style.transform = 'scale(1.4)';
-        cell.style.zIndex = '100';
+        this.style.transform = 'scale(1.5)';
+        this.style.zIndex = '100';
       });
       
-      cell.addEventListener('mouseleave', () => {
+      cell.addEventListener('mouseleave', function() {
         const tooltip = document.getElementById('heatmapTooltip');
         tooltip.style.opacity = '0';
-        cell.style.transform = 'scale(1)';
-        cell.style.zIndex = '1';
+        this.style.transform = 'scale(1)';
+        this.style.zIndex = '1';
         setTimeout(() => {
-          if (tooltip.style.opacity === '0') {
-            tooltip.style.display = 'none';
-          }
+          if (tooltip.style.opacity === '0') tooltip.style.display = 'none';
         }, 200);
       });
       
       weekCol.appendChild(cell);
-    });
+    }
     
     weeksContainer.appendChild(weekCol);
-  });
+  }
   
   container.appendChild(weeksContainer);
   grid.appendChild(container);
   
-  // Update month selector
   updateHeatmapMonthSelector();
 }
 

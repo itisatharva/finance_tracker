@@ -1258,16 +1258,18 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   position: fixed;
   background: var(--ink);
   color: var(--ink-fg);
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: var(--r-md);
-  font-size: .82rem;
+  font-size: .85rem;
+  line-height: 1.5;
   pointer-events: none;
   opacity: 0;
-  transition: opacity .15s;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: opacity .2s ease;
+  z-index: 10000;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
   white-space: nowrap;
   display: none;
+  min-width: 150px;
 }
 
 .stat-mini {
