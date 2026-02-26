@@ -11,6 +11,7 @@ let activeView      = 'dashboard';
 let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
+let heatmapType     = 'total';
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 function hideLoader() {
@@ -116,6 +117,18 @@ function wireSettingsDrawer() {
   btnOpen.addEventListener('click', openDrawer);
   btnClose.addEventListener('click', closeDrawer);
   backdrop.addEventListener('click', closeDrawer);
+  // Wire up Import CSV button
+  const btnImportCSV = document.getElementById('btnImportCSV');
+  if (btnImportCSV) {
+    btnImportCSV.addEventListener('click', () => {
+      const drawer = document.getElementById('settingsDrawer');
+      const backdrop = document.querySelector('.drawer-backdrop');
+      if (drawer) drawer.classList.remove('open');
+      if (backdrop) backdrop.classList.remove('open');
+      openImportModal();
+    });
+  }
+
 
   btnOut.addEventListener('click', async () => {
     if (!confirm('Sign out?')) return;
@@ -126,9 +139,6 @@ function wireSettingsDrawer() {
   btnCats.addEventListener('click', () => { closeDrawer(); openCatsModal(); });
 
   btnSaveBal.addEventListener('click', async () => {
-  const btnImportCSV = document.getElementById('btnImportCSV');
-  if (btnImportCSV) btnImportCSV.addEventListener('click', () => { closeDrawer(); openImportModal(); });
-
     const raw = balInput.value.replace(/,/g,'').trim();
     const val = parseFloat(raw);
     if (isNaN(val) || val < 0) { alert('Enter a valid starting balance (e.g. 10000)'); return; }
@@ -136,6 +146,7 @@ function wireSettingsDrawer() {
     await saveSettings();
     renderStats();
     if (activePeriod === 'cashflow') renderCashflow();
+  if (activePeriod === 'heatmap')  renderHeatmap();
     btnSaveBal.textContent = '✓ Saved!';
     btnSaveBal.style.background = 'var(--green)';
     btnSaveBal.style.color = '#fff';
@@ -161,7 +172,7 @@ window.showView = function(v) {
 };
 
 // ─── Period switching ─────────────────────────────────────────────────────────
-const PERIODS = ['daily','monthly','yearly','cashflow'];
+const PERIODS = ['daily','monthly','yearly','heatmap','cashflow'];
 
 window.showPeriod = function(p) {
   activePeriod = p;
@@ -181,6 +192,7 @@ function refreshCurrentPeriod() {
   if (activePeriod === 'monthly')  renderMonthly();
   if (activePeriod === 'yearly')   renderYearly();
   if (activePeriod === 'cashflow') renderCashflow();
+  if (activePeriod === 'heatmap')  renderHeatmap();
 }
 
 
@@ -198,6 +210,15 @@ window.setYearlyType = function(type) {
   document.getElementById('btnYearlyIncome').classList.toggle('active', type === 'income');
   renderYearly();
 };
+window.setHeatmapType = function(type) {
+  heatmapType = type;
+  ['Expense', 'Income', 'Total'].forEach(t => {
+    const btn = document.getElementById('btnHeatmap' + t);
+    if (btn) btn.classList.toggle('active', t.toLowerCase() === type);
+  });
+  renderHeatmap();
+};
+
 
 // ─── Categories ──────────────────────────────────────────────────────────────
 async function loadCategories() {
@@ -310,54 +331,6 @@ window.closeCatsModal = function() {
   document.getElementById('catsModalBg').classList.remove('open');
   populateCategoryDropdowns();
 };
-window.addCat = async function(type) {
-  const nameEl  = document.getElementById(type === 'income' ? 'newIncName'  : 'newExpName');
-  const colorEl = document.getElementById(type === 'income' ? 'newIncColor' : 'newExpColor');
-  const name = nameEl.value.trim();
-  if (!name) { alert('Enter a category name'); return; }
-  categories[type].push({ name, color: colorEl.value });
-  await saveCategories();
-  renderCatLists();
-  nameEl.value = '';
-};
-window.removeCat = async function(type, idx) {
-  if (!confirm('Remove this category?')) return;
-  categories[type].splice(idx, 1);
-  await saveCategories();
-  renderCatLists();
-};
-window.syncSwatch = function(inputId, swatchId) {
-  document.getElementById(swatchId).style.background = document.getElementById(inputId).value;
-};
-window.updateCatColor = async function(type, idx, color) {
-  if (typeof categories[type][idx] === 'string') categories[type][idx] = { name: categories[type][idx], color };
-  else categories[type][idx].color = color;
-  const listEl = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
-  const swatch = listEl.querySelectorAll('.cat-color-swatch')[idx];
-  if (swatch) swatch.style.background = color;
-  await saveCategories();
-};
-
-function renderCatLists() {
-  ['income','expense'].forEach(type => {
-    const el = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
-    el.innerHTML = '';
-    categories[type].forEach((c, i) => {
-      const color = catColor(c);
-      const div = document.createElement('div');
-      div.className = 'cat-item';
-      div.innerHTML = `
-        <div class="cat-color-wrap" title="Click to change color">
-          <input type="color" value="${color}" onchange="updateCatColor('${type}',${i},this.value)">
-          <span class="cat-color-swatch" style="background:${color}"></span>
-        </div>
-        <span class="cat-name">${catName(c)}</span>
-        <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
-      `;
-      el.appendChild(div);
-    });
-  });
-}
 
 // ─── CSV Import ──────────────────────────────────────────────────────────────
 window.openImportModal = function() {
@@ -539,7 +512,54 @@ function parseCSV(csvText) {
   
   return results;
 }
+window.addCat = async function(type) {
+  const nameEl  = document.getElementById(type === 'income' ? 'newIncName'  : 'newExpName');
+  const colorEl = document.getElementById(type === 'income' ? 'newIncColor' : 'newExpColor');
+  const name = nameEl.value.trim();
+  if (!name) { alert('Enter a category name'); return; }
+  categories[type].push({ name, color: colorEl.value });
+  await saveCategories();
+  renderCatLists();
+  nameEl.value = '';
+};
+window.removeCat = async function(type, idx) {
+  if (!confirm('Remove this category?')) return;
+  categories[type].splice(idx, 1);
+  await saveCategories();
+  renderCatLists();
+};
+window.syncSwatch = function(inputId, swatchId) {
+  document.getElementById(swatchId).style.background = document.getElementById(inputId).value;
+};
+window.updateCatColor = async function(type, idx, color) {
+  if (typeof categories[type][idx] === 'string') categories[type][idx] = { name: categories[type][idx], color };
+  else categories[type][idx].color = color;
+  const listEl = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
+  const swatch = listEl.querySelectorAll('.cat-color-swatch')[idx];
+  if (swatch) swatch.style.background = color;
+  await saveCategories();
+};
 
+function renderCatLists() {
+  ['income','expense'].forEach(type => {
+    const el = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
+    el.innerHTML = '';
+    categories[type].forEach((c, i) => {
+      const color = catColor(c);
+      const div = document.createElement('div');
+      div.className = 'cat-item';
+      div.innerHTML = `
+        <div class="cat-color-wrap" title="Click to change color">
+          <input type="color" value="${color}" onchange="updateCatColor('${type}',${i},this.value)">
+          <span class="cat-color-swatch" style="background:${color}"></span>
+        </div>
+        <span class="cat-name">${catName(c)}</span>
+        <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
+      `;
+      el.appendChild(div);
+    });
+  });
+}
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
 function listenTransactions() {
@@ -1064,6 +1084,207 @@ function renderYearly() {
   });
 }
 document.getElementById('yearlyYear').addEventListener('change', renderYearly);
+
+// ─── Analytics: Heatmap ──────────────────────────────────────────────────────
+function renderHeatmap() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const sixMonthsAgo = new Date(today);
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
+  
+  const relevantTx = transactions.filter(t => {
+    const d = toDate(t.selectedDate || t.createdAt);
+    return d >= sixMonthsAgo && d <= today;
+  });
+  
+  const dailyTotals = {};
+  relevantTx.forEach(t => {
+    const dateKey = toDate(t.selectedDate || t.createdAt).toISOString().split('T')[0];
+    if (!dailyTotals[dateKey]) dailyTotals[dateKey] = { income: 0, expense: 0 };
+    dailyTotals[dateKey][t.type] += t.amount;
+  });
+  
+  const getValue = (dateKey) => {
+    if (!dailyTotals[dateKey]) return 0;
+    if (heatmapType === 'income') return dailyTotals[dateKey].income;
+    if (heatmapType === 'expense') return dailyTotals[dateKey].expense;
+    return dailyTotals[dateKey].expense + dailyTotals[dateKey].income;
+  };
+  
+  const allValues = Object.keys(dailyTotals).map(k => getValue(k)).filter(v => v > 0);
+  const activeDays = allValues.length;
+  const avgValue = activeDays ? allValues.reduce((sum, v) => sum + v, 0) / activeDays : 0;
+  const highestValue = allValues.length ? Math.max(...allValues) : 0;
+  const lowestValue = allValues.length ? Math.min(...allValues) : 0;
+  
+  let highestDate = '-';
+  let lowestDate = '-';
+  if (activeDays > 0) {
+    for (const [dateKey] of Object.entries(dailyTotals)) {
+      const val = getValue(dateKey);
+      if (val === highestValue) {
+        highestDate = new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      }
+      if (val === lowestValue && val > 0) {
+        lowestDate = new Date(dateKey).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      }
+    }
+  }
+  
+  document.getElementById('hmHighest').textContent = highestDate + ' - ' + fmt(highestValue);
+  document.getElementById('hmLowest').textContent = lowestDate + ' - ' + fmt(lowestValue);
+  document.getElementById('hmAverage').textContent = fmt(avgValue);
+  document.getElementById('hmDays').textContent = activeDays;
+  
+  const grid = document.getElementById('heatmapGrid');
+  grid.innerHTML = '';
+  
+  const startDate = new Date(sixMonthsAgo);
+  while (startDate.getDay() !== 0) {
+    startDate.setDate(startDate.getDate() - 1);
+  }
+  
+  const daysDiff = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+  const weeksNeeded = Math.ceil(daysDiff / 7);
+  
+  const weeks = [];
+  for (let w = 0; w < weeksNeeded; w++) {
+    const week = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + w * 7 + d);
+      week.push(date);
+    }
+    weeks.push(week);
+  }
+  
+  const container = document.createElement('div');
+  container.style.display = 'flex';
+  container.style.gap = '16px';
+  
+  const labelsCol = document.createElement('div');
+  labelsCol.style.display = 'flex';
+  labelsCol.style.flexDirection = 'column';
+  labelsCol.style.gap = '3px';
+  labelsCol.style.paddingTop = '20px';
+  
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  dayNames.forEach((name, idx) => {
+    const label = document.createElement('div');
+    label.textContent = (idx % 2 === 1) ? name : '';
+    label.style.fontSize = '.7rem';
+    label.style.color = 'var(--text-3)';
+    label.style.height = '12px';
+    label.style.display = 'flex';
+    label.style.alignItems = 'center';
+    label.style.paddingRight = '4px';
+    labelsCol.appendChild(label);
+  });
+  
+  container.appendChild(labelsCol);
+  
+  const weeksContainer = document.createElement('div');
+  weeksContainer.style.display = 'flex';
+  weeksContainer.style.gap = '3px';
+  
+  let currentMonth = -1;
+  
+  weeks.forEach((week) => {
+    const weekCol = document.createElement('div');
+    weekCol.style.display = 'flex';
+    weekCol.style.flexDirection = 'column';
+    weekCol.style.gap = '3px';
+    
+    const firstDayOfWeek = week[0];
+    const monthOfWeek = firstDayOfWeek.getMonth();
+    
+    const monthLabel = document.createElement('div');
+    monthLabel.style.height = '16px';
+    monthLabel.style.fontSize = '.72rem';
+    monthLabel.style.fontWeight = '600';
+    monthLabel.style.color = 'var(--text-3)';
+    monthLabel.style.marginBottom = '4px';
+    
+    if (monthOfWeek !== currentMonth) {
+      monthLabel.textContent = firstDayOfWeek.toLocaleDateString('en-US', { month: 'short' });
+      currentMonth = monthOfWeek;
+    }
+    weekCol.appendChild(monthLabel);
+    
+    week.forEach(date => {
+      const cell = document.createElement('div');
+      cell.style.width = '12px';
+      cell.style.height = '12px';
+      cell.style.borderRadius = '2px';
+      cell.style.border = '1px solid var(--border)';
+      cell.style.cursor = 'pointer';
+      cell.style.transition = 'transform .12s ease';
+      
+      if (date < sixMonthsAgo || date > today) {
+        cell.style.background = 'transparent';
+        cell.style.border = 'none';
+        cell.style.cursor = 'default';
+        weekCol.appendChild(cell);
+        return;
+      }
+      
+      const dateKey = date.toISOString().split('T')[0];
+      const value = getValue(dateKey);
+      
+      let level = 0;
+      if (value > 0) {
+        if (value > 300) level = 4;
+        else if (value > 200) level = 3;
+        else if (value > 100) level = 2;
+        else level = 1;
+      }
+      
+      const colors = ['var(--bg-subtle)', '#d4edda', '#9dd49d', '#52b788', '#2d6a4f'];
+      const borderColors = ['var(--border)', '#c3e6cb', '#8bc98b', '#40a574', '#1f4a37'];
+      
+      cell.style.background = colors[level];
+      cell.style.borderColor = borderColors[level];
+      
+      cell.addEventListener('mouseenter', (e) => {
+        const tooltip = document.getElementById('heatmapTooltip');
+        const dateStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        
+        if (value > 0) {
+          tooltip.innerHTML = dateStr + '<br><strong>' + fmt(value) + '</strong>';
+        } else {
+          tooltip.innerHTML = dateStr + '<br>No transactions';
+        }
+        
+        tooltip.style.display = 'block';
+        tooltip.style.opacity = '1';
+        
+        const rect = e.target.getBoundingClientRect();
+        tooltip.style.left = (rect.left + rect.width / 2 - 60) + 'px';
+        tooltip.style.top = (rect.top - 50) + 'px';
+        
+        cell.style.transform = 'scale(1.4)';
+        cell.style.zIndex = '10';
+      });
+      
+      cell.addEventListener('mouseleave', () => {
+        document.getElementById('heatmapTooltip').style.opacity = '0';
+        cell.style.transform = 'scale(1)';
+        setTimeout(() => {
+          document.getElementById('heatmapTooltip').style.display = 'none';
+        }, 150);
+      });
+      
+      weekCol.appendChild(cell);
+    });
+    
+    weeksContainer.appendChild(weekCol);
+  });
+  
+  container.appendChild(weeksContainer);
+  grid.appendChild(container);
+}
 
 // ─── Analytics: Cash Flow ────────────────────────────────────────────────────
 // Income - Expense per month, carrying balance forward from startingBalance
