@@ -67,7 +67,7 @@ window.firebaseReady.then(() => {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function toInputDate(d) { return d.toISOString().split('T')[0]; }
-function toDate(v) { return v && v.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v)); }
+function toDate(v) { if (v == null) return new Date(); return v.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v)); }
 function fmt(n) {
   const abs = Math.abs(n);
   const str = '₹' + abs.toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
