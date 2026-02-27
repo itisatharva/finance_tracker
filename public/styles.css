@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
 /* =============================================
    FINANCE TRACKER — STYLES
    Beige/Black theme, bulletproof dark mode
@@ -89,7 +91,6 @@ body {
 }
 
 /* Import DM Sans */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
 /* ---------- UTILITY ---------- */
 .hidden { display: none !important; }
@@ -1242,8 +1243,44 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
-/* ========== TRANSACTION ANIMATIONS - SIMPLE ========== */
+/* ========== TRANSACTION ANIMATIONS ========== */
 
-.tx-item {
-  position: relative;
+/* Slide-in animation for newly added transactions */
+@keyframes txSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Slide-out animation for deleted transactions */
+@keyframes txSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scaleY(1);
+    max-height: 120px;
+    margin-bottom: 8px;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(12px) scaleY(0.85);
+    max-height: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+.tx-adding {
+  animation: txSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.tx-item.removing {
+  animation: txSlideOut 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
+  overflow: hidden;
+  pointer-events: none;
 }
