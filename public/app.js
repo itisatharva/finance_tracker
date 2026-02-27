@@ -595,30 +595,36 @@ function listenTransactions() {
     
     // Only animate if not first load and we have new transactions
     if (!isFirstLoad && newIds.length > 0) {
-      // Immediately identify which transactions are new before any re-render
-      const newTransactions = transactions.filter(t => newIds.includes(t.id));
+      // Store the new IDs temporarily
+      const idsToAnimate = [...newIds];
       
-      // Wait for DOM to update with sorted list
+      // Immediately hide new elements to prevent position flicker
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Find and animate ONLY the truly new transactions
-          newIds.forEach(id => {
-            // Find all elements with this ID (could be in multiple lists)
+        idsToAnimate.forEach(id => {
+          const elements = document.querySelectorAll(`[data-tx-id="${id}"]`);
+          elements.forEach(el => {
+            if (!el.classList.contains('animated')) {
+              el.classList.add('will-animate');
+            }
+          });
+        });
+        
+        // Wait for DOM to be fully positioned, then animate
+        setTimeout(() => {
+          idsToAnimate.forEach(id => {
             const elements = document.querySelectorAll(`[data-tx-id="${id}"]`);
             elements.forEach(el => {
-              if (!el.classList.contains('adding') && !el.classList.contains('animated')) {
-                el.classList.add('adding');
-                // Mark as animated to prevent double animation
-                el.classList.add('animated');
-                // Remove animation class after completion
+              if (el.classList.contains('will-animate')) {
+                el.classList.remove('will-animate');
+                el.classList.add('adding', 'animated');
+                // Remove after animation
                 setTimeout(() => {
-                  el.classList.remove('adding');
-                  el.classList.remove('animated');
-                }, 450);
+                  el.classList.remove('adding', 'animated');
+                }, 400);
               }
             });
           });
-        });
+        }, 60); // Delay ensures correct positioning
       });
     }
     
@@ -833,7 +839,7 @@ let _pendingDeleteId = null;
     if (txElement) {
       txElement.classList.add('removing');
       // Wait for animation to complete (350ms animation + 50ms buffer)
-      await new Promise(resolve => setTimeout(resolve, 400));
+      await new Promise(resolve => setTimeout(resolve, 380));
     }
     
     await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
@@ -848,7 +854,7 @@ window.deleteTx = async function(id) {
     if (txElement) {
       txElement.classList.add('removing');
       // Wait for animation to complete
-      await new Promise(resolve => setTimeout(resolve, 400));
+      await new Promise(resolve => setTimeout(resolve, 380));
     }
     await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
     vibrate();
