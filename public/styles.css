@@ -342,6 +342,8 @@ input, select, textarea {
   appearance: auto;
 }
 input::placeholder { color: var(--text-3); }
+/* Give the native dropdown arrow breathing room from the edge */
+select { padding-right: 36px; }
 input:focus, select:focus {
   outline: none;
   border-color: var(--ink);
@@ -983,6 +985,9 @@ select:focus option { animation: fadeIn .1s ease; }
   .cmp-arrow { font-size: 1.5rem; }
   .period-tab { padding: 8px 14px; font-size: .82rem; }
   .tx-item { flex-wrap: wrap; }
+  .cat-item { flex-wrap: wrap; }
+  .cat-item input[type="number"] { flex: 1; min-width: 0; max-width: none !important; }
+  .cat-item .btn-sm { flex: 1; text-align: center; min-width: 80px; }
   .tx-actions { width: 100%; }
   .tx-actions .btn-sm { flex: 1; text-align: center; }
 }
