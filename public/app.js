@@ -4,6 +4,7 @@
 let uid             = null;
 let transactions    = [];
 let prevTransactionIds = new Set();
+let isFirstLoad = true;
 let pendingAmounts  = [];
 let categories      = { income: [], expense: [] };
 let startingBalance = 0;
@@ -592,16 +593,26 @@ function listenTransactions() {
     // Update tracking
     prevTransactionIds = currentIds;
     
-    // Add 'adding' class to new transactions after render
-    if (newIds.length > 0) {
-      setTimeout(() => {
-        newIds.forEach(id => {
-          const el = document.querySelector(`[data-tx-id="${id}"]`);
-          if (el && !el.classList.contains('adding')) {
-            el.classList.add('adding');
-          }
+    // Only animate if not first load and we have new transactions
+    if (!isFirstLoad && newIds.length > 0) {
+      // Wait for DOM to update
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          newIds.forEach(id => {
+            const el = document.querySelector(`[data-tx-id="${id}"]`);
+            if (el && !el.classList.contains('adding')) {
+              el.classList.add('adding');
+              // Remove class after animation completes
+              setTimeout(() => el.classList.remove('adding'), 450);
+            }
+          });
         });
-      }, 10);
+      });
+    }
+    
+    // Mark that first load is complete
+    if (isFirstLoad) {
+      isFirstLoad = false;
     }
     renderTxList();
     renderStats();
@@ -805,11 +816,12 @@ let _pendingDeleteId = null;
       localStorage.setItem('skipDeleteConfirm', '1');
     }
     
-    // Animate deletion
+    // Animate deletion smoothly
     const txElement = document.querySelector(`[data-tx-id="${id}"]`);
     if (txElement) {
       txElement.classList.add('removing');
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait for animation to complete (350ms animation + 50ms buffer)
+      await new Promise(resolve => setTimeout(resolve, 400));
     }
     
     await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
@@ -823,7 +835,8 @@ window.deleteTx = async function(id) {
     const txElement = document.querySelector(`[data-tx-id="${id}"]`);
     if (txElement) {
       txElement.classList.add('removing');
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait for animation to complete
+      await new Promise(resolve => setTimeout(resolve, 400));
     }
     await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
     vibrate();
