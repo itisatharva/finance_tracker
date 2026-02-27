@@ -1272,7 +1272,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 .tx-item {
-  animation: slideIn 0.4s ease-out;
+  /* Animation only on .adding class */
 }
 
 .tx-item.removing {

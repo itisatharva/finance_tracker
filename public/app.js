@@ -3,6 +3,7 @@
 // ─── State ───────────────────────────────────────────────────────────────────
 let uid             = null;
 let transactions    = [];
+let prevTransactionIds = new Set();
 let pendingAmounts  = [];
 let categories      = { income: [], expense: [] };
 let startingBalance = 0;
@@ -583,6 +584,25 @@ function listenTransactions() {
   let firstLoad = true;
   window.onSnapshot(q, snap => {
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    
+    // Detect newly added transactions
+    const currentIds = new Set(transactions.map(t => t.id));
+    const newIds = [...currentIds].filter(id => !prevTransactionIds.has(id));
+    
+    // Update tracking
+    prevTransactionIds = currentIds;
+    
+    // Add 'adding' class to new transactions after render
+    if (newIds.length > 0) {
+      setTimeout(() => {
+        newIds.forEach(id => {
+          const el = document.querySelector(`[data-tx-id="${id}"]`);
+          if (el && !el.classList.contains('adding')) {
+            el.classList.add('adding');
+          }
+        });
+      }, 10);
+    }
     renderTxList();
     renderStats();
     if (activeView === 'analytics') refreshCurrentPeriod();
@@ -718,7 +738,7 @@ function renderTxList() {
           <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
         </div>
       `;
-      div.classList.add('adding');
+      
       el.appendChild(div);
     });
   }
@@ -753,7 +773,7 @@ function renderAllTxList() {
         <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
       </div>
     `;
-    div.classList.add('adding');
+    
     el.appendChild(div);
   });
 }
