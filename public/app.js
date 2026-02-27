@@ -595,16 +595,28 @@ function listenTransactions() {
     
     // Only animate if not first load and we have new transactions
     if (!isFirstLoad && newIds.length > 0) {
-      // Wait for DOM to update
+      // Immediately identify which transactions are new before any re-render
+      const newTransactions = transactions.filter(t => newIds.includes(t.id));
+      
+      // Wait for DOM to update with sorted list
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
+          // Find and animate ONLY the truly new transactions
           newIds.forEach(id => {
-            const el = document.querySelector(`[data-tx-id="${id}"]`);
-            if (el && !el.classList.contains('adding')) {
-              el.classList.add('adding');
-              // Remove class after animation completes
-              setTimeout(() => el.classList.remove('adding'), 450);
-            }
+            // Find all elements with this ID (could be in multiple lists)
+            const elements = document.querySelectorAll(`[data-tx-id="${id}"]`);
+            elements.forEach(el => {
+              if (!el.classList.contains('adding') && !el.classList.contains('animated')) {
+                el.classList.add('adding');
+                // Mark as animated to prevent double animation
+                el.classList.add('animated');
+                // Remove animation class after completion
+                setTimeout(() => {
+                  el.classList.remove('adding');
+                  el.classList.remove('animated');
+                }, 450);
+              }
+            });
           });
         });
       });
