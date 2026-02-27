@@ -67,7 +67,7 @@ window.firebaseReady.then(() => {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function toInputDate(d) { return d.toISOString().split('T')[0]; }
-function toDate(v) { if (v == null) return new Date(); return v.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v)); }
+function toDate(v) { return v && v.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v || 0)); }
 function fmt(n) {
   const abs = Math.abs(n);
   const str = '₹' + abs.toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
@@ -682,8 +682,12 @@ function wireAddTxForm() {
 // Sort helper: selectedDate desc, then createdAt desc for same-day ties
 function txSorted(list) {
   return list.slice().sort((a, b) => {
-    const diff = toDate(b.selectedDate) - toDate(a.selectedDate);
-    if (diff !== 0) return diff;
+    const selDiff = toDate(b.selectedDate) - toDate(a.selectedDate);
+    if (selDiff !== 0) return selDiff;
+    // null createdAt = pending server write (just added) → sort to top
+    if (!a.createdAt && !b.createdAt) return 0;
+    if (!a.createdAt) return -1;
+    if (!b.createdAt) return 1;
     return toDate(b.createdAt) - toDate(a.createdAt);
   });
 }
@@ -761,7 +765,7 @@ function renderAllTxList() {
     if (countEl) countEl.textContent = '0 transactions';
     return;
   }
-  const sorted = transactions; // Already sorted by Firestore
+  const sorted = txSorted(transactions); // Sort by selectedDate desc, then createdAt desc
   if (countEl) countEl.textContent = sorted.length + ' transaction' + (sorted.length !== 1 ? 's' : '');
   el.innerHTML = '';
   sorted.forEach(tx => {
