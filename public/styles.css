@@ -1241,3 +1241,50 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     font-size: .82rem;
   }
 }
+
+
+/* ========== TRANSACTION ANIMATIONS ========== */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 200px;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 200px;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+    max-height: 0;
+  }
+}
+
+.tx-item {
+  animation: slideIn 0.4s ease-out;
+}
+
+.tx-item.removing {
+  animation: slideOut 0.3s ease-in forwards;
+  overflow: hidden;
+}
+
+.tx-item.adding {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Smooth height transitions for list */
+.tx-list {
+  transition: height 0.3s ease;
+}

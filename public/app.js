@@ -676,6 +676,7 @@ function renderTxList() {
       const color = catColorByName(tx.type, tx.category);
       const div   = document.createElement('div');
       div.className = 'tx-item';
+      div.setAttribute('data-tx-id', tx.id);
       div.style.opacity = '0';
       div.innerHTML = `
         <div class="tx-meta">
@@ -704,6 +705,7 @@ function renderTxList() {
       const color = catColorByName(tx.type, tx.category);
       const div   = document.createElement('div');
       div.className = 'tx-item';
+      div.setAttribute('data-tx-id', tx.id);
       div.innerHTML = `
         <div class="tx-meta">
           <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
@@ -716,6 +718,7 @@ function renderTxList() {
           <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
         </div>
       `;
+      div.classList.add('adding');
       el.appendChild(div);
     });
   }
@@ -737,6 +740,7 @@ function renderAllTxList() {
     const color = catColorByName(tx.type, tx.category);
     const div   = document.createElement('div');
     div.className = 'tx-item';
+    div.setAttribute('data-tx-id', tx.id);
     div.innerHTML = `
       <div class="tx-meta">
         <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
@@ -749,6 +753,7 @@ function renderAllTxList() {
         <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
       </div>
     `;
+    div.classList.add('adding');
     el.appendChild(div);
   });
 }
@@ -779,6 +784,14 @@ let _pendingDeleteId = null;
     if (noAskChk.checked) {
       localStorage.setItem('skipDeleteConfirm', '1');
     }
+    
+    // Animate deletion
+    const txElement = document.querySelector(`[data-tx-id="${id}"]`);
+    if (txElement) {
+      txElement.classList.add('removing');
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
     await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
     vibrate();
   });
@@ -787,6 +800,11 @@ let _pendingDeleteId = null;
 window.deleteTx = async function(id) {
   if (localStorage.getItem('skipDeleteConfirm') === '1') {
     // Skip confirmation — delete directly
+    const txElement = document.querySelector(`[data-tx-id="${id}"]`);
+    if (txElement) {
+      txElement.classList.add('removing');
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
     await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
     vibrate();
     return;
