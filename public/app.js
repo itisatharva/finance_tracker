@@ -245,6 +245,22 @@ async function loadCategories() {
   }
 }
 
+// Trigger animations for new transactions
+function triggerNewTransactionAnimations() {
+  requestAnimationFrame(() => {
+    const newItems = document.querySelectorAll('[data-is-new="true"]');
+    newItems.forEach((el, index) => {
+      setTimeout(() => {
+        el.removeAttribute('data-is-new');
+        el.classList.add('tx-adding');
+        setTimeout(() => {
+          el.classList.remove('tx-adding');
+        }, 300);
+      }, index * 50);
+    });
+  });
+}
+
 async function saveCategories() {
   await window.setDoc(
     window.doc(window.db, 'users', uid, 'settings', 'categories'),
@@ -586,55 +602,21 @@ function listenTransactions() {
   window.onSnapshot(q, snap => {
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     
-    // Detect newly added transactions
+    // Track new transactions for render functions
     const currentIds = new Set(transactions.map(t => t.id));
     const newIds = [...currentIds].filter(id => !prevTransactionIds.has(id));
-    
-    // Update tracking
     prevTransactionIds = currentIds;
     
-    // Only animate if not first load and we have new transactions
-    if (!isFirstLoad && newIds.length > 0) {
-      // Store the new IDs temporarily
-      const idsToAnimate = [...newIds];
-      
-      // Immediately hide new elements to prevent position flicker
-      requestAnimationFrame(() => {
-        idsToAnimate.forEach(id => {
-          const elements = document.querySelectorAll(`[data-tx-id="${id}"]`);
-          elements.forEach(el => {
-            if (!el.classList.contains('animated')) {
-              el.classList.add('will-animate');
-            }
-          });
-        });
-        
-        // Wait for DOM to be fully positioned, then animate
-        setTimeout(() => {
-          idsToAnimate.forEach(id => {
-            const elements = document.querySelectorAll(`[data-tx-id="${id}"]`);
-            elements.forEach(el => {
-              if (el.classList.contains('will-animate')) {
-                el.classList.remove('will-animate');
-                el.classList.add('adding', 'animated');
-                // Remove after animation
-                setTimeout(() => {
-                  el.classList.remove('adding', 'animated');
-                }, 400);
-              }
-            });
-          });
-        }, 60); // Delay ensures correct positioning
-      });
-    }
+    // Store new IDs for render functions
+    window._newTxIds = (!isFirstLoad && newIds.length > 0) ? new Set(newIds) : new Set();
     
-    // Mark that first load is complete
     if (isFirstLoad) {
       isFirstLoad = false;
     }
     renderTxList();
     renderStats();
     if (activeView === 'analytics') refreshCurrentPeriod();
+    if (window._newTxIds && window._newTxIds.size > 0) triggerNewTransactionAnimations();
     if (activeView === 'transactions') renderAllTxList();
     
     if (firstLoad && window._dataLoaded) {
@@ -726,6 +708,10 @@ function renderTxList() {
       const div   = document.createElement('div');
       div.className = 'tx-item';
       div.setAttribute('data-tx-id', tx.id);
+      // Mark if this is a new transaction
+      if (window._newTxIds && window._newTxIds.has(tx.id)) {
+        div.setAttribute('data-is-new', 'true');
+      }
       div.style.opacity = '0';
       div.innerHTML = `
         <div class="tx-meta">
@@ -755,6 +741,10 @@ function renderTxList() {
       const div   = document.createElement('div');
       div.className = 'tx-item';
       div.setAttribute('data-tx-id', tx.id);
+      // Mark if new
+      if (window._newTxIds && window._newTxIds.has(tx.id)) {
+        div.setAttribute('data-is-new', 'true');
+      }
       div.innerHTML = `
         <div class="tx-meta">
           <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
@@ -834,12 +824,39 @@ let _pendingDeleteId = null;
       localStorage.setItem('skipDeleteConfirm', '1');
     }
     
-    // Animate deletion smoothly
+    // Animate deletion with absolute positioning (no reflow)
     const txElement = document.querySelector(`[data-tx-id="${id}"]`);
     if (txElement) {
-      txElement.classList.add('removing');
-      // Wait for animation to complete (350ms animation + 50ms buffer)
-      await new Promise(resolve => setTimeout(resolve, 380));
+      // Get current position and dimensions
+      const rect = txElement.getBoundingClientRect();
+      const parent = txElement.parentElement;
+      
+      // Create placeholder to maintain space
+      const placeholder = document.createElement('div');
+      placeholder.className = 'tx-delete-placeholder';
+      placeholder.style.height = rect.height + 'px';
+      
+      // Insert placeholder before removing element
+      parent.insertBefore(placeholder, txElement);
+      
+      // Make element absolute so removal doesn't cause reflow
+      txElement.style.position = 'absolute';
+      txElement.style.top = rect.top + 'px';
+      txElement.style.left = rect.left + 'px';
+      txElement.style.width = rect.width + 'px';
+      txElement.classList.add('tx-removing');
+      
+      // Collapse placeholder
+      requestAnimationFrame(() => {
+        placeholder.style.height = '0';
+      });
+      
+      // Wait for animation
+      await new Promise(resolve => setTimeout(resolve, 250));
+      
+      // Clean up
+      txElement.remove();
+      placeholder.remove();
     }
     
     await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
@@ -854,7 +871,7 @@ window.deleteTx = async function(id) {
     if (txElement) {
       txElement.classList.add('removing');
       // Wait for animation to complete
-      await new Promise(resolve => setTimeout(resolve, 380));
+      await new Promise(resolve => setTimeout(resolve, 400));
     }
     await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
     vibrate();

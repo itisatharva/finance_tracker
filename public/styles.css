@@ -1242,74 +1242,59 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
-/* ========== TRANSACTION ANIMATIONS ========== */
+/* ========== TRANSACTION ANIMATIONS - REBUILT ========== */
 
-@keyframes fadeSlideIn {
-  0% {
+/* Add animation - simple fade in from top */
+@keyframes txFadeIn {
+  from {
     opacity: 0;
-    transform: translateY(-20px) scale(0.95);
+    transform: translateY(-10px);
   }
-  60% {
-    opacity: 0.8;
-    transform: translateY(-5px) scale(0.98);
-  }
-  100% {
+  to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
-@keyframes fadeSlideOut {
-  0% {
+/* Delete animation - fade and shrink */
+@keyframes txFadeOut {
+  from {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    height: auto;
+    transform: scale(1);
   }
-  50% {
-    opacity: 0.3;
-    transform: translateY(-20px) scale(0.95);
-  }
-  100% {
+  to {
     opacity: 0;
-    transform: translateY(-40px) scale(0.9);
-    height: 0;
+    transform: scale(0.95);
   }
 }
 
 .tx-item {
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
-              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: auto;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  transition: none;
   position: relative;
 }
 
-.tx-item.adding {
-  animation: fadeSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* Hide new items initially */
+.tx-item[data-is-new="true"] {
+  opacity: 0;
 }
 
-.tx-item.animated {
-  /* Already animated - prevent re-animation */
+/* Animate new items */
+.tx-item.tx-adding {
+  animation: txFadeIn 0.3s ease-out forwards;
 }
 
-.tx-item.will-animate {
-  opacity: 0 !important;
+/* Delete animation */
+.tx-item.tx-removing {
+  position: absolute !important;
+  width: calc(100% - 32px);
+  animation: txFadeOut 0.25s ease-out forwards;
   pointer-events: none;
+  z-index: 1;
 }
 
-
-
-.tx-item.removing {
-  animation: fadeSlideOut 0.35s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-  pointer-events: none;
-  position: relative;
+/* Placeholder for deleted item */
+.tx-delete-placeholder {
+  height: 0;
   overflow: hidden;
-}
-
-/* Smooth list container */
-.tx-list {
-  position: relative;
+  transition: height 0.25s ease-out;
 }
