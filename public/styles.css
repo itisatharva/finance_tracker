@@ -1242,59 +1242,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
-/* ========== TRANSACTION ANIMATIONS - REBUILT ========== */
-
-/* Add animation - simple fade in from top */
-@keyframes txFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Delete animation - fade and shrink */
-@keyframes txFadeOut {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-}
+/* ========== TRANSACTION ANIMATIONS - SIMPLE ========== */
 
 .tx-item {
-  transition: none;
   position: relative;
-}
-
-/* Hide new items initially */
-.tx-item[data-is-new="true"] {
-  opacity: 0;
-}
-
-/* Animate new items */
-.tx-item.tx-adding {
-  animation: txFadeIn 0.3s ease-out forwards;
-}
-
-/* Delete animation */
-.tx-item.tx-removing {
-  position: absolute !important;
-  width: calc(100% - 32px);
-  animation: txFadeOut 0.25s ease-out forwards;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Placeholder for deleted item */
-.tx-delete-placeholder {
-  height: 0;
-  overflow: hidden;
-  transition: height 0.25s ease-out;
 }

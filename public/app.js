@@ -245,21 +245,6 @@ async function loadCategories() {
   }
 }
 
-// Trigger animations for new transactions
-function triggerNewTransactionAnimations() {
-  requestAnimationFrame(() => {
-    const newItems = document.querySelectorAll('[data-is-new="true"]');
-    newItems.forEach((el, index) => {
-      setTimeout(() => {
-        el.removeAttribute('data-is-new');
-        el.classList.add('tx-adding');
-        setTimeout(() => {
-          el.classList.remove('tx-adding');
-        }, 300);
-      }, index * 50);
-    });
-  });
-}
 
 async function saveCategories() {
   await window.setDoc(
@@ -602,13 +587,13 @@ function listenTransactions() {
   window.onSnapshot(q, snap => {
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     
-    // Track new transactions for render functions
+    // Track new transaction IDs (simple)
     const currentIds = new Set(transactions.map(t => t.id));
     const newIds = [...currentIds].filter(id => !prevTransactionIds.has(id));
     prevTransactionIds = currentIds;
     
-    // Store new IDs for render functions
-    window._newTxIds = (!isFirstLoad && newIds.length > 0) ? new Set(newIds) : new Set();
+    // Store new IDs globally
+    window._newTxIds = (!isFirstLoad) ? new Set(newIds) : new Set();
     
     if (isFirstLoad) {
       isFirstLoad = false;
@@ -616,7 +601,7 @@ function listenTransactions() {
     renderTxList();
     renderStats();
     if (activeView === 'analytics') refreshCurrentPeriod();
-    if (window._newTxIds && window._newTxIds.size > 0) triggerNewTransactionAnimations();
+    
     if (activeView === 'transactions') renderAllTxList();
     
     if (firstLoad && window._dataLoaded) {
@@ -708,9 +693,13 @@ function renderTxList() {
       const div   = document.createElement('div');
       div.className = 'tx-item';
       div.setAttribute('data-tx-id', tx.id);
-      // Mark if this is a new transaction
+      // Handle new transactions
       if (window._newTxIds && window._newTxIds.has(tx.id)) {
-        div.setAttribute('data-is-new', 'true');
+        div.style.opacity = '0';
+        setTimeout(() => {
+          div.style.transition = 'opacity 0.3s ease';
+          div.style.opacity = '1';
+        }, 50);
       }
       div.style.opacity = '0';
       div.innerHTML = `
@@ -741,9 +730,13 @@ function renderTxList() {
       const div   = document.createElement('div');
       div.className = 'tx-item';
       div.setAttribute('data-tx-id', tx.id);
-      // Mark if new
+      // Fade in new transactions
       if (window._newTxIds && window._newTxIds.has(tx.id)) {
-        div.setAttribute('data-is-new', 'true');
+        div.style.opacity = '0';
+        setTimeout(() => {
+          div.style.transition = 'opacity 0.3s ease';
+          div.style.opacity = '1';
+        }, 50);
       }
       div.innerHTML = `
         <div class="tx-meta">
@@ -824,39 +817,13 @@ let _pendingDeleteId = null;
       localStorage.setItem('skipDeleteConfirm', '1');
     }
     
-    // Animate deletion with absolute positioning (no reflow)
+    // Simple fade out animation
     const txElement = document.querySelector(`[data-tx-id="${id}"]`);
     if (txElement) {
-      // Get current position and dimensions
-      const rect = txElement.getBoundingClientRect();
-      const parent = txElement.parentElement;
-      
-      // Create placeholder to maintain space
-      const placeholder = document.createElement('div');
-      placeholder.className = 'tx-delete-placeholder';
-      placeholder.style.height = rect.height + 'px';
-      
-      // Insert placeholder before removing element
-      parent.insertBefore(placeholder, txElement);
-      
-      // Make element absolute so removal doesn't cause reflow
-      txElement.style.position = 'absolute';
-      txElement.style.top = rect.top + 'px';
-      txElement.style.left = rect.left + 'px';
-      txElement.style.width = rect.width + 'px';
-      txElement.classList.add('tx-removing');
-      
-      // Collapse placeholder
-      requestAnimationFrame(() => {
-        placeholder.style.height = '0';
-      });
-      
-      // Wait for animation
-      await new Promise(resolve => setTimeout(resolve, 250));
-      
-      // Clean up
-      txElement.remove();
-      placeholder.remove();
+      txElement.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+      txElement.style.opacity = '0';
+      txElement.style.transform = 'scale(0.95)';
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
     
     await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
