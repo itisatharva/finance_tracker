@@ -342,7 +342,7 @@ input, select, textarea {
 }
 input::placeholder { color: var(--text-3); }
 
-/* Custom chevron for <select> — consistent across all browsers & mobile */
+/* Custom chevron for <select> — works on all browsers & mobile */
 select {
   appearance: none;
   -webkit-appearance: none;
@@ -357,12 +357,9 @@ select {
   background-position: right 14px center;
 }
 
-/* Date inputs keep native picker but need right-padding so the
-   calendar icon doesn't crash into the border */
+/* Date inputs: keep native picker, add padding so icon doesn't hug the edge */
 input[type="date"] {
-  appearance: auto;
-  -webkit-appearance: auto;
-  padding-right: 40px;
+  padding-right: 48px;
 }
 input:focus, select:focus {
   outline: none;
@@ -728,15 +725,27 @@ input[type="color"] {
   transform: scale(1.15);
 }
 
-.cat-name { flex: 1; font-weight: 500; font-size: .9rem; color: var(--text-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Budget input inside cat-item rows (class set in app.js) */
-.cat-budget-input {
-  width: 90px;
+/* cat-info wraps name + budget stacked vertically */
+.cat-info {
+  flex: 1;
   min-width: 0;
-  flex-shrink: 0;
-  font-size: .85rem !important;
-  padding: 7px 10px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cat-name {
+  font-weight: 500;
+  font-size: .9rem;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cat-budget-input {
+  width: 100%;
+  font-size: .82rem !important;
+  padding: 6px 10px !important;
+  color: var(--text-2);
 }
 .add-cat-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
 .add-cat-row input { flex: 1; }
@@ -1014,10 +1023,8 @@ select:focus option { animation: fadeIn .1s ease; }
   .cmp-arrow { font-size: 1.5rem; }
   .period-tab { padding: 8px 14px; font-size: .82rem; }
   .tx-item { flex-wrap: wrap; }
-  .cat-item { flex-wrap: wrap; gap: 8px; }
-  .cat-budget-input { width: auto !important; flex: 1 1 80px !important; min-width: 70px; }
-  .cat-item input[type="number"] { flex: 1; min-width: 0; max-width: none !important; }
-  .cat-item .btn-sm { flex: 1; text-align: center; min-width: 80px; }
+  /* cat-item uses column layout inside cat-info — no wrapping needed */
+  .cat-item { align-items: flex-start; }
   .tx-actions { width: 100%; }
   .tx-actions .btn-sm { flex: 1; text-align: center; }
 }

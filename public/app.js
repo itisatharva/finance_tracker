@@ -573,18 +573,20 @@ function renderCatLists() {
       const budget = typeof c === 'object' ? c.budget : null;
       const div = document.createElement('div');
       div.className = 'cat-item';
-      
-      const budgetInput = type === 'expense' ? 
-        `<input type="number" value="${budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" onchange="updateCatBudget('${type}',${i},this.value)">` 
+
+      const budgetInput = type === 'expense'
+        ? `<input type="number" value="${budget || ''}" placeholder="Monthly budget (optional)" class="cat-budget-input" min="0" step="0.01" onchange="updateCatBudget('${type}',${i},this.value)">`
         : '';
-      
+
       div.innerHTML = `
         <div class="cat-color-wrap" title="Click to change color">
           <input type="color" value="${color}" onchange="updateCatColor('${type}',${i},this.value)">
           <span class="cat-color-swatch" style="background:${color}"></span>
         </div>
-        <span class="cat-name">${catName(c)}</span>
-        ${budgetInput}
+        <div class="cat-info">
+          <span class="cat-name">${catName(c)}</span>
+          ${budgetInput}
+        </div>
         <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
       `;
       el.appendChild(div);
