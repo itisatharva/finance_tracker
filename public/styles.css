@@ -362,6 +362,10 @@ select {
 input[type="date"] {
   padding-right: 40px; /* room for the native calendar icon */
 }
+input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-right: -6px; /* shift icon slightly right toward the edge */
+  cursor: pointer;
+}
 input:focus, select:focus {
   outline: none;
   border-color: var(--ink);
