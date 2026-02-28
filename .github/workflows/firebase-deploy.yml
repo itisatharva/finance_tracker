@@ -12,23 +12,103 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Write .env and generate firebase-config.js
+      - name: Generate firebase-config.js from secrets
+        env:
+          API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
         run: |
-          cat > .env << ENVFILE
-          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
-          VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
-          ENVFILE
-          node build-firebase-config.js
+          node -e "
+          const fs = require('fs');
+          const content = \`import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+          import {
+            getAuth, onAuthStateChanged,
+            signInWithEmailAndPassword, createUserWithEmailAndPassword,
+            signInWithPopup, signInWithRedirect, getRedirectResult,
+            GoogleAuthProvider, signOut as fbSignOut, getAdditionalUserInfo
+          } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+          import {
+            getFirestore, collection, doc, getDoc, setDoc, addDoc, deleteDoc,
+            query, orderBy, onSnapshot, serverTimestamp
+          } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+          const firebaseConfig = {
+            apiKey:            '${API_KEY}',
+            authDomain:        '${AUTH_DOMAIN}',
+            projectId:         '${PROJECT_ID}',
+            storageBucket:     '${STORAGE_BUCKET}',
+            messagingSenderId: '${MESSAGING_SENDER_ID}',
+            appId:             '${APP_ID}',
+            measurementId:     '${MEASUREMENT_ID}'
+          };
+
+          const app  = initializeApp(firebaseConfig);
+          const auth = getAuth(app);
+          const db   = getFirestore(app);
+
+          window.auth = auth;
+          window.db   = db;
+          window.onAuthStateChanged             = onAuthStateChanged;
+          window.signInWithEmailAndPassword     = signInWithEmailAndPassword;
+          window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+          window.signInWithPopup                = signInWithPopup;
+          window.signInWithRedirect             = signInWithRedirect;
+          window.getRedirectResult              = getRedirectResult;
+          window.GoogleAuthProvider             = GoogleAuthProvider;
+          window.getAdditionalUserInfo          = getAdditionalUserInfo;
+          window.fbSignOut                      = fbSignOut;
+          window.signOutFirebase                = fbSignOut;
+          window.collection    = collection;   window.doc         = doc;
+          window.getDoc        = getDoc;       window.setDoc      = setDoc;
+          window.addDoc        = addDoc;       window.deleteDoc   = deleteDoc;
+          window.query         = query;        window.orderBy     = orderBy;
+          window.onSnapshot    = onSnapshot;   window.serverTimestamp = serverTimestamp;
+          window.firebaseReady = Promise.resolve();
+          window._authHandled  = false;
+
+          const _path       = window.location.pathname;
+          const onLoginPage = _path.includes('login');
+          const onSetupPage = _path.includes('category-setup');
+          const onAppPage   = !onLoginPage && !onSetupPage;
+
+          auth.authStateReady().then(() => {
+            if (window._authHandled) return;
+            const user = auth.currentUser;
+            if (!user) {
+              if (onAppPage || onSetupPage) { window.location.replace('login.html'); return; }
+              hideLoader();
+              return;
+            }
+            if (onLoginPage) {
+              getRedirectResult(auth)
+                .then(result => {
+                  if (result && result.user) {
+                    const info  = getAdditionalUserInfo(result);
+                    const isNew = info && info.isNewUser;
+                    window.location.replace(isNew ? 'category-setup.html' : 'index.html');
+                  } else {
+                    window.location.replace('index.html');
+                  }
+                })
+                .catch(() => window.location.replace('index.html'));
+              return;
+            }
+            hideLoader();
+          });
+
+          function hideLoader() {
+            const l = document.getElementById('pageLoader');
+            if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
+            document.documentElement.classList.remove('page-locked');
+          }
+          \`;
+          fs.writeFileSync('public/firebase-config.js', content);
+          console.log('firebase-config.js generated');
+          "
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
