@@ -339,22 +339,30 @@ input, select, textarea {
   border-radius: var(--r-md);
   width: 100%;
   transition: border-color .15s, box-shadow .15s;
-  appearance: auto;
 }
 input::placeholder { color: var(--text-3); }
-/* Custom dropdown arrow — gives consistent spacing across all browsers/mobile */
+
+/* Custom chevron for <select> — consistent across all browsers & mobile */
 select {
+  appearance: none;
+  -webkit-appearance: none;
   padding-right: 40px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239A9A9A' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 14px center;
-  appearance: none;
-  -webkit-appearance: none;
 }
 [data-theme="dark"] select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23606060' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 14px center;
+}
+
+/* Date inputs keep native picker but need right-padding so the
+   calendar icon doesn't crash into the border */
+input[type="date"] {
+  appearance: auto;
+  -webkit-appearance: auto;
+  padding-right: 40px;
 }
 input:focus, select:focus {
   outline: none;
@@ -720,15 +728,15 @@ input[type="color"] {
   transform: scale(1.15);
 }
 
-.cat-name { flex: 1; font-weight: 500; font-size: .9rem; color: var(--text-1); }
+.cat-name { flex: 1; font-weight: 500; font-size: .9rem; color: var(--text-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Budget input inside category list rows */
+/* Budget input inside cat-item rows (class set in app.js) */
 .cat-budget-input {
   width: 90px;
   min-width: 0;
+  flex-shrink: 0;
   font-size: .85rem !important;
   padding: 7px 10px !important;
-  flex-shrink: 0;
 }
 .add-cat-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
 .add-cat-row input { flex: 1; }
@@ -1007,7 +1015,7 @@ select:focus option { animation: fadeIn .1s ease; }
   .period-tab { padding: 8px 14px; font-size: .82rem; }
   .tx-item { flex-wrap: wrap; }
   .cat-item { flex-wrap: wrap; gap: 8px; }
-  .cat-budget-input { width: auto !important; flex: 1 1 80px; min-width: 70px; }
+  .cat-budget-input { width: auto !important; flex: 1 1 80px !important; min-width: 70px; }
   .cat-item input[type="number"] { flex: 1; min-width: 0; max-width: none !important; }
   .cat-item .btn-sm { flex: 1; text-align: center; min-width: 80px; }
   .tx-actions { width: 100%; }
