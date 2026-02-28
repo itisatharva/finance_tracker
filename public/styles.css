@@ -342,8 +342,20 @@ input, select, textarea {
   appearance: auto;
 }
 input::placeholder { color: var(--text-3); }
-/* Give the native dropdown arrow breathing room from the edge */
-select { padding-right: 36px; }
+/* Custom dropdown arrow — gives consistent spacing across all browsers/mobile */
+select {
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239A9A9A' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  appearance: none;
+  -webkit-appearance: none;
+}
+[data-theme="dark"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23606060' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
 input:focus, select:focus {
   outline: none;
   border-color: var(--ink);
@@ -709,6 +721,15 @@ input[type="color"] {
 }
 
 .cat-name { flex: 1; font-weight: 500; font-size: .9rem; color: var(--text-1); }
+
+/* Budget input inside category list rows */
+.cat-budget-input {
+  width: 90px;
+  min-width: 0;
+  font-size: .85rem !important;
+  padding: 7px 10px !important;
+  flex-shrink: 0;
+}
 .add-cat-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
 .add-cat-row input { flex: 1; }
 
@@ -985,7 +1006,8 @@ select:focus option { animation: fadeIn .1s ease; }
   .cmp-arrow { font-size: 1.5rem; }
   .period-tab { padding: 8px 14px; font-size: .82rem; }
   .tx-item { flex-wrap: wrap; }
-  .cat-item { flex-wrap: wrap; }
+  .cat-item { flex-wrap: wrap; gap: 8px; }
+  .cat-budget-input { width: auto !important; flex: 1 1 80px; min-width: 70px; }
   .cat-item input[type="number"] { flex: 1; min-width: 0; max-width: none !important; }
   .cat-item .btn-sm { flex: 1; text-align: center; min-width: 80px; }
   .tx-actions { width: 100%; }
