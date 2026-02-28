@@ -34,14 +34,18 @@ function renderLists() {
     cats[type].forEach((cat, i) => {
       const div = document.createElement('div');
       div.className = 'cat-item';
-      const budgetInput = type === 'expense' ? `<input type="number" value="${cat.budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" oninput="updateBudget('${type}',${i},this.value)">` : '';
+      const budgetInput = type === 'expense'
+        ? `<input type="number" value="${cat.budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" oninput="updateBudget('${type}',${i},this.value)">`
+        : '';
       div.innerHTML = `
         <div class="cat-color-wrap" title="Click to change colour">
           <input type="color" value="${cat.color}" oninput="updateColor('${type}',${i},this.value)">
           <span class="cat-color-swatch" style="background:${cat.color}"></span>
         </div>
-        <span class="cat-name">${cat.name}</span>
-        ${budgetInput}
+        <div class="cat-info">
+          <span class="cat-name">${cat.name}</span>
+          ${budgetInput}
+        </div>
         <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
       `;
       el.appendChild(div);
