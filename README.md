@@ -147,8 +147,3 @@ All data is stored in your Firebase Firestore database under your user account. 
 - Firebase Hosting — deployment
 - Chart.js — analytics charts
 
----
-
-## License
-
-MIT License
