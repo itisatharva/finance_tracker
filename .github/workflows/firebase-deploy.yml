@@ -37,13 +37,13 @@ jobs:
           } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
           const firebaseConfig = {
-            apiKey:            '${API_KEY}',
-            authDomain:        '${AUTH_DOMAIN}',
-            projectId:         '${PROJECT_ID}',
-            storageBucket:     '${STORAGE_BUCKET}',
-            messagingSenderId: '${MESSAGING_SENDER_ID}',
-            appId:             '${APP_ID}',
-            measurementId:     '${MEASUREMENT_ID}'
+            apiKey:            '\${API_KEY}',
+            authDomain:        '\${AUTH_DOMAIN}',
+            projectId:         '\${PROJECT_ID}',
+            storageBucket:     '\${STORAGE_BUCKET}',
+            messagingSenderId: '\${MESSAGING_SENDER_ID}',
+            appId:             '\${APP_ID}',
+            measurementId:     '\${MEASUREMENT_ID}'
           };
 
           const app  = initializeApp(firebaseConfig);
@@ -69,35 +69,77 @@ jobs:
           window.onSnapshot    = onSnapshot;   window.serverTimestamp = serverTimestamp;
           window.firebaseReady = Promise.resolve();
           window._authHandled  = false;
+          window._redirectHandled = false;
 
           const _path       = window.location.pathname;
           const onLoginPage = _path.includes('login');
           const onSetupPage = _path.includes('category-setup');
           const onAppPage   = !onLoginPage && !onSetupPage;
 
-          auth.authStateReady().then(() => {
-            if (window._authHandled) return;
-            const user = auth.currentUser;
-            if (!user) {
-              if (onAppPage || onSetupPage) { window.location.replace('login.html'); return; }
-              hideLoader();
-              return;
-            }
-            if (onLoginPage) {
-              getRedirectResult(auth)
+          // ── Mobile Google redirect handling ──────────────────────────────────
+          // On mobile, signInWithRedirect is used. After Google redirects back to
+          // login.html, getRedirectResult() is the ONLY reliable way to detect a
+          // new-vs-returning user. We must call it immediately on page load —
+          // before onAuthStateChanged fires — so we can route correctly.
+          // ────────────────────────────────────────────────────────────────────
+          const redirectCheckDone = onLoginPage
+            ? getRedirectResult(auth)
                 .then(result => {
                   if (result && result.user) {
-                    const info  = getAdditionalUserInfo(result);
-                    const isNew = info && info.isNewUser;
+                    window._redirectHandled = true;
+                    window._authHandled     = true;
+                    const isNew = getAdditionalUserInfo(result) && getAdditionalUserInfo(result).isNewUser;
                     window.location.replace(isNew ? 'category-setup.html' : 'index.html');
-                  } else {
-                    window.location.replace('index.html');
                   }
+                  // null result = normal login page load, fall through to onAuthStateChanged
                 })
-                .catch(() => window.location.replace('index.html'));
-              return;
-            }
-            hideLoader();
+                .catch(err => {
+                  console.error('[Auth] getRedirectResult error:', err);
+                  // Don't block — let onAuthStateChanged handle the page
+                })
+            : Promise.resolve();
+
+          redirectCheckDone.then(() => {
+            if (window._redirectHandled) return;
+
+            onAuthStateChanged(auth, (user) => {
+              if (window._authHandled) return;
+              window._authHandled = true;
+
+              if (!user) {
+                if (onAppPage || onSetupPage) {
+                  window.location.replace('login.html');
+                  return;
+                }
+                hideLoader();
+                return;
+              }
+
+              // User is logged in
+              if (onLoginPage) {
+                // Returning user who is already logged in and navigated back to login
+                window.location.replace('index.html');
+                return;
+              }
+              if (onAppPage) {
+                // Keep loader — app.js will hide it after data loads
+                return;
+              }
+              // onSetupPage or fallback
+              hideLoader();
+            });
+
+            // Safety net: if auth takes >5s (network issue), unblock the page
+            setTimeout(() => {
+              if (!window._authHandled) {
+                window._authHandled = true;
+                if (onAppPage || onSetupPage) {
+                  window.location.replace('login.html');
+                } else {
+                  hideLoader();
+                }
+              }
+            }, 5000);
           });
 
           function hideLoader() {
