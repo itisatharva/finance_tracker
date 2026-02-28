@@ -22,135 +22,143 @@ jobs:
           APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
         run: |
-          node -e "
+          node << 'NODESCRIPT'
           const fs = require('fs');
-          const content = \`import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-          import {
-            getAuth, onAuthStateChanged,
-            signInWithEmailAndPassword, createUserWithEmailAndPassword,
-            signInWithPopup, signInWithRedirect, getRedirectResult,
-            GoogleAuthProvider, signOut as fbSignOut, getAdditionalUserInfo
-          } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-          import {
-            getFirestore, collection, doc, getDoc, setDoc, addDoc, deleteDoc,
-            query, orderBy, onSnapshot, serverTimestamp
-          } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
-          const firebaseConfig = {
-            apiKey:            '\${API_KEY}',
-            authDomain:        '\${AUTH_DOMAIN}',
-            projectId:         '\${PROJECT_ID}',
-            storageBucket:     '\${STORAGE_BUCKET}',
-            messagingSenderId: '\${MESSAGING_SENDER_ID}',
-            appId:             '\${APP_ID}',
-            measurementId:     '\${MEASUREMENT_ID}'
-          };
+          const apiKey            = process.env.API_KEY;
+          const authDomain        = process.env.AUTH_DOMAIN;
+          const projectId         = process.env.PROJECT_ID;
+          const storageBucket     = process.env.STORAGE_BUCKET;
+          const messagingSenderId = process.env.MESSAGING_SENDER_ID;
+          const appId             = process.env.APP_ID;
+          const measurementId     = process.env.MEASUREMENT_ID;
 
-          const app  = initializeApp(firebaseConfig);
-          const auth = getAuth(app);
-          const db   = getFirestore(app);
+          const content = `import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import {
+  getAuth, onAuthStateChanged,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signInWithPopup, signInWithRedirect, getRedirectResult,
+  GoogleAuthProvider, signOut as fbSignOut, getAdditionalUserInfo
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import {
+  getFirestore, collection, doc, getDoc, setDoc, addDoc, deleteDoc,
+  query, orderBy, onSnapshot, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
-          window.auth = auth;
-          window.db   = db;
-          window.onAuthStateChanged             = onAuthStateChanged;
-          window.signInWithEmailAndPassword     = signInWithEmailAndPassword;
-          window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
-          window.signInWithPopup                = signInWithPopup;
-          window.signInWithRedirect             = signInWithRedirect;
-          window.getRedirectResult              = getRedirectResult;
-          window.GoogleAuthProvider             = GoogleAuthProvider;
-          window.getAdditionalUserInfo          = getAdditionalUserInfo;
-          window.fbSignOut                      = fbSignOut;
-          window.signOutFirebase                = fbSignOut;
-          window.collection    = collection;   window.doc         = doc;
-          window.getDoc        = getDoc;       window.setDoc      = setDoc;
-          window.addDoc        = addDoc;       window.deleteDoc   = deleteDoc;
-          window.query         = query;        window.orderBy     = orderBy;
-          window.onSnapshot    = onSnapshot;   window.serverTimestamp = serverTimestamp;
-          window.firebaseReady = Promise.resolve();
-          window._authHandled  = false;
-          window._redirectHandled = false;
+const firebaseConfig = {
+  apiKey:            '${apiKey}',
+  authDomain:        '${authDomain}',
+  projectId:         '${projectId}',
+  storageBucket:     '${storageBucket}',
+  messagingSenderId: '${messagingSenderId}',
+  appId:             '${appId}',
+  measurementId:     '${measurementId}'
+};
 
-          const _path       = window.location.pathname;
-          const onLoginPage = _path.includes('login');
-          const onSetupPage = _path.includes('category-setup');
-          const onAppPage   = !onLoginPage && !onSetupPage;
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
 
-          // ── Mobile Google redirect handling ──────────────────────────────────
-          // On mobile, signInWithRedirect is used. After Google redirects back to
-          // login.html, getRedirectResult() is the ONLY reliable way to detect a
-          // new-vs-returning user. We must call it immediately on page load —
-          // before onAuthStateChanged fires — so we can route correctly.
-          // ────────────────────────────────────────────────────────────────────
-          const redirectCheckDone = onLoginPage
-            ? getRedirectResult(auth)
-                .then(result => {
-                  if (result && result.user) {
-                    window._redirectHandled = true;
-                    window._authHandled     = true;
-                    const isNew = getAdditionalUserInfo(result) && getAdditionalUserInfo(result).isNewUser;
-                    window.location.replace(isNew ? 'category-setup.html' : 'index.html');
-                  }
-                  // null result = normal login page load, fall through to onAuthStateChanged
-                })
-                .catch(err => {
-                  console.error('[Auth] getRedirectResult error:', err);
-                  // Don't block — let onAuthStateChanged handle the page
-                })
-            : Promise.resolve();
+window.auth = auth;
+window.db   = db;
+window.onAuthStateChanged             = onAuthStateChanged;
+window.signInWithEmailAndPassword     = signInWithEmailAndPassword;
+window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+window.signInWithPopup                = signInWithPopup;
+window.signInWithRedirect             = signInWithRedirect;
+window.getRedirectResult              = getRedirectResult;
+window.GoogleAuthProvider             = GoogleAuthProvider;
+window.getAdditionalUserInfo          = getAdditionalUserInfo;
+window.fbSignOut                      = fbSignOut;
+window.signOutFirebase                = fbSignOut;
+window.collection    = collection;   window.doc         = doc;
+window.getDoc        = getDoc;       window.setDoc      = setDoc;
+window.addDoc        = addDoc;       window.deleteDoc   = deleteDoc;
+window.query         = query;        window.orderBy     = orderBy;
+window.onSnapshot    = onSnapshot;   window.serverTimestamp = serverTimestamp;
+window.firebaseReady = Promise.resolve();
+window._authHandled     = false;
+window._redirectHandled = false;
 
-          redirectCheckDone.then(() => {
-            if (window._redirectHandled) return;
+const _path       = window.location.pathname;
+const onLoginPage = _path.includes('login');
+const onSetupPage = _path.includes('category-setup');
+const onAppPage   = !onLoginPage && !onSetupPage;
 
-            onAuthStateChanged(auth, (user) => {
-              if (window._authHandled) return;
-              window._authHandled = true;
+// On mobile, signInWithRedirect is used. After Google redirects back to
+// login.html, getRedirectResult() is the ONLY reliable way to detect
+// new-vs-returning users. Call it immediately before onAuthStateChanged
+// so we can route new users to category-setup and returning to index.
+const redirectCheckDone = onLoginPage
+  ? getRedirectResult(auth)
+      .then(result => {
+        if (result && result.user) {
+          window._redirectHandled = true;
+          window._authHandled     = true;
+          const info  = getAdditionalUserInfo(result);
+          const isNew = info && info.isNewUser;
+          window.location.replace(isNew ? 'category-setup.html' : 'index.html');
+        }
+        // null result = normal page load, fall through to onAuthStateChanged
+      })
+      .catch(err => {
+        console.error('[Auth] getRedirectResult error:', err);
+        // Don't block — let onAuthStateChanged handle it
+      })
+  : Promise.resolve();
 
-              if (!user) {
-                if (onAppPage || onSetupPage) {
-                  window.location.replace('login.html');
-                  return;
-                }
-                hideLoader();
-                return;
-              }
+redirectCheckDone.then(() => {
+  if (window._redirectHandled) return;
 
-              // User is logged in
-              if (onLoginPage) {
-                // Returning user who is already logged in and navigated back to login
-                window.location.replace('index.html');
-                return;
-              }
-              if (onAppPage) {
-                // Keep loader — app.js will hide it after data loads
-                return;
-              }
-              // onSetupPage or fallback
-              hideLoader();
-            });
+  onAuthStateChanged(auth, (user) => {
+    if (window._authHandled) return;
+    window._authHandled = true;
 
-            // Safety net: if auth takes >5s (network issue), unblock the page
-            setTimeout(() => {
-              if (!window._authHandled) {
-                window._authHandled = true;
-                if (onAppPage || onSetupPage) {
-                  window.location.replace('login.html');
-                } else {
-                  hideLoader();
-                }
-              }
-            }, 5000);
-          });
+    if (!user) {
+      if (onAppPage || onSetupPage) {
+        window.location.replace('login.html');
+        return;
+      }
+      hideLoader();
+      return;
+    }
 
-          function hideLoader() {
-            const l = document.getElementById('pageLoader');
-            if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
-            document.documentElement.classList.remove('page-locked');
-          }
-          \`;
+    if (onLoginPage) {
+      // Already logged-in user navigated back to login page
+      window.location.replace('index.html');
+      return;
+    }
+    if (onAppPage) {
+      // Keep loader — app.js will hide it after data loads
+      return;
+    }
+    // onSetupPage or fallback
+    hideLoader();
+  });
+
+  // Safety net: unblock the page if auth takes too long
+  setTimeout(() => {
+    if (!window._authHandled) {
+      window._authHandled = true;
+      if (onAppPage || onSetupPage) {
+        window.location.replace('login.html');
+      } else {
+        hideLoader();
+      }
+    }
+  }, 5000);
+});
+
+function hideLoader() {
+  const l = document.getElementById('pageLoader');
+  if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
+  document.documentElement.classList.remove('page-locked');
+}
+`;
+
           fs.writeFileSync('public/firebase-config.js', content);
-          console.log('firebase-config.js generated');
-          "
+          console.log('firebase-config.js generated successfully');
+          NODESCRIPT
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
