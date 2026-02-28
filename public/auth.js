@@ -47,13 +47,6 @@ function redirect(url) {
   window.location.replace(url);
 }
 
-// ── Mobile detection ──────────────────────────────────────────────────────────
-const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-// ── Google redirect result ───────────────────────────────────────────────────
-// Handled exclusively inside firebase-config.js (in the onLoginPage branch).
-// Calling getRedirectResult here would consume Firebase's one-time result
-// before firebase-config.js can check isNewUser, breaking new-user routing.
 
 // ── Card toggle ───────────────────────────────────────────────────────────────
 document.getElementById('goToSignup').addEventListener('click', e => {
@@ -113,29 +106,18 @@ document.getElementById('signinGoogleBtn').addEventListener('click', async e => 
   showErr('signinErr', '');
   const btn = e.currentTarget;
   btn.disabled = true;
-  if (isMobile) {
-    btn.innerHTML = GOOGLE_ICON + ' Redirecting…';
-    try {
-      await window.signInWithRedirect(window.auth, new window.GoogleAuthProvider());
-    } catch (err) {
-      const msg = ERR[err.code];
-      if (msg !== null) showErr('signinErr', msg || `Sign-in failed (${err.code}).`);
-      resetGoogleBtn(btn, 'Continue with Google');
+  btn.innerHTML = GOOGLE_ICON + ' Connecting…';
+  try {
+    const result = await window.signInWithPopup(window.auth, new window.GoogleAuthProvider());
+    const isNew  = window.getAdditionalUserInfo(result).isNewUser;
+    btn.innerHTML = GOOGLE_ICON + ' ✓ Signed in!';
+    redirect(isNew ? 'category-setup.html' : 'index.html');
+  } catch (err) {
+    const msg = ERR[err.code];
+    if (err.code !== 'auth/popup-closed-by-user' && msg !== null) {
+      showErr('signinErr', msg || `Sign-in failed (${err.code}).`);
     }
-  } else {
-    btn.innerHTML = GOOGLE_ICON + ' Connecting…';
-    try {
-      const result = await window.signInWithPopup(window.auth, new window.GoogleAuthProvider());
-      const isNew  = window.getAdditionalUserInfo(result).isNewUser;
-      btn.innerHTML = GOOGLE_ICON + ' ✓ Signed in!';
-      redirect(isNew ? 'category-setup.html' : 'index.html');
-    } catch (err) {
-      const msg = ERR[err.code];
-      if (err.code !== 'auth/popup-closed-by-user' && msg !== null) {
-        showErr('signinErr', msg || `Sign-in failed (${err.code}).`);
-      }
-      resetGoogleBtn(btn, 'Continue with Google');
-    }
+    resetGoogleBtn(btn, 'Continue with Google');
   }
 });
 
@@ -144,28 +126,17 @@ document.getElementById('signupGoogleBtn').addEventListener('click', async e => 
   showErr('signupErr', '');
   const btn = e.currentTarget;
   btn.disabled = true;
-  if (isMobile) {
-    btn.innerHTML = GOOGLE_ICON + ' Redirecting…';
-    try {
-      await window.signInWithRedirect(window.auth, new window.GoogleAuthProvider());
-    } catch (err) {
-      const msg = ERR[err.code];
-      if (msg !== null) showErr('signupErr', msg || `Sign-in failed (${err.code}).`);
-      resetGoogleBtn(btn, 'Join with Google');
+  btn.innerHTML = GOOGLE_ICON + ' Connecting…';
+  try {
+    const result = await window.signInWithPopup(window.auth, new window.GoogleAuthProvider());
+    const isNew  = window.getAdditionalUserInfo(result).isNewUser;
+    btn.innerHTML = GOOGLE_ICON + ' ✓ Joined!';
+    redirect(isNew ? 'category-setup.html' : 'index.html');
+  } catch (err) {
+    const msg = ERR[err.code];
+    if (err.code !== 'auth/popup-closed-by-user' && msg !== null) {
+      showErr('signupErr', msg || `Sign-in failed (${err.code}).`);
     }
-  } else {
-    btn.innerHTML = GOOGLE_ICON + ' Connecting…';
-    try {
-      const result = await window.signInWithPopup(window.auth, new window.GoogleAuthProvider());
-      const isNew  = window.getAdditionalUserInfo(result).isNewUser;
-      btn.innerHTML = GOOGLE_ICON + ' ✓ Joined!';
-      redirect(isNew ? 'category-setup.html' : 'index.html');
-    } catch (err) {
-      const msg = ERR[err.code];
-      if (err.code !== 'auth/popup-closed-by-user' && msg !== null) {
-        showErr('signupErr', msg || `Sign-in failed (${err.code}).`);
-      }
-      resetGoogleBtn(btn, 'Join with Google');
-    }
+    resetGoogleBtn(btn, 'Join with Google');
   }
 });
