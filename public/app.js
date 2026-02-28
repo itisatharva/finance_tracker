@@ -575,7 +575,7 @@ function renderCatLists() {
       div.className = 'cat-item';
 
       const budgetInput = type === 'expense'
-        ? `<input type="number" value="${budget || ''}" placeholder="Monthly budget (optional)" class="cat-budget-input" min="0" step="0.01" onchange="updateCatBudget('${type}',${i},this.value)">`
+        ? `<input type="number" value="${budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" onchange="updateCatBudget('${type}',${i},this.value)">`
         : '';
 
       div.innerHTML = `

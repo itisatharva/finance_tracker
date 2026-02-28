@@ -359,7 +359,7 @@ select {
 
 /* Date inputs: keep native picker, add padding so icon doesn't hug the edge */
 input[type="date"] {
-  padding-right: 48px;
+  padding-right: 38px;
 }
 input:focus, select:focus {
   outline: none;
@@ -742,13 +742,23 @@ input[type="color"] {
   text-overflow: ellipsis;
 }
 .cat-budget-input {
-  width: 100%;
+  width: auto;
+  min-width: 60px;
+  max-width: 130px;
   font-size: .82rem !important;
   padding: 6px 10px !important;
   color: var(--text-2);
 }
-.add-cat-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
-.add-cat-row input { flex: 1; }
+.add-cat-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.add-cat-row input[type="text"] { flex: 1 1 100%; }
+.add-cat-row input[type="number"],
+.add-budget-input { flex: 1 1 80px; min-width: 0; }
 
 /* New cat color picker circle */
 .add-cat-color-wrap {
