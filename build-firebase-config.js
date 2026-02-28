@@ -37,12 +37,6 @@ if (missing.length) {
   process.exit(1);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THIS IS THE FILE THAT GETS DEPLOYED.
-// DO NOT use onAuthStateChanged for routing — it fires on every token refresh
-// (every hour), causing a redirect loop. Use auth.authStateReady() instead:
-// it resolves EXACTLY ONCE after the persisted session is read from IndexedDB.
-// ─────────────────────────────────────────────────────────────────────────────
 const configContent = `import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
 import {
   getAuth, onAuthStateChanged,
@@ -95,8 +89,6 @@ const onSetupPage = _path.includes('category-setup');
 const onAppPage   = !onLoginPage && !onSetupPage;
 
 // authStateReady() resolves ONCE after Firebase reads the session from IndexedDB.
-// It never fires again for token refreshes. This is the only routing logic needed.
-// Sign-out redirect is handled by app.js directly after fbSignOut().
 auth.authStateReady().then(() => {
   if (window._authHandled) return;
 
@@ -108,7 +100,26 @@ auth.authStateReady().then(() => {
     return;
   }
 
-  if (onLoginPage) { window.location.replace('index.html'); return; }
+  if (onLoginPage) {
+    // Check getRedirectResult first — on mobile, a Google redirect sign-in lands
+    // back here with a logged-in user. We must inspect the result to know whether
+    // this is a brand-new user (→ category-setup) or returning user (→ app).
+    // Without this, new Google users always skip category setup.
+    getRedirectResult(auth)
+      .then(result => {
+        if (result && result.user) {
+          const info  = getAdditionalUserInfo(result);
+          const isNew = info && info.isNewUser;
+          window.location.replace(isNew ? 'category-setup.html' : 'index.html');
+        } else {
+          // Not from a redirect — already signed in normally
+          window.location.replace('index.html');
+        }
+      })
+      .catch(() => window.location.replace('index.html'));
+    return;
+  }
+
   hideLoader();
 });
 
@@ -124,16 +135,12 @@ fs.writeFileSync(outputPath, configContent);
 console.log('✓ firebase-config.js generated successfully');
 
 // ── Cache-bust HTML files ─────────────────────────────────────────────────────
-// Appends ?v=TIMESTAMP to all local JS and CSS refs in every HTML file.
-// This forces browsers (especially mobile Safari) to fetch fresh assets
-// on every deploy without requiring manual cache clearing.
 const version  = Date.now();
 const htmlFiles = ['index.html', 'login.html', 'category-setup.html'];
 htmlFiles.forEach(filename => {
   const htmlPath = path.join(__dirname, 'public', filename);
   if (!fs.existsSync(htmlPath)) return;
   let html = fs.readFileSync(htmlPath, 'utf-8');
-  // Strip any existing ?v=... then add the new one — local files only
   html = html.replace(/(src|href)="([^"]+\.(js|css))(\?v=[^"]*)?"/g, (m, attr, file) => {
     if (file.startsWith('http') || file.startsWith('//')) return m;
     return `${attr}="${file}?v=${version}"`;
