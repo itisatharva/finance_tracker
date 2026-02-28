@@ -357,13 +357,31 @@ select {
   background-position: right 18px center;
 }
 
-/* Date inputs: native calendar icon sits at right edge by default.
-   Use standard padding to avoid pushing it too far left. */
+/* Date inputs — cross-browser calendar icon fix.
+   Firefox ignores ::-webkit-calendar-picker-indicator, so we suppress
+   the native icon on all browsers and paint our own via background-image,
+   exactly like the <select> chevron above. The native date picker still
+   opens on click; only the visual icon is replaced. */
 input[type="date"] {
-  padding-right: 40px; /* room for the native calendar icon */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239A9A9A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
 }
+[data-theme="dark"] input[type="date"] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23606060' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Cline x1='16' y1='2' x2='16' y2='6'%3E%3C/line%3E%3Cline x1='8' y1='2' x2='8' y2='6'%3E%3C/line%3E%3Cline x1='3' y1='10' x2='21' y2='10'%3E%3C/line%3E%3C/svg%3E");
+}
+/* Keep webkit pseudo-element hidden so it doesn't double up on Chrome */
 input[type="date"]::-webkit-calendar-picker-indicator {
-  transform: translateX(10px);
+  opacity: 0;
+  position: absolute;
+  right: 0;
+  width: 40px;
+  height: 100%;
   cursor: pointer;
 }
 input:focus, select:focus {
