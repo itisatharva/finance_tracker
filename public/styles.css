@@ -360,7 +360,9 @@ select {
 /* Date inputs: native calendar icon sits at right edge by default.
    Use standard padding to avoid pushing it too far left. */
 input[type="date"] {
-  padding-right: 14px;
+  padding-left: 12px;
+  padding-right: 32px;
+  text-align: left;
 }
 input:focus, select:focus {
   outline: none;
@@ -689,6 +691,26 @@ input[type="color"] {
   margin-bottom: 8px;
   transition: border-color .15s, box-shadow .15s;
 }
+
+.cat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.cat-name {
+  font-weight: 600;
+  color: var(--text-1);
+  font-size: 0.95rem;
+}
+
+.cat-budget-input {
+  max-width: 140px;
+  font-size: 0.85rem;
+  padding: 6px 10px;
+}
 .cat-item:hover {
   border-color: var(--ink);
   box-shadow: var(--shadow-sm);
@@ -727,13 +749,7 @@ input[type="color"] {
 }
 
 /* cat-info wraps name + budget stacked vertically */
-.cat-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+
 .cat-name {
   font-weight: 500;
   font-size: .9rem;
@@ -1273,6 +1289,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
+  
+  /* Fix date input arrow position on mobile */
+  input[type="date"] {
+    padding-right: 12px;
+  }
+
   .monthly-cards-row {
     grid-template-columns: 1fr;
   }

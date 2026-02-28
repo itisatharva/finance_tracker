@@ -53,10 +53,18 @@ const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 // ── Handle Google redirect result (mobile flow) ───────────────────────────────
 // Wrapped defensively — if getRedirectResult isn't exported yet, nothing crashes.
 if (typeof window.getRedirectResult === 'function') {
+  console.log('[Auth.js] Checking for redirect result...');
   window.getRedirectResult(window.auth)
     .then(result => {
-      if (!result || !result.user) return;
+      if (!result || !result.user) {
+        console.log('[Auth.js] No redirect result');
+        return;
+      }
+      
+      console.log('[Auth.js] Redirect result found!');
+      window._redirectHandled = true;
       const isNew = window.getAdditionalUserInfo(result).isNewUser;
+      console.log('[Auth.js] Is new user:', isNew);
       redirect(isNew ? 'category-setup.html' : 'index.html');
     })
     .catch(err => {
