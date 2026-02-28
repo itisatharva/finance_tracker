@@ -111,7 +111,7 @@
           <h2>Add Transaction</h2>
           <form id="addTxForm">
             <div class="form-grid">
-              <div class="field"><label>Date</label><input type="date" id="txDate" required /></div>
+              <div class="field"><label>Date</label><div class="date-wrap"><input type="date" id="txDate" required /></div></div>
               <div class="field">
                 <label>Category</label>
                 <select id="txCategory" required><option value="">Select category</option></select>
@@ -172,7 +172,7 @@
     <div id="periodDaily">
       <div class="analytics-main">
         <div class="analytics-left">
-          <div class="date-row"><label>Date</label><input type="date" id="dailyDate" /></div>
+          <div class="date-row"><label>Date</label><div class="date-wrap"><input type="date" id="dailyDate" /></div></div>
           <div class="cmp-card">
             <div class="cmp-stat"><div class="cmp-lbl">Selected Day</div><div class="cmp-val" id="cmpToday">₹0</div></div>
             <div class="cmp-arrow" id="cmpArrow">→</div>
@@ -305,7 +305,7 @@
     <div class="modal-head"><h2>Edit Transaction</h2><button class="btn-close-settings" onclick="closeEditModal()">×</button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="field"><label>Date</label><input type="date" id="editDate" /></div>
+        <div class="field"><label>Date</label><div class="date-wrap"><input type="date" id="editDate" /></div></div>
         <div class="field"><label>Category</label><select id="editCategory"><option value="">Select</option></select></div>
       </div>
       <div class="form-grid" style="margin-top:14px;">
