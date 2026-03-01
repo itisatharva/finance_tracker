@@ -77,25 +77,39 @@ function vibrate() { if (navigator.vibrate) navigator.vibrate(40); }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 // Initialize month dropdown
-function initMonthDropdown(currentDate) {
+function initMonthDropdown(currentDate, txList) {
   const select = document.getElementById('monthlyDate');
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
-  
+
+  // Preserve currently selected value so we don't lose the user's position on refresh
+  const prevSelected = select.value;
+
+  // Find the earliest year across all transactions; fall back to currentYear - 2
+  let startYear = currentYear - 2;
+  if (txList && txList.length) {
+    const years = txList.map(t => toDate(t.selectedDate).getFullYear()).filter(y => !isNaN(y));
+    if (years.length) startYear = Math.min(...years, startYear);
+  }
+
   select.innerHTML = '';
-  
-  for (let year = currentYear - 2; year <= currentYear + 1; year++) {
+
+  for (let year = startYear; year <= currentYear + 1; year++) {
     for (let month = 0; month < 12; month++) {
       const option = document.createElement('option');
       const value = `${year}-${String(month + 1).padStart(2, '0')}`;
       option.value = value;
       option.textContent = `${MONTHS[month]} ${year}`;
       select.appendChild(option);
-      
-      if (year === currentYear && month === currentMonth) {
-        option.selected = true;
-      }
     }
+  }
+
+  // Restore previous selection if it still exists, otherwise default to current month
+  if (prevSelected && select.querySelector(`option[value="${prevSelected}"]`)) {
+    select.value = prevSelected;
+  } else {
+    const defaultVal = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    select.value = defaultVal;
   }
 }
 
@@ -603,7 +617,10 @@ function listenTransactions() {
   let firstLoad = true;
   window.onSnapshot(q, snap => {
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    
+
+    // Refresh month dropdown so all years with transactions are always reachable
+    initMonthDropdown(new Date(), transactions);
+
     // Track new transactions for render functions
     const currentIds = new Set(transactions.map(t => t.id));
     const newIds = [...currentIds].filter(id => !prevTransactionIds.has(id));
@@ -1269,7 +1286,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
   const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor = isDark ? '#9A9A9A' : '#9A9A9A';
   const lineColor = isDark ? '#E8E6E1' : '#1c1c1c';
-  const bgColor   = isDark ? '#1c1c1c' : '#ffffff';
+  const bgColor   = isDark ? '#2a2a2a' : '#ffffff';
   const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
   const typeColor = type === 'income' ? '#0FA974' : '#E84545';
 
@@ -1340,7 +1357,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
   const obs = new MutationObserver(() => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const nl = nowDark ? '#E8E6E1' : '#1c1c1c';
-    const nb = nowDark ? '#1c1c1c' : '#ffffff';
+    const nb = nowDark ? '#2a2a2a' : '#ffffff';
     const ng = nowDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const hl = nowDark ? '#3a3a3a' : '#1c1c1c';
     Plotly.update(container,
@@ -1379,7 +1396,7 @@ function renderPieChart(wrapId, txList, type) {
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
-  const bgColor = isDark ? '#1c1c1c' : '#ffffff';
+  const bgColor = isDark ? '#2a2a2a' : '#ffffff';
   const borderColor = isDark ? '#3a3a3a' : '#ffffff';
 
   // On mobile (touch) devices hide labels — they become too cramped.
@@ -1446,7 +1463,7 @@ function renderPieChart(wrapId, txList, type) {
   const observer = new MutationObserver(() => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const newTextColor = nowDark ? '#E8E6E1' : '#2D2D2D';
-    const newBgColor = nowDark ? '#1c1c1c' : '#ffffff';
+    const newBgColor = nowDark ? '#2a2a2a' : '#ffffff';
     const newBorderColor = nowDark ? '#3a3a3a' : '#ffffff';
     
     Plotly.update(container, {
