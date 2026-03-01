@@ -1099,6 +1099,7 @@ function renderMonthly() {
 
   const data = monthlyType === 'income' ? monthInc : monthExp;
   renderPieChart('monthlyChartWrap', data, monthlyType);
+  renderMonthlyLineChart(y, m, monthlyType === 'income' ? monthInc : monthExp, monthlyType);
 
   const totals = {}; const colors = {};
   data.forEach(t => {
@@ -1228,6 +1229,162 @@ function renderCashflow() {
 document.getElementById('cashflowYear').addEventListener('change', renderCashflow);
 
 // ─── Shared Pie/Doughnut chart ────────────────────────────────────────────────
+
+// ─── Analytics: Monthly Daily Line Chart ─────────────────────────────────────
+function renderMonthlyLineChart(year, month, txList, type) {
+  const wrap = document.getElementById('monthlyLineWrap');
+  if (!wrap) return;
+
+  // Build day-by-day totals for the month
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const dailyTotals = new Array(daysInMonth).fill(0);
+
+  txList.forEach(t => {
+    const d = toDate(t.selectedDate);
+    if (d.getFullYear() === year && d.getMonth() === month - 1) {
+      dailyTotals[d.getDate() - 1] += t.amount;
+    }
+  });
+
+  const hasData = dailyTotals.some(v => v > 0);
+  if (!hasData) {
+    wrap.innerHTML = '<div class="empty">No daily data for this month</div>';
+    return;
+  }
+
+  const xLabels = Array.from({length: daysInMonth}, (_, i) => {
+    const d = new Date(year, month - 1, i + 1);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  });
+
+  // Find peak and lowest non-zero day for annotations
+  const maxVal = Math.max(...dailyTotals);
+  const maxIdx = dailyTotals.indexOf(maxVal);
+  const nonZero = dailyTotals.map((v, i) => ({v, i})).filter(x => x.v > 0);
+  const minObj  = nonZero.reduce((a, b) => a.v < b.v ? a : b, nonZero[0]);
+
+  const isDark     = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor  = isDark ? '#9A9A9A' : '#9A9A9A';
+  const lineColor  = isDark ? '#E8E6E1' : '#1c1c1c';
+  const bgColor    = isDark ? '#2a2a2a' : '#ffffff';
+  const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const zeroColor  = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+  const annotColor = isDark ? '#E8E6E1' : '#1c1c1c';
+  const typeColor  = type === 'income' ? '#0FA974' : '#E84545';
+
+  // Annotations for peak and min
+  const annotations = [];
+  // Peak dot label
+  annotations.push({
+    x: xLabels[maxIdx],
+    y: maxVal,
+    xref: 'x', yref: 'y',
+    text: `<b>${xLabels[maxIdx]}</b><br>+${fmt(maxVal)}`,
+    showarrow: true,
+    arrowhead: 0,
+    arrowcolor: annotColor,
+    arrowwidth: 1.5,
+    ax: maxIdx < daysInMonth / 2 ? 40 : -40,
+    ay: -36,
+    font: { size: 11, color: annotColor, family: 'DM Sans, sans-serif' },
+    bgcolor: 'transparent',
+    bordercolor: 'transparent'
+  });
+  // Min dot label (only if different from max)
+  if (minObj && minObj.i !== maxIdx) {
+    annotations.push({
+      x: xLabels[minObj.i],
+      y: minObj.v,
+      xref: 'x', yref: 'y',
+      text: `<b>${xLabels[minObj.i]}</b><br>${fmt(minObj.v)}`,
+      showarrow: true,
+      arrowhead: 0,
+      arrowcolor: annotColor,
+      arrowwidth: 1.5,
+      ax: minObj.i < daysInMonth / 2 ? 40 : -40,
+      ay: 36,
+      font: { size: 11, color: annotColor, family: 'DM Sans, sans-serif' },
+      bgcolor: 'transparent',
+      bordercolor: 'transparent'
+    });
+  }
+
+  wrap.innerHTML = '<div style="width:100%;height:100%;min-height:260px;"></div>';
+  const container = wrap.firstChild;
+
+  // Marker: only show dots at peak and min
+  const markerColors = dailyTotals.map((v, i) => {
+    if (i === maxIdx) return typeColor;
+    if (minObj && i === minObj.i) return lineColor;
+    return 'rgba(0,0,0,0)';
+  });
+  const markerSizes = dailyTotals.map((v, i) => {
+    if (i === maxIdx || (minObj && i === minObj.i)) return 8;
+    return 0;
+  });
+
+  const trace = [{
+    x: xLabels,
+    y: dailyTotals,
+    type: 'scatter',
+    mode: 'lines+markers',
+    line: { color: lineColor, width: 2.5, shape: 'spline', smoothing: 0.6 },
+    marker: { color: markerColors, size: markerSizes, line: { width: 0 } },
+    hovertemplate: '<b>%{x}</b><br>₹%{y:,.2f}<extra></extra>',
+    fill: 'tozeroy',
+    fillcolor: isDark ? 'rgba(232,230,225,0.05)' : 'rgba(28,28,28,0.04)',
+  }];
+
+  const layout = {
+    paper_bgcolor: bgColor,
+    plot_bgcolor: bgColor,
+    margin: { t: 30, b: 48, l: 58, r: 20 },
+    autosize: true,
+    annotations,
+    xaxis: {
+      tickfont: { size: 10, color: textColor, family: 'DM Sans, sans-serif' },
+      gridcolor: gridColor,
+      linecolor: 'transparent',
+      tickangle: -35,
+      nticks: 8,
+      zeroline: false,
+    },
+    yaxis: {
+      tickfont: { size: 10, color: textColor, family: 'DM Sans, sans-serif' },
+      gridcolor: gridColor,
+      linecolor: 'transparent',
+      zeroline: true,
+      zerolinecolor: zeroColor,
+      zerolinewidth: 1,
+      tickprefix: '₹',
+    },
+    shapes: [{
+      type: 'line',
+      x0: 0, x1: 1, xref: 'paper',
+      y0: 0, y1: 0, yref: 'y',
+      line: { color: zeroColor, width: 1, dash: 'dot' }
+    }]
+  };
+
+  Plotly.newPlot(container, trace, layout, { responsive: true, displayModeBar: false });
+
+  // Theme sync
+  const obs = new MutationObserver(() => {
+    const nowDark   = document.documentElement.getAttribute('data-theme') === 'dark';
+    const nl = nowDark ? '#E8E6E1' : '#1c1c1c';
+    const nb = nowDark ? '#2a2a2a' : '#ffffff';
+    const ng = nowDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const nz = nowDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+    Plotly.update(container,
+      { 'line.color': [nl], 'fillcolor': [nowDark ? 'rgba(232,230,225,0.05)' : 'rgba(28,28,28,0.04)'] },
+      { 'paper_bgcolor': nb, 'plot_bgcolor': nb,
+        'xaxis.gridcolor': ng, 'yaxis.gridcolor': ng,
+        'yaxis.zerolinecolor': nz }
+    );
+  });
+  obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
+
 function renderPieChart(wrapId, txList, type) {
   const wrap = document.getElementById(wrapId);
   if (!txList.length) { 

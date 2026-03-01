@@ -1251,6 +1251,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--text-1);
 }
 
+/* Monthly daily line chart */
+.monthly-line-wrap {
+  min-height: 260px !important;
+  padding: 16px 8px 8px 8px;
+}
+.monthly-line-wrap .empty {
+  font-size: .88rem;
+  color: var(--text-3);
+}
+
 /* Monthly cards side-by-side */
 .monthly-cards-row {
   display: grid;
