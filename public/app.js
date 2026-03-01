@@ -1252,15 +1252,22 @@ function renderMonthlyLineChart(year, month, txList, type) {
     return;
   }
 
-  const xLabels = Array.from({length: daysInMonth}, (_, i) => {
+  const allLabels = Array.from({length: daysInMonth}, (_, i) => {
     const d = new Date(year, month - 1, i + 1);
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   });
 
-  // Dynamic Y range — pad so small spend differences are visible, not a flatline
-  const maxVal     = Math.max(...dailyTotals);
-  const nonZero    = dailyTotals.filter(v => v > 0);
-  const minNonZero = nonZero.length ? Math.min(...nonZero) : 0;
+  // Only plot days that actually have a transaction — avoids the line
+  // crashing to zero on empty days (especially visible for income)
+  const points = dailyTotals
+    .map((v, i) => ({ label: allLabels[i], value: v }))
+    .filter(p => p.value > 0);
+  const xLabels   = points.map(p => p.label);
+  const yValues   = points.map(p => p.value);
+
+  // Dynamic Y range — pad so small differences are visible, not a flatline
+  const maxVal     = Math.max(...yValues);
+  const minNonZero = Math.min(...yValues);
   const spread     = maxVal - minNonZero;
   const yPad       = spread * 0.25 || maxVal * 0.15;
   const yMin       = Math.max(0, minNonZero - yPad);
@@ -1278,7 +1285,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
 
   const trace = [{
     x: xLabels,
-    y: dailyTotals,
+    y: yValues,
     type: 'scatter',
     mode: 'lines+markers',
     line: { color: lineColor, width: 2.5, shape: 'spline', smoothing: 0.6 },
