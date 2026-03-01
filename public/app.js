@@ -1279,7 +1279,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
     y: yValues,
     type: 'scatter',
     mode: 'lines+markers',
-    line: { color: lineColor, width: 2.5, shape: 'spline', smoothing: 1.3 },
+    line: { color: lineColor, width: 2.5, shape: 'spline', smoothing: 0.4 },
     // Small invisible markers on every point so hover snaps cleanly
     marker: {
       color: typeColor,
