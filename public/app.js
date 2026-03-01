@@ -1263,23 +1263,28 @@ function renderMonthlyLineChart(year, month, txList, type) {
   const nonZero = dailyTotals.map((v, i) => ({v, i})).filter(x => x.v > 0);
   const minObj  = nonZero.reduce((a, b) => a.v < b.v ? a : b, nonZero[0]);
 
+  // Dynamic Y range: pad 15% below min non-zero and above max so small
+  // differences are clearly visible instead of appearing as a flatline
+  const minNonZero = minObj ? minObj.v : 0;
+  const yPad  = (maxVal - minNonZero) * 0.25 || maxVal * 0.15;
+  const yMin  = Math.max(0, minNonZero - yPad);
+  const yMax  = maxVal + yPad;
+
   const isDark     = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor  = isDark ? '#9A9A9A' : '#9A9A9A';
   const lineColor  = isDark ? '#E8E6E1' : '#1c1c1c';
   const bgColor    = isDark ? '#2a2a2a' : '#ffffff';
   const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-  const zeroColor  = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
   const annotColor = isDark ? '#E8E6E1' : '#1c1c1c';
   const typeColor  = type === 'income' ? '#0FA974' : '#E84545';
 
-  // Annotations for peak and min
+  // Annotations for peak and min (no + prefix — all values are positive)
   const annotations = [];
-  // Peak dot label
   annotations.push({
     x: xLabels[maxIdx],
     y: maxVal,
     xref: 'x', yref: 'y',
-    text: `<b>${xLabels[maxIdx]}</b><br>+${fmt(maxVal)}`,
+    text: `<b>${xLabels[maxIdx]}</b><br>${fmt(maxVal)}`,
     showarrow: true,
     arrowhead: 0,
     arrowcolor: annotColor,
@@ -1290,7 +1295,6 @@ function renderMonthlyLineChart(year, month, txList, type) {
     bgcolor: 'transparent',
     bordercolor: 'transparent'
   });
-  // Min dot label (only if different from max)
   if (minObj && minObj.i !== maxIdx) {
     annotations.push({
       x: xLabels[minObj.i],
@@ -1312,7 +1316,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
   wrap.innerHTML = '<div style="width:100%;height:100%;min-height:260px;"></div>';
   const container = wrap.firstChild;
 
-  // Marker: only show dots at peak and min
+  // Markers only at peak and min
   const markerColors = dailyTotals.map((v, i) => {
     if (i === maxIdx) return typeColor;
     if (minObj && i === minObj.i) return lineColor;
@@ -1331,8 +1335,6 @@ function renderMonthlyLineChart(year, month, txList, type) {
     line: { color: lineColor, width: 2.5, shape: 'spline', smoothing: 0.6 },
     marker: { color: markerColors, size: markerSizes, line: { width: 0 } },
     hovertemplate: '<b>%{x}</b><br>₹%{y:,.2f}<extra></extra>',
-    fill: 'tozeroy',
-    fillcolor: isDark ? 'rgba(232,230,225,0.05)' : 'rgba(28,28,28,0.04)',
   }];
 
   const layout = {
@@ -1353,17 +1355,10 @@ function renderMonthlyLineChart(year, month, txList, type) {
       tickfont: { size: 10, color: textColor, family: 'DM Sans, sans-serif' },
       gridcolor: gridColor,
       linecolor: 'transparent',
-      zeroline: true,
-      zerolinecolor: zeroColor,
-      zerolinewidth: 1,
+      zeroline: false,
       tickprefix: '₹',
+      range: [yMin, yMax],
     },
-    shapes: [{
-      type: 'line',
-      x0: 0, x1: 1, xref: 'paper',
-      y0: 0, y1: 0, yref: 'y',
-      line: { color: zeroColor, width: 1, dash: 'dot' }
-    }]
   };
 
   Plotly.newPlot(container, trace, layout, { responsive: true, displayModeBar: false });
