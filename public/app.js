@@ -1252,31 +1252,17 @@ function renderMonthlyLineChart(year, month, txList, type) {
     return;
   }
 
-  const allLabels = Array.from({length: daysInMonth}, (_, i) => {
+  const xLabels = Array.from({length: daysInMonth}, (_, i) => {
     const d = new Date(year, month - 1, i + 1);
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   });
+  const yValues = dailyTotals;
 
-  // Expense: show all days so zero days create a flatline and spend days
-  // appear as spikes — like the reference chart.
-  // Income: skip zero days since income hits only a few days and zeros
-  // would create misleading crashes to the bottom.
-  const isExpense = type === 'expense';
-  const xLabels = isExpense
-    ? allLabels
-    : allLabels.filter((_, i) => dailyTotals[i] > 0);
-  const yValues = isExpense
-    ? dailyTotals
-    : dailyTotals.filter(v => v > 0);
-
-  // Dynamic Y range
-  const maxVal     = Math.max(...yValues);
-  const nonZeroArr = yValues.filter(v => v > 0);
-  const minNonZero = nonZeroArr.length ? Math.min(...nonZeroArr) : 0;
-  // Expense: always start Y from 0 so the flatline is visible at the bottom
-  // Income: pad below min so small differences between payments are visible
-  const yMin = isExpense ? 0 : Math.max(0, minNonZero - (maxVal - minNonZero) * 0.25 || maxVal * 0.15);
-  const yMax = maxVal + (maxVal * 0.15);
+  // Y-axis always starts at 0 so zero days sit flat at the bottom.
+  // Top is padded 15% above the peak so the highest bar has breathing room.
+  const maxVal = Math.max(...yValues);
+  const yMin   = 0;
+  const yMax   = maxVal * 1.15;
 
   const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor = isDark ? '#9A9A9A' : '#9A9A9A';
@@ -1293,10 +1279,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
     y: yValues,
     type: 'scatter',
     mode: 'lines+markers',
-    // Expense: linear so zero days actually sit flat at the bottom (spline
-    // would curve above zero between peaks, hiding the flatline).
-    // Income: spline looks nicer between the few actual payment points.
-    line: { color: lineColor, width: 2.5, shape: isExpense ? 'linear' : 'spline', smoothing: 0.6 },
+    line: { color: lineColor, width: 2.5, shape: 'spline', smoothing: 1.3 },
     // Small invisible markers on every point so hover snaps cleanly
     marker: {
       color: typeColor,
