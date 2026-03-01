@@ -1382,6 +1382,11 @@ function renderPieChart(wrapId, txList, type) {
   const bgColor = isDark ? '#2a2a2a' : '#ffffff';
   const borderColor = isDark ? '#3a3a3a' : '#ffffff';
 
+  // On mobile (touch) devices hide labels — they become too cramped.
+  // Labels show only via the hover/tap tooltip instead.
+  // On desktop, show labels outside as normal.
+  const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
+
   const data = [{
     type: 'pie',
     labels: labels,
@@ -1390,11 +1395,11 @@ function renderPieChart(wrapId, txList, type) {
       colors: colorArray,
       line: { color: borderColor, width: 2 }
     },
-    textposition: 'outside',
-    textinfo: 'label+percent',
+    textposition: isMobile ? 'none' : 'outside',
+    textinfo: isMobile ? 'none' : 'label+percent',
     pull: pull,
     hole: 0,
-    hovertemplate: '<b>%{label}</b><br>' + 
+    hovertemplate: '<b>%{label}</b><br>' +
                    '₹%{value:,.2f}<br>' +
                    '%{percent}<extra></extra>',
     sort: false,
@@ -1412,7 +1417,10 @@ function renderPieChart(wrapId, txList, type) {
 
   const layout = {
     showlegend: false,
-    margin: { t: 80, b: 80, l: 120, r: 120 },
+    // Mobile: no outside labels so no margin needed for text overflow
+    margin: isMobile
+      ? { t: 20, b: 20, l: 20, r: 20 }
+      : { t: 80, b: 80, l: 120, r: 120 },
     paper_bgcolor: bgColor,
     plot_bgcolor: bgColor,
     font: {
@@ -1421,7 +1429,7 @@ function renderPieChart(wrapId, txList, type) {
       color: textColor
     },
     autosize: true,
-    uniformtext: {
+    uniformtext: isMobile ? {} : {
       minsize: 10,
       mode: 'hide'
     }
