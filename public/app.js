@@ -1257,75 +1257,24 @@ function renderMonthlyLineChart(year, month, txList, type) {
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   });
 
-  // Find peak and lowest non-zero day for annotations
-  const maxVal = Math.max(...dailyTotals);
-  const maxIdx = dailyTotals.indexOf(maxVal);
-  const nonZero = dailyTotals.map((v, i) => ({v, i})).filter(x => x.v > 0);
-  const minObj  = nonZero.reduce((a, b) => a.v < b.v ? a : b, nonZero[0]);
+  // Dynamic Y range — pad so small spend differences are visible, not a flatline
+  const maxVal     = Math.max(...dailyTotals);
+  const nonZero    = dailyTotals.filter(v => v > 0);
+  const minNonZero = nonZero.length ? Math.min(...nonZero) : 0;
+  const spread     = maxVal - minNonZero;
+  const yPad       = spread * 0.25 || maxVal * 0.15;
+  const yMin       = Math.max(0, minNonZero - yPad);
+  const yMax       = maxVal + yPad;
 
-  // Dynamic Y range: pad 15% below min non-zero and above max so small
-  // differences are clearly visible instead of appearing as a flatline
-  const minNonZero = minObj ? minObj.v : 0;
-  const yPad  = (maxVal - minNonZero) * 0.25 || maxVal * 0.15;
-  const yMin  = Math.max(0, minNonZero - yPad);
-  const yMax  = maxVal + yPad;
-
-  const isDark     = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor  = isDark ? '#9A9A9A' : '#9A9A9A';
-  const lineColor  = isDark ? '#E8E6E1' : '#1c1c1c';
-  const bgColor    = isDark ? '#2a2a2a' : '#ffffff';
-  const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-  const annotColor = isDark ? '#E8E6E1' : '#1c1c1c';
-  const typeColor  = type === 'income' ? '#0FA974' : '#E84545';
-
-  // Annotations for peak and min (no + prefix — all values are positive)
-  const annotations = [];
-  annotations.push({
-    x: xLabels[maxIdx],
-    y: maxVal,
-    xref: 'x', yref: 'y',
-    text: `<b>${xLabels[maxIdx]}</b><br>${fmt(maxVal)}`,
-    showarrow: true,
-    arrowhead: 0,
-    arrowcolor: annotColor,
-    arrowwidth: 1.5,
-    ax: maxIdx < daysInMonth / 2 ? 40 : -40,
-    ay: -36,
-    font: { size: 11, color: annotColor, family: 'DM Sans, sans-serif' },
-    bgcolor: 'transparent',
-    bordercolor: 'transparent'
-  });
-  if (minObj && minObj.i !== maxIdx) {
-    annotations.push({
-      x: xLabels[minObj.i],
-      y: minObj.v,
-      xref: 'x', yref: 'y',
-      text: `<b>${xLabels[minObj.i]}</b><br>${fmt(minObj.v)}`,
-      showarrow: true,
-      arrowhead: 0,
-      arrowcolor: annotColor,
-      arrowwidth: 1.5,
-      ax: minObj.i < daysInMonth / 2 ? 40 : -40,
-      ay: 36,
-      font: { size: 11, color: annotColor, family: 'DM Sans, sans-serif' },
-      bgcolor: 'transparent',
-      bordercolor: 'transparent'
-    });
-  }
+  const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor = isDark ? '#9A9A9A' : '#9A9A9A';
+  const lineColor = isDark ? '#E8E6E1' : '#1c1c1c';
+  const bgColor   = isDark ? '#2a2a2a' : '#ffffff';
+  const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const typeColor = type === 'income' ? '#0FA974' : '#E84545';
 
   wrap.innerHTML = '<div style="width:100%;height:100%;min-height:260px;"></div>';
   const container = wrap.firstChild;
-
-  // Markers only at peak and min
-  const markerColors = dailyTotals.map((v, i) => {
-    if (i === maxIdx) return typeColor;
-    if (minObj && i === minObj.i) return lineColor;
-    return 'rgba(0,0,0,0)';
-  });
-  const markerSizes = dailyTotals.map((v, i) => {
-    if (i === maxIdx || (minObj && i === minObj.i)) return 8;
-    return 0;
-  });
 
   const trace = [{
     x: xLabels,
@@ -1333,16 +1282,30 @@ function renderMonthlyLineChart(year, month, txList, type) {
     type: 'scatter',
     mode: 'lines+markers',
     line: { color: lineColor, width: 2.5, shape: 'spline', smoothing: 0.6 },
-    marker: { color: markerColors, size: markerSizes, line: { width: 0 } },
+    // Small invisible markers on every point so hover snaps cleanly
+    marker: {
+      color: typeColor,
+      size: 6,
+      opacity: 0,
+      line: { width: 0 },
+    },
+    // On hover, marker becomes visible
+    selected: { marker: { opacity: 1, size: 8 } },
     hovertemplate: '<b>%{x}</b><br>₹%{y:,.2f}<extra></extra>',
   }];
 
   const layout = {
     paper_bgcolor: bgColor,
     plot_bgcolor: bgColor,
-    margin: { t: 30, b: 48, l: 58, r: 20 },
+    margin: { t: 20, b: 48, l: 58, r: 20 },
     autosize: true,
-    annotations,
+    dragmode: false,       // disables zoom/pan drag
+    hovermode: 'closest',  // snap tooltip to nearest point
+    hoverlabel: {
+      bgcolor: isDark ? '#3a3a3a' : '#1c1c1c',
+      bordercolor: 'transparent',
+      font: { size: 12, color: '#ffffff', family: 'DM Sans, sans-serif' },
+    },
     xaxis: {
       tickfont: { size: 10, color: textColor, family: 'DM Sans, sans-serif' },
       gridcolor: gridColor,
@@ -1350,6 +1313,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
       tickangle: -35,
       nticks: 8,
       zeroline: false,
+      fixedrange: true,    // prevents x-axis zoom
     },
     yaxis: {
       tickfont: { size: 10, color: textColor, family: 'DM Sans, sans-serif' },
@@ -1358,23 +1322,32 @@ function renderMonthlyLineChart(year, month, txList, type) {
       zeroline: false,
       tickprefix: '₹',
       range: [yMin, yMax],
+      fixedrange: true,    // prevents y-axis zoom
     },
   };
 
-  Plotly.newPlot(container, trace, layout, { responsive: true, displayModeBar: false });
+  const config = {
+    responsive: true,
+    displayModeBar: false,
+    scrollZoom: false,     // disables scroll-to-zoom
+    doubleClick: false,    // disables double-click reset
+    showTips: false,
+  };
+
+  Plotly.newPlot(container, trace, layout, config);
 
   // Theme sync
   const obs = new MutationObserver(() => {
-    const nowDark   = document.documentElement.getAttribute('data-theme') === 'dark';
+    const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const nl = nowDark ? '#E8E6E1' : '#1c1c1c';
     const nb = nowDark ? '#2a2a2a' : '#ffffff';
     const ng = nowDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-    const nz = nowDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
+    const hl = nowDark ? '#3a3a3a' : '#1c1c1c';
     Plotly.update(container,
-      { 'line.color': [nl], 'fillcolor': [nowDark ? 'rgba(232,230,225,0.05)' : 'rgba(28,28,28,0.04)'] },
+      { 'line.color': [nl] },
       { 'paper_bgcolor': nb, 'plot_bgcolor': nb,
         'xaxis.gridcolor': ng, 'yaxis.gridcolor': ng,
-        'yaxis.zerolinecolor': nz }
+        'hoverlabel.bgcolor': hl }
     );
   });
   obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
