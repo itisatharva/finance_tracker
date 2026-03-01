@@ -1269,7 +1269,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
   const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor = isDark ? '#9A9A9A' : '#9A9A9A';
   const lineColor = isDark ? '#E8E6E1' : '#1c1c1c';
-  const bgColor   = isDark ? '#2a2a2a' : '#ffffff';
+  const bgColor   = isDark ? '#1c1c1c' : '#ffffff';
   const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
   const typeColor = type === 'income' ? '#0FA974' : '#E84545';
 
@@ -1340,7 +1340,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
   const obs = new MutationObserver(() => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const nl = nowDark ? '#E8E6E1' : '#1c1c1c';
-    const nb = nowDark ? '#2a2a2a' : '#ffffff';
+    const nb = nowDark ? '#1c1c1c' : '#ffffff';
     const ng = nowDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const hl = nowDark ? '#3a3a3a' : '#1c1c1c';
     Plotly.update(container,
@@ -1379,7 +1379,7 @@ function renderPieChart(wrapId, txList, type) {
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
-  const bgColor = isDark ? '#2a2a2a' : '#ffffff';
+  const bgColor = isDark ? '#1c1c1c' : '#ffffff';
   const borderColor = isDark ? '#3a3a3a' : '#ffffff';
 
   // On mobile (touch) devices hide labels — they become too cramped.
@@ -1446,7 +1446,7 @@ function renderPieChart(wrapId, txList, type) {
   const observer = new MutationObserver(() => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const newTextColor = nowDark ? '#E8E6E1' : '#2D2D2D';
-    const newBgColor = nowDark ? '#2a2a2a' : '#ffffff';
+    const newBgColor = nowDark ? '#1c1c1c' : '#ffffff';
     const newBorderColor = nowDark ? '#3a3a3a' : '#ffffff';
     
     Plotly.update(container, {
