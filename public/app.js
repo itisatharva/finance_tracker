@@ -1261,7 +1261,9 @@ function renderMonthlyLineChart(year, month, txList, type) {
   // Y-axis always starts at 0 so zero days sit flat at the bottom.
   // Top is padded 15% above the peak so the highest bar has breathing room.
   const maxVal = Math.max(...yValues);
-  const yMin   = 0;
+  // Small negative bottom padding so the line isn't clipped when it
+  // touches zero — gives just enough room for the curve to land cleanly.
+  const yMin   = -(maxVal * 0.04);
   const yMax   = maxVal * 1.15;
 
   const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
