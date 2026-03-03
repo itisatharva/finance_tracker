@@ -1328,13 +1328,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 @keyframes txSlideOut {
   from {
     opacity: 1;
-    transform: translateX(0) scaleY(1);
     max-height: 120px;
     margin-bottom: 8px;
   }
   to {
     opacity: 0;
-    transform: translateX(12px) scaleY(0.85);
     max-height: 0;
     margin-bottom: 0;
     padding-top: 0;
