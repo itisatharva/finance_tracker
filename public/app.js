@@ -1393,10 +1393,20 @@ function renderPieChart(wrapId, txList, type) {
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
 
-  wrap.innerHTML = (isMobile
-    ? '<p style="text-align:center;font-size:.8rem;color:var(--text-3);margin:8px 0 0;letter-spacing:.01em;">Tap a slice to see details</p>'
-    : '') + '<div style="width:100%;height:100%;min-height:450px;"></div>';
-  const container = wrap.lastChild;
+  // Remove any previous hint so re-renders don't stack them
+  const _prevHint = wrap.previousElementSibling;
+  if (_prevHint && _prevHint.classList.contains('pie-mobile-hint')) _prevHint.remove();
+
+  if (isMobile) {
+    const hint = document.createElement('p');
+    hint.className = 'pie-mobile-hint';
+    hint.textContent = 'Tap a slice to see details';
+    hint.style.cssText = 'text-align:center;font-size:.8rem;color:var(--text-3);margin:0 0 6px;letter-spacing:.01em;';
+    wrap.parentNode.insertBefore(hint, wrap);
+  }
+
+  wrap.innerHTML = '<div style="width:100%;height:100%;min-height:450px;"></div>';
+  const container = wrap.firstChild;
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
