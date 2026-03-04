@@ -1391,8 +1391,11 @@ function renderPieChart(wrapId, txList, type) {
   // Slightly explode slices
   const pull = labels.map(() => 0.04);
 
-  wrap.innerHTML = '<div style="width:100%;height:100%;min-height:450px;"></div>';
-  const container = wrap.firstChild;
+  const isMobileHint = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
+  wrap.innerHTML = (isMobileHint
+    ? '<p style="text-align:center;font-size:.78rem;color:var(--text-3);margin:0 0 6px;letter-spacing:.01em;">Tap a slice to see details</p>'
+    : '') + '<div style="width:100%;height:100%;min-height:450px;"></div>';
+  const container = wrap.lastChild;
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
@@ -1402,7 +1405,7 @@ function renderPieChart(wrapId, txList, type) {
   // On mobile (touch) devices hide labels — they become too cramped.
   // Labels show only via the hover/tap tooltip instead.
   // On desktop, show labels outside as normal.
-  const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
+  const isMobile = isMobileHint;
 
   const data = [{
     type: 'pie',
