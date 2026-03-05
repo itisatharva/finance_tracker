@@ -1312,6 +1312,46 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ========== TRANSACTION ANIMATIONS ========== */
 
+/* Transaction search bar */
+.tx-search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+.tx-search-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.tx-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  pointer-events: none;
+}
+.tx-search-input-wrap input {
+  padding-left: 36px;
+  width: 100%;
+}
+.tx-search-bar select {
+  width: auto;
+  flex-shrink: 0;
+}
+@media (max-width: 520px) {
+  .tx-search-bar {
+    flex-wrap: wrap;
+  }
+  .tx-search-input-wrap {
+    flex: 1 1 100%;
+  }
+  .tx-search-bar select {
+    flex: 1;
+  }
+}
+
 /* Slide-in animation for newly added transactions */
 @keyframes txSlideIn {
   from {

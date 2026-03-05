@@ -294,6 +294,20 @@
       <h1>All Transactions</h1>
       <span id="allTxCount" style="font-size:.85rem;color:var(--text-3);font-weight:500;white-space:nowrap;"></span>
     </div>
+    <div class="tx-search-bar">
+      <div class="tx-search-input-wrap">
+        <svg class="tx-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="txSearchInput" placeholder="Search by description…" autocomplete="off" />
+      </div>
+      <select id="txCategoryFilter">
+        <option value="">All Categories</option>
+      </select>
+      <select id="txTypeFilter">
+        <option value="">All Types</option>
+        <option value="expense">Expense</option>
+        <option value="income">Income</option>
+      </select>
+    </div>
     <div class="card">
       <div class="tx-list" id="allTxList"><div class="empty">Loading…</div></div>
     </div>

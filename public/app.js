@@ -181,7 +181,10 @@ window.showView = function(v) {
   document.getElementById('tabAnalytics').classList.toggle('active', v === 'analytics');
   document.getElementById('tabTransactions').classList.toggle('active', v === 'transactions');
   if (v === 'analytics') refreshCurrentPeriod();
-  if (v === 'transactions') renderAllTxList();
+  if (v === 'transactions') {
+    populateTxCategoryFilter();
+    renderAllTxList();
+  }
 };
 
 // ─── Period switching ─────────────────────────────────────────────────────────
@@ -636,6 +639,7 @@ function listenTransactions() {
     renderStats();
     if (activeView === 'analytics') refreshCurrentPeriod();
     
+    populateTxCategoryFilter();
     if (activeView === 'transactions') renderAllTxList();
     
     if (firstLoad && window._dataLoaded) {
@@ -776,16 +780,59 @@ function renderTxList() {
   window._newTxIds = new Set();
 }
 
+function populateTxCategoryFilter() {
+  const sel = document.getElementById('txCategoryFilter');
+  if (!sel) return;
+  const current = sel.value;
+  // Gather all unique categories present in transactions
+  const cats = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All Categories</option>';
+  cats.forEach(cat => {
+    const o = document.createElement('option');
+    o.value = cat;
+    o.textContent = cat;
+    sel.appendChild(o);
+  });
+  // Restore selection if still valid
+  if (cats.includes(current)) sel.value = current;
+}
+
 function renderAllTxList() {
-  const el = document.getElementById('allTxList');
+  const el      = document.getElementById('allTxList');
   const countEl = document.getElementById('allTxCount');
   if (!transactions.length) {
     el.innerHTML = '<div class="empty">No transactions yet</div>';
     if (countEl) countEl.textContent = '0 transactions';
     return;
   }
-  const sorted = txSorted(transactions); // Sort by selectedDate desc, then createdAt desc
-  if (countEl) countEl.textContent = sorted.length + ' transaction' + (sorted.length !== 1 ? 's' : '');
+
+  // Read filter state
+  const searchQ    = (document.getElementById('txSearchInput')?.value || '').trim().toLowerCase();
+  const catFilter  = document.getElementById('txCategoryFilter')?.value || '';
+  const typeFilter = document.getElementById('txTypeFilter')?.value || '';
+
+  let sorted = txSorted(transactions);
+
+  if (catFilter)  sorted = sorted.filter(t => t.category === catFilter);
+  if (typeFilter) sorted = sorted.filter(t => t.type === typeFilter);
+  if (searchQ)    sorted = sorted.filter(t =>
+    (t.description || '').toLowerCase().includes(searchQ) ||
+    (t.category    || '').toLowerCase().includes(searchQ)
+  );
+
+  const total = transactions.length;
+  const shown = sorted.length;
+  if (countEl) {
+    countEl.textContent = (searchQ || catFilter || typeFilter)
+      ? `${shown} of ${total} transaction${total !== 1 ? 's' : ''}`
+      : `${total} transaction${total !== 1 ? 's' : ''}`;
+  }
+
+  if (!sorted.length) {
+    el.innerHTML = '<div class="empty">No transactions match your filters</div>';
+    return;
+  }
+
   el.innerHTML = '';
   sorted.forEach(tx => {
     const d     = toDate(tx.selectedDate);
@@ -805,7 +852,6 @@ function renderAllTxList() {
         <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
       </div>
     `;
-    
     el.appendChild(div);
   });
 }
@@ -1156,6 +1202,11 @@ function renderMonthly() {
   });
 }
 document.getElementById('monthlyDate').addEventListener('change', renderMonthly);
+
+// ─── Transaction search & filter listeners ────────────────────────────────────
+document.getElementById('txSearchInput').addEventListener('input', renderAllTxList);
+document.getElementById('txCategoryFilter').addEventListener('change', renderAllTxList);
+document.getElementById('txTypeFilter').addEventListener('change', renderAllTxList);
 
 // ─── Analytics: Yearly ───────────────────────────────────────────────────────
 function renderYearly() {
