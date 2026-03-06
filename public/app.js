@@ -132,6 +132,14 @@ function wireSettingsDrawer() {
   btnOpen.addEventListener('click', openDrawer);
   btnClose.addEventListener('click', closeDrawer);
   backdrop.addEventListener('click', closeDrawer);
+  const btnExportCSV = document.getElementById('btnExportCSV');
+  if (btnExportCSV) {
+    btnExportCSV.addEventListener('click', () => {
+      closeDrawer();
+      exportTransactionsCSV();
+    });
+  }
+
   const btnImportCSV = document.getElementById('btnImportCSV');
   if (btnImportCSV) {
     btnImportCSV.addEventListener('click', () => {
@@ -485,6 +493,47 @@ window.executeImport = async function() {
     importBtn.textContent = 'Import';
   }
 };
+
+// ─── Export Transactions to CSV ──────────────────────────────────────────────
+function exportTransactionsCSV() {
+  if (!transactions.length) {
+    alert('No transactions to export.');
+    return;
+  }
+
+  const sorted = txSorted(transactions);
+
+  // Header mirrors the import format: date, type, category, amount, description
+  const rows = [['Date', 'Type', 'Category', 'Amount', 'Description']];
+
+  sorted.forEach(tx => {
+    const d = toDate(tx.selectedDate);
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day   = String(d.getDate()).padStart(2, '0');
+    const year  = d.getFullYear();
+    const dateStr = `${month}/${day}/${year}`;
+
+    // Wrap description in quotes to handle commas safely
+    const desc = (tx.description || '').replace(/"/g, '""');
+    rows.push([dateStr, tx.type, tx.category, tx.amount.toFixed(2), `"${desc}"`]);
+  });
+
+  const csvContent = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+
+  const now = new Date();
+  const filename = `transactions_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.csv`;
+
+  const a = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 function parseCSV(csvText) {
   const lines = csvText.split('\n').map(l => l.trim()).filter(l => l);
