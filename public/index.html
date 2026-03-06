@@ -311,6 +311,20 @@
         <option value="income">Income</option>
       </select>
     </div>
+    <div class="tx-date-bar">
+      <div class="tx-date-range">
+        <div class="tx-date-field">
+          <label for="txDateFrom">From</label>
+          <input type="date" id="txDateFrom" />
+        </div>
+        <span class="tx-date-sep">—</span>
+        <div class="tx-date-field">
+          <label for="txDateTo">To</label>
+          <input type="date" id="txDateTo" />
+        </div>
+      </div>
+      <button class="btn-sm tx-clear-dates" id="txClearDates" style="display:none;">Clear dates</button>
+    </div>
     <div class="card">
       <div class="tx-list" id="allTxList"><div class="empty">Loading…</div></div>
     </div>

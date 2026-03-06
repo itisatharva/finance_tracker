@@ -859,6 +859,12 @@ function renderAllTxList() {
   const searchQ    = (document.getElementById('txSearchInput')?.value || '').trim().toLowerCase();
   const catFilter  = document.getElementById('txCategoryFilter')?.value || '';
   const typeFilter = document.getElementById('txTypeFilter')?.value || '';
+  const dateFrom   = document.getElementById('txDateFrom')?.value || '';
+  const dateTo     = document.getElementById('txDateTo')?.value || '';
+
+  // Show/hide clear button
+  const clearBtn = document.getElementById('txClearDates');
+  if (clearBtn) clearBtn.style.display = (dateFrom || dateTo) ? '' : 'none';
 
   let sorted = txSorted(transactions);
 
@@ -868,11 +874,20 @@ function renderAllTxList() {
     (t.description || '').toLowerCase().includes(searchQ) ||
     (t.category    || '').toLowerCase().includes(searchQ)
   );
+  if (dateFrom) {
+    const from = new Date(dateFrom + 'T00:00:00');
+    sorted = sorted.filter(t => toDate(t.selectedDate) >= from);
+  }
+  if (dateTo) {
+    const to = new Date(dateTo + 'T23:59:59');
+    sorted = sorted.filter(t => toDate(t.selectedDate) <= to);
+  }
 
   const total = transactions.length;
   const shown = sorted.length;
+  const anyFilter = searchQ || catFilter || typeFilter || dateFrom || dateTo;
   if (countEl) {
-    countEl.textContent = (searchQ || catFilter || typeFilter)
+    countEl.textContent = anyFilter
       ? `${shown} of ${total} transaction${total !== 1 ? 's' : ''}`
       : `${total} transaction${total !== 1 ? 's' : ''}`;
   }
@@ -1256,6 +1271,13 @@ document.getElementById('monthlyDate').addEventListener('change', renderMonthly)
 document.getElementById('txSearchInput').addEventListener('input', renderAllTxList);
 document.getElementById('txCategoryFilter').addEventListener('change', renderAllTxList);
 document.getElementById('txTypeFilter').addEventListener('change', renderAllTxList);
+document.getElementById('txDateFrom').addEventListener('change', renderAllTxList);
+document.getElementById('txDateTo').addEventListener('change', renderAllTxList);
+document.getElementById('txClearDates').addEventListener('click', () => {
+  document.getElementById('txDateFrom').value = '';
+  document.getElementById('txDateTo').value = '';
+  renderAllTxList();
+});
 
 // ─── Analytics: Yearly ───────────────────────────────────────────────────────
 function renderYearly() {

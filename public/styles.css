@@ -1352,6 +1352,56 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
+/* Transaction date range bar */
+.tx-date-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.tx-date-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.tx-date-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.tx-date-field label {
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-3);
+  white-space: nowrap;
+  margin: 0;
+}
+.tx-date-field input[type="date"] {
+  flex: 1;
+  min-width: 0;
+}
+.tx-date-sep {
+  color: var(--text-3);
+  font-size: .9rem;
+  flex-shrink: 0;
+}
+.tx-clear-dates {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .tx-date-bar {
+    flex-wrap: wrap;
+  }
+  .tx-date-range {
+    flex: 1 1 100%;
+  }
+}
+
 /* Slide-in animation for newly added transactions */
 @keyframes txSlideIn {
   from {
