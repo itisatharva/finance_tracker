@@ -126,8 +126,8 @@ function wireSettingsDrawer() {
   const btnSaveBal= document.getElementById('saveStartingBalance');
   const balInput  = document.getElementById('startingBalanceInput');
 
-  function openDrawer()  { drawer.classList.add('open'); backdrop.classList.add('open'); }
-  function closeDrawer() { drawer.classList.remove('open'); backdrop.classList.remove('open'); }
+  function openDrawer()  { drawer.classList.add('open'); backdrop.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function closeDrawer() { drawer.classList.remove('open'); backdrop.classList.remove('open'); document.body.style.overflow = ''; }
 
   btnOpen.addEventListener('click', openDrawer);
   btnClose.addEventListener('click', closeDrawer);
