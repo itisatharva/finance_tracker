@@ -90,6 +90,12 @@
 
 </div>
 
+<script>
+  if (window.location.hash === '#signup') {
+    document.getElementById('cardSignin').classList.add('auth-slide-out');
+    document.getElementById('cardSignup').classList.remove('auth-slide-out');
+  }
+</script>
 <script type="module" src="firebase-config.js?v=1771067140680"></script>
 <script type="module" src="auth.js?v=1771067140680"></script>
 </body>
