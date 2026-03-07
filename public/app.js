@@ -1467,16 +1467,21 @@ function renderCashflow() {
   tbody.innerHTML = '';
   let runningBalance = startingBalance;
 
+  const _now = new Date();
+  const _curYear = _now.getFullYear();
+  const _curMonth = _now.getMonth(); // 0-indexed
+
   MONTHS.forEach((mo, i) => {
     const inc = monthInc[i];
     const exp = monthExp[i];
     const net = inc - exp;
-    runningBalance += net;
+    const isFuture = year > _curYear || (year === _curYear && i > _curMonth);
+
+    if (!isFuture) runningBalance += net;
 
     const netClass   = net >= 0 ? 'cf-pos' : 'cf-neg';
     const balClass   = runningBalance >= 0 ? 'cf-pos' : 'cf-neg';
     const netSign    = net >= 0 ? '+' : '';
-    const balSign    = runningBalance >= 0 ? '' : '';
 
     const tr = document.createElement('tr');
     tr.className = (inc===0 && exp===0) ? 'cf-empty-row' : '';
@@ -1485,7 +1490,7 @@ function renderCashflow() {
       <td class="cf-income">${inc > 0 ? fmt(inc) : '—'}</td>
       <td class="cf-expense">${exp > 0 ? fmt(exp) : '—'}</td>
       <td class="${netClass}">${inc===0&&exp===0 ? '—' : netSign + fmt(net)}</td>
-      <td class="total-col ${balClass}">${fmt(runningBalance)}</td>
+      <td class="total-col ${isFuture ? '' : balClass}">${isFuture ? '—' : fmt(runningBalance)}</td>
     `;
     tbody.appendChild(tr);
   });
