@@ -1211,7 +1211,169 @@ function renderMonthly() {
     `;
     el.appendChild(div);
   });
+
+  renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, monthIncTotal, monthExpTotal, prevMonthIncTotal, prevMonthExpTotal);
 }
+
+// ── Monthly Spending Insights ────────────────────────────────────────────────
+function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, monthIncTotal, monthExpTotal, prevIncTotal, prevExpTotal) {
+  const el = document.getElementById('monthlyInsights');
+  if (!el) return;
+
+  const cards = [];
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === y && today.getMonth() === m - 1;
+  const daysPassed = isCurrentMonth ? today.getDate() : daysInMonth;
+
+  // 1. Total Spending
+  if (monthExpTotal > 0 || prevExpTotal > 0) {
+    const diff = monthExpTotal - prevExpTotal;
+    const pct = prevExpTotal > 0 ? Math.round((diff / prevExpTotal) * 100) : null;
+    const isUp = diff > 0;
+    cards.push({
+      tone: isUp ? 'neg' : 'pos',
+      icon: '💸',
+      label: 'Total Spending',
+      msg: pct !== null
+        ? `<strong>${fmt(monthExpTotal)}</strong> — ${Math.abs(pct)}% ${isUp ? 'more' : 'less'} than last month`
+        : `<strong>${fmt(monthExpTotal)}</strong> this month`
+    });
+  }
+
+  // 2. Net Savings
+  if (monthIncTotal > 0) {
+    const net = monthIncTotal - monthExpTotal;
+    const rate = Math.round((net / monthIncTotal) * 100);
+    const isOver = net < 0;
+    cards.push({
+      tone: isOver ? 'neg' : rate >= 20 ? 'pos' : 'warn',
+      icon: isOver ? '⚠️' : '🏦',
+      label: 'Net Savings',
+      msg: isOver
+        ? `Overspent by <strong style="color:var(--red)">${fmt(Math.abs(net))}</strong>`
+        : `Saved <strong>${fmt(net)}</strong> — ${rate}% of income`
+    });
+  }
+
+  // 3. Income Change
+  if (monthIncTotal > 0 || prevIncTotal > 0) {
+    const diff = monthIncTotal - prevIncTotal;
+    const pct = prevIncTotal > 0 ? Math.round((diff / prevIncTotal) * 100) : null;
+    cards.push({
+      tone: diff >= 0 ? 'pos' : 'neg',
+      icon: '📥',
+      label: 'Income',
+      msg: pct !== null
+        ? `<strong>${fmt(monthIncTotal)}</strong> — ${Math.abs(pct)}% ${diff >= 0 ? 'up' : 'down'} vs last month`
+        : `<strong>${fmt(monthIncTotal)}</strong> this month`
+    });
+  }
+
+  // 4. Top Spending Category
+  if (monthExp.length > 0) {
+    const totals = {};
+    monthExp.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount; });
+    const [topCat, topAmt] = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+    const share = Math.round((topAmt / monthExpTotal) * 100);
+    cards.push({
+      tone: 'neutral',
+      icon: '🏷️',
+      label: 'Top Category',
+      msg: `<strong>${topCat}</strong> — ${fmt(topAmt)} (${share}% of expenses)`
+    });
+  }
+
+  // 5. Biggest Category Increase
+  if (monthExp.length > 0 && prevMonthTx.length > 0) {
+    const cur = {}, prev = {};
+    monthExp.forEach(t => { cur[t.category] = (cur[t.category] || 0) + t.amount; });
+    prevMonthTx.filter(t => t.type === 'expense').forEach(t => { prev[t.category] = (prev[t.category] || 0) + t.amount; });
+    let biggestCat = null, biggestPct = 0;
+    Object.entries(cur).forEach(([cat, amt]) => {
+      if (prev[cat] && prev[cat] > 0) {
+        const pct = ((amt - prev[cat]) / prev[cat]) * 100;
+        if (pct > biggestPct) { biggestPct = pct; biggestCat = cat; }
+      }
+    });
+    if (biggestCat && biggestPct > 10) {
+      cards.push({
+        tone: 'warn',
+        icon: '📈',
+        label: 'Biggest Jump',
+        msg: `<strong>${biggestCat}</strong> up ${Math.round(biggestPct)}% vs last month`
+      });
+    }
+  }
+
+  // 6. Budget Utilization
+  const budgetCats = categories.expense.filter(c => typeof c === 'object' && c.budget);
+  if (budgetCats.length > 0 && monthExp.length > 0) {
+    const totals = {};
+    monthExp.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount; });
+    const totalBudget = budgetCats.reduce((s, c) => s + c.budget, 0);
+    const totalUsed = budgetCats.reduce((s, c) => s + (totals[catName(c)] || 0), 0);
+    const pct = Math.round((totalUsed / totalBudget) * 100);
+    const overCats = budgetCats.filter(c => (totals[catName(c)] || 0) > c.budget);
+    cards.push({
+      tone: overCats.length > 0 ? 'neg' : pct > 80 ? 'warn' : 'pos',
+      icon: '🎯',
+      label: 'Budget Used',
+      msg: overCats.length > 0
+        ? `${pct}% used — <strong style="color:var(--red)">${overCats.length} category over limit</strong>`
+        : `<strong>${pct}%</strong> of total budget used`
+    });
+  }
+
+  // 7. Daily Average
+  if (monthExpTotal > 0 && daysPassed > 0) {
+    const avg = monthExpTotal / daysPassed;
+    const projected = avg * daysInMonth;
+    cards.push({
+      tone: 'neutral',
+      icon: '📅',
+      label: 'Daily Average',
+      msg: isCurrentMonth
+        ? `<strong>${fmt(avg)}</strong>/day — projected <strong>${fmt(projected)}</strong> by month end`
+        : `<strong>${fmt(avg)}</strong>/day average`
+    });
+  }
+
+  // 8. Transaction Count
+  if (monthExp.length > 0) {
+    const prevCount = prevMonthTx.filter(t => t.type === 'expense').length;
+    const diff = monthExp.length - prevCount;
+    const avg = (monthExpTotal / monthExp.length);
+    cards.push({
+      tone: 'neutral',
+      icon: '🧾',
+      label: 'Transactions',
+      msg: prevCount > 0
+        ? `<strong>${monthExp.length}</strong> expenses (${diff >= 0 ? '+' : ''}${diff} vs last month) · avg <strong>${fmt(avg)}</strong>`
+        : `<strong>${monthExp.length}</strong> expense transactions · avg <strong>${fmt(avg)}</strong>`
+    });
+  }
+
+  if (!cards.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div class="insights-header">
+      <span class="insights-title">Monthly Insights</span>
+    </div>
+    <div class="insights-grid">
+      ${cards.map(card => `
+        <div class="insight-card insight-${card.tone}">
+          <div class="insight-icon">${card.icon}</div>
+          <div class="insight-body">
+            <div class="insight-label">${card.label}</div>
+            <div class="insight-msg">${card.msg}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 document.getElementById('monthlyDate').addEventListener('change', renderMonthly);
 
 // ─── Transaction search & filter listeners ────────────────────────────────────
