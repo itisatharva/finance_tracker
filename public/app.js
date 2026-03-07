@@ -43,6 +43,17 @@ window.firebaseReady.then(() => {
 
     // Account info
     document.getElementById('acctEmail').textContent = user.email || '—';
+
+    // Personalised greeting
+    const _greetEl = document.getElementById('dashGreeting');
+    const _titleEl = document.getElementById('dashTitle');
+    if (_greetEl && _titleEl) {
+      const _name = (user.displayName || user.email || '').split(/[@\s]/)[0];
+      const _hr = new Date().getHours();
+      const _tod = _hr < 12 ? 'Good morning' : _hr < 17 ? 'Good afternoon' : 'Good evening';
+      _greetEl.textContent = _tod;
+      _titleEl.textContent = _name ? `Hey, ${_name} 👋` : 'Dashboard';
+    }
     const ts = user.metadata.creationTime;
     if (ts) document.getElementById('acctJoined').textContent =
       new Date(ts).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });

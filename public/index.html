@@ -98,7 +98,12 @@
 
   <!-- ══════════════ DASHBOARD ══════════════ -->
   <div id="viewDashboard">
-    <div class="view-header"><h1>Dashboard</h1></div>
+    <div class="view-header" style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">
+      <div>
+        <p id="dashGreeting" style="font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin:0 0 4px;"></p>
+        <h1 style="margin:0;" id="dashTitle">Dashboard</h1>
+      </div>
+    </div>
 
     <div class="stats-row">
       <div class="stat-card income">  <div class="lbl">Monthly Income</div>   <div class="val" id="sIncome"><span class="loading-spinner"></span></div></div>
