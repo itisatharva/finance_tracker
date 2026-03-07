@@ -99,32 +99,34 @@
     }
     .btn-ghost {
       font-family: inherit;
-      font-size: .88rem;
+      font-size: .82rem;
       font-weight: 600;
       color: var(--text-2);
       background: none;
       border: none;
       cursor: pointer;
-      padding: 8px 14px;
+      padding: 7px 12px;
       border-radius: var(--r-md);
       text-decoration: none;
       transition: color .15s, background .15s;
+      white-space: nowrap;
     }
     .btn-ghost:hover { background: var(--border); color: var(--text-1); }
     .btn-primary {
       font-family: inherit;
-      font-size: .88rem;
+      font-size: .82rem;
       font-weight: 700;
       background: var(--ink);
       color: var(--ink-fg);
       border: none;
       cursor: pointer;
-      padding: 9px 20px;
+      padding: 8px 16px;
       border-radius: var(--r-md);
       text-decoration: none;
       transition: opacity .15s, transform .1s;
       display: inline-flex;
       align-items: center;
+      white-space: nowrap;
     }
     .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
     .btn-primary:active { transform: translateY(0); }
@@ -455,7 +457,7 @@
 
     /* ── Responsive ─────────────────────────────────────────────────────── */
     @media (max-width: 768px) {
-      nav { padding: 0 20px; }
+      nav { padding: 0 16px; gap: 8px; }
       .features-grid { grid-template-columns: 1fr; }
       .feature-card.card-wide { grid-column: span 1; }
       .hero-stat-divider { display: none; }
