@@ -46,13 +46,26 @@ window.firebaseReady.then(() => {
 
     // Personalised greeting
     const _greetEl = document.getElementById('dashGreeting');
-    const _titleEl = document.getElementById('dashTitle');
-    if (_greetEl && _titleEl) {
+    if (_greetEl) {
       const _name = (user.displayName || user.email || '').split(/[@\s]/)[0];
       const _hr = new Date().getHours();
-      const _tod = _hr < 12 ? 'Good morning' : _hr < 17 ? 'Good afternoon' : 'Good evening';
-      _greetEl.textContent = _tod;
-      _titleEl.textContent = _name ? `Hey, ${_name} 👋` : 'Dashboard';
+      const _day = new Date().getDay();
+
+      const _morningGreets  = ['Morning', 'Good morning', 'Rise and shine', 'Early bird'];
+      const _afternoonGreets = ['Afternoon', 'Good afternoon', "Hope your day's going well"];
+      const _eveningGreets  = ['Evening', 'Good evening', "Hope it's been a good day"];
+      const _lateGreets     = ['Burning the midnight oil', 'Up late', 'Night owl mode'];
+      const _weekendGreets  = ['Happy weekend', 'Enjoy your day off', 'Weekend vibes'];
+
+      let _pool;
+      if (_day === 0 || _day === 6)  _pool = _weekendGreets;
+      else if (_hr < 12)             _pool = _morningGreets;
+      else if (_hr < 17)             _pool = _afternoonGreets;
+      else if (_hr < 21)             _pool = _eveningGreets;
+      else                           _pool = _lateGreets;
+
+      const _tod = _pool[Math.floor(Math.random() * _pool.length)];
+      _greetEl.textContent = _name ? `${_tod}, ${_name}!` : `${_tod}!`;
     }
     const ts = user.metadata.creationTime;
     if (ts) document.getElementById('acctJoined').textContent =
