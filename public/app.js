@@ -22,7 +22,7 @@ function hideLoader() {
 
 window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
-    if (!user) { window.location.replace('landing.html'); return; }
+    if (!user) return;
     uid = user.uid;
     
     // Track what data needs to load before hiding loader
@@ -147,7 +147,7 @@ function wireSettingsDrawer() {
   btnOut.addEventListener('click', async () => {
     if (!confirm('Sign out?')) return;
     await window.fbSignOut(window.auth).catch(console.error);
-    window.location.replace('landing.html');
+    window.location.replace('login.html');
   });
 
   btnCats.addEventListener('click', () => { closeDrawer(); openCatsModal(); });
@@ -1180,23 +1180,34 @@ function renderMonthly() {
     const div = document.createElement('div');
     div.className = 'breakdown-item';
     
-    let budgetHtml = '';
+    let budgetBarHtml = '';
     if (monthlyType === 'expense') {
       const cat = categories.expense.find(c => catName(c) === name);
       const budget = cat && typeof cat === 'object' ? cat.budget : null;
       if (budget) {
+        const pct = Math.min((amt / budget) * 100, 100);
+        const isOver = amt > budget;
         const remaining = budget - amt;
-        const isOver = remaining < 0;
-        const budgetColor = isOver ? 'var(--red)' : 'var(--green)';
-        const budgetText = isOver ? `₹${fmt(Math.abs(remaining)).slice(1)} over` : `₹${fmt(remaining).slice(1)} left`;
-        budgetHtml = `<div class="b-budget" style="color:${budgetColor};font-size:1.1rem;font-weight:700;margin-left:auto;margin-right:12px;">${budgetText}</div>`;
+        const barColor = isOver ? 'var(--red)' : pct > 80 ? 'var(--amber,#f59e0b)' : colors[name] || 'var(--green)';
+        const budgetText = isOver
+          ? `<span style="color:var(--red)">₹${fmt(Math.abs(remaining)).slice(1)} over</span>`
+          : `<span style="color:var(--text-3)">₹${fmt(remaining).slice(1)} left of ₹${fmt(budget).slice(1)}</span>`;
+        budgetBarHtml = `
+          <div class="b-progress-row">
+            <div class="b-progress-track">
+              <div class="b-progress-fill" style="width:${pct}%;background:${barColor};"></div>
+            </div>
+            <div class="b-progress-label">${budgetText}</div>
+          </div>`;
       }
     }
-    
+
     div.innerHTML = `
-      <div class="b-name"><div class="b-dot" style="background:${colors[name]}"></div><span>${name}</span></div>
-      ${budgetHtml}
-      <div class="b-amt">${fmt(amt)}</div>
+      <div class="b-top-row">
+        <div class="b-name"><div class="b-dot" style="background:${colors[name]}"></div><span>${name}</span></div>
+        <div class="b-amt">${fmt(amt)}</div>
+      </div>
+      ${budgetBarHtml}
     `;
     el.appendChild(div);
   });
