@@ -1122,6 +1122,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   pointer-events: none;
   transform: translateX(40px) scale(.97);
 }
+.no-anim .auth-card {
+  transition: none !important;
+}
 
 .auth-brand {
   width: 44px; height: 44px;

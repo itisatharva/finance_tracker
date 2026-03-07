@@ -92,8 +92,13 @@
 
 <script>
   if (window.location.hash === '#signup') {
+    var wrap = document.querySelector('.auth-wrap');
+    if (wrap) wrap.classList.add('no-anim');
     document.getElementById('cardSignin').classList.add('auth-slide-out');
     document.getElementById('cardSignup').classList.remove('auth-slide-out');
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){
+      if (wrap) wrap.classList.remove('no-anim');
+    }); });
   }
 </script>
 <script type="module" src="firebase-config.js?v=1771067140680"></script>
