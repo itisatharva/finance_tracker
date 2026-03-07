@@ -1343,7 +1343,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   align-items: flex-start;
   transition: box-shadow .15s;
 }
-.insight-card:hover { box-shadow: var(--shadow-md); }
+.insight-card:hover { box-shadow: var(--shadow-md); border-color: var(--ink); }
 .insight-card.insight-pos  { border-left: 3px solid var(--green); }
 .insight-card.insight-neg  { border-left: 3px solid var(--red); }
 .insight-card.insight-warn { border-left: 3px solid var(--amber, #f59e0b); }
