@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Tracker — Know where your money goes</title>
+  <script>(function(){ document.documentElement.setAttribute('data-theme', window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); })();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Tokens ─────────────────────────────────────────────────────────── */
+    :root {
+      --bg-page:   #F5F2EE;
+      --bg-card:   #FFFFFF;
+      --ink:       #111111;
+      --ink-fg:    #FFFFFF;
+      --text-1:    #111111;
+      --text-2:    #444444;
+      --text-3:    #888888;
+      --border:    #E4E0DA;
+      --green:     #0FA974;
+      --red:       #E84545;
+      --amber:     #f59e0b;
+      --blue:      #3b82f6;
+      --purple:    #8b5cf6;
+      --r-md:      10px;
+      --r-xl:      18px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+      --shadow-md: 0 4px 16px rgba(0,0,0,.09), 0 1px 4px rgba(0,0,0,.06);
+    }
+    [data-theme="dark"] {
+      --bg-page:   #111111;
+      --bg-card:   #1C1C1C;
+      --ink:       #F0EDE8;
+      --ink-fg:    #111111;
+      --text-1:    #F0EDE8;
+      --text-2:    #A8A49E;
+      --text-3:    #606060;
+      --border:    #2A2A2A;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+      --shadow-md: 0 4px 16px rgba(0,0,0,.4);
+    }
+
+    /* ── Reset ──────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-page);
+      color: var(--text-1);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Nav ────────────────────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-page);
+      border-bottom: 1px solid var(--border);
+      transition: background .2s;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .nav-logo {
+      width: 34px; height: 34px;
+      background: var(--ink);
+      color: var(--ink-fg);
+      border-radius: 9px;
+      font-size: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .nav-name {
+      font-size: .95rem;
+      font-weight: 600;
+      color: var(--text-1);
+      letter-spacing: -.01em;
+    }
+    .nav-cta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-ghost {
+      font-family: inherit;
+      font-size: .88rem;
+      font-weight: 600;
+      color: var(--text-2);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px 14px;
+      border-radius: var(--r-md);
+      text-decoration: none;
+      transition: color .15s, background .15s;
+    }
+    .btn-ghost:hover { background: var(--border); color: var(--text-1); }
+    .btn-primary {
+      font-family: inherit;
+      font-size: .88rem;
+      font-weight: 700;
+      background: var(--ink);
+      color: var(--ink-fg);
+      border: none;
+      cursor: pointer;
+      padding: 9px 20px;
+      border-radius: var(--r-md);
+      text-decoration: none;
+      transition: opacity .15s, transform .1s;
+      display: inline-flex;
+      align-items: center;
+    }
+    .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+
+    /* ── Hero ───────────────────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle radial glow behind hero text */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px;
+      height: 500px;
+      background: radial-gradient(ellipse, rgba(15,169,116,.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    [data-theme="dark"] .hero::before {
+      background: radial-gradient(ellipse, rgba(15,169,116,.08) 0%, transparent 70%);
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: .78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--green);
+      background: rgba(15,169,116,.1);
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fadeUp .6s ease .1s forwards;
+    }
+    .hero-eyebrow-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .hero-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2.8rem, 7vw, 5.5rem);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -.03em;
+      color: var(--text-1);
+      max-width: 780px;
+      margin-bottom: 24px;
+      opacity: 0;
+      animation: fadeUp .7s ease .2s forwards;
+    }
+    .hero-headline em {
+      font-style: italic;
+      color: var(--green);
+    }
+
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.15rem);
+      color: var(--text-2);
+      max-width: 480px;
+      margin-bottom: 40px;
+      font-weight: 400;
+      line-height: 1.65;
+      opacity: 0;
+      animation: fadeUp .7s ease .35s forwards;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      opacity: 0;
+      animation: fadeUp .7s ease .48s forwards;
+    }
+    .btn-hero {
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      background: var(--ink);
+      color: var(--ink-fg);
+      border: none;
+      cursor: pointer;
+      padding: 14px 32px;
+      border-radius: var(--r-xl);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity .15s, transform .15s, box-shadow .15s;
+      box-shadow: var(--shadow-md);
+    }
+    .btn-hero:hover { opacity: .88; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+    .btn-hero-outline {
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      background: transparent;
+      color: var(--text-2);
+      border: 1.5px solid var(--border);
+      cursor: pointer;
+      padding: 13px 28px;
+      border-radius: var(--r-xl);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      transition: border-color .15s, color .15s, background .15s;
+    }
+    .btn-hero-outline:hover { border-color: var(--text-2); color: var(--text-1); background: var(--bg-card); }
+
+    /* Hero stat strip */
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+      margin-top: 72px;
+      opacity: 0;
+      animation: fadeUp .7s ease .6s forwards;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .hero-stat {
+      text-align: center;
+    }
+    .hero-stat-val {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem;
+      font-weight: 400;
+      color: var(--text-1);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .hero-stat-lbl {
+      font-size: .78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--text-3);
+    }
+    .hero-stat-divider {
+      width: 1px;
+      background: var(--border);
+      align-self: stretch;
+    }
+
+    /* ── Features ───────────────────────────────────────────────────────── */
+    .features {
+      padding: 100px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .section-label {
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--text-3);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 400;
+      text-align: center;
+      color: var(--text-1);
+      letter-spacing: -.02em;
+      margin-bottom: 16px;
+      line-height: 1.15;
+    }
+    .section-sub {
+      font-size: 1rem;
+      color: var(--text-2);
+      text-align: center;
+      max-width: 480px;
+      margin: 0 auto 60px;
+      line-height: 1.65;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r-xl);
+      padding: 28px 26px 26px;
+      transition: box-shadow .2s, transform .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-3px);
+    }
+    .feature-card.card-wide {
+      grid-column: span 2;
+    }
+    .feature-icon {
+      width: 42px; height: 42px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin-bottom: 18px;
+      flex-shrink: 0;
+    }
+    .feature-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-1);
+      margin-bottom: 8px;
+      letter-spacing: -.01em;
+    }
+    .feature-desc {
+      font-size: .88rem;
+      color: var(--text-2);
+      line-height: 1.6;
+    }
+
+    /* Mini mockup inside feature card */
+    .feature-mockup {
+      margin-top: 20px;
+      background: var(--bg-page);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .mock-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .mock-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .mock-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .mock-bar {
+      height: 100%;
+      border-radius: 3px;
+    }
+    .mock-amt {
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--text-2);
+      white-space: nowrap;
+    }
+
+    /* Insight mini mockup */
+    .insight-mock {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .insight-mock-card {
+      background: var(--bg-page);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      border-left: 3px solid var(--green);
+    }
+    .insight-mock-card.red  { border-left-color: var(--red); }
+    .insight-mock-card.amber { border-left-color: var(--amber); }
+    .insight-mock-card.blue  { border-left-color: var(--blue); }
+    .imk-lbl { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 4px; }
+    .imk-val { font-size: .82rem; font-weight: 600; color: var(--text-1); }
+    .imk-val span { color: var(--green); }
+    .imk-val span.red { color: var(--red); }
+
+    /* ── Footer ─────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--text-3);
+      font-size: .82rem;
+    }
+    footer a { color: var(--text-3); text-decoration: none; }
+    footer a:hover { color: var(--text-1); }
+
+    /* ── Animations ─────────────────────────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Scroll reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .feature-card.card-wide { grid-column: span 1; }
+      .hero-stat-divider { display: none; }
+      .insight-mock { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+      .hero-actions { flex-direction: column; width: 100%; }
+      .btn-hero, .btn-hero-outline { width: 100%; justify-content: center; }
+      .hero-stats { gap: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Nav ──────────────────────────────────────────────────────────────── -->
+  <nav>
+    <a class="nav-brand" href="landing.html">
+      <div class="nav-logo">₹</div>
+      <span class="nav-name">Finance Tracker</span>
+    </a>
+    <div class="nav-cta">
+      <a class="btn-ghost" href="login.html">Sign in</a>
+      <a class="btn-primary" href="login.html#signup">Get started free</a>
+    </div>
+  </nav>
+
+  <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-dot"></div>
+      Personal Finance Tracker
+    </div>
+
+    <h1 class="hero-headline">
+      Know exactly where<br>your money <em>goes</em>
+    </h1>
+
+    <p class="hero-sub">
+      Track expenses, manage budgets, and understand your spending — all in one clean, private, real-time app.
+    </p>
+
+    <div class="hero-actions">
+      <a class="btn-hero" href="login.html#signup">
+        Start for free
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a class="btn-hero-outline" href="login.html">Sign in</a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-val">Real-time</div>
+        <div class="hero-stat-lbl">Sync across devices</div>
+      </div>
+      <div class="hero-stat-divider"></div>
+      <div class="hero-stat">
+        <div class="hero-stat-val">8+</div>
+        <div class="hero-stat-lbl">Spending insights</div>
+      </div>
+      <div class="hero-stat-divider"></div>
+      <div class="hero-stat">
+        <div class="hero-stat-val">Free</div>
+        <div class="hero-stat-lbl">No subscription</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Features ─────────────────────────────────────────────────────────── -->
+  <section class="features">
+    <p class="section-label reveal">Everything you need</p>
+    <h2 class="section-title reveal">Built for real spending habits</h2>
+    <p class="section-sub reveal">Not a spreadsheet. Not a bloated app. Just the right tools to stay on top of your money.</p>
+
+    <div class="features-grid">
+
+      <!-- Budget tracking -->
+      <div class="feature-card card-wide reveal">
+        <div class="feature-icon" style="background:rgba(15,169,116,.12);">📊</div>
+        <div class="feature-title">Per-category budgets with live tracking</div>
+        <div class="feature-desc">Set a monthly budget for Food, Travel, Bills — any category. See exactly how much you have left in real time, every month.</div>
+        <div class="feature-mockup">
+          <div class="mock-row">
+            <div class="mock-dot" style="background:#E84545"></div>
+            <div class="mock-bar-wrap"><div class="mock-bar" style="width:78%;background:#E84545;"></div></div>
+            <span class="mock-amt" style="color:#E84545">₹220 left</span>
+          </div>
+          <div class="mock-row">
+            <div class="mock-dot" style="background:#f97316"></div>
+            <div class="mock-bar-wrap"><div class="mock-bar" style="width:45%;background:#f97316;"></div></div>
+            <span class="mock-amt" style="color:var(--green)">₹550 left</span>
+          </div>
+          <div class="mock-row">
+            <div class="mock-dot" style="background:#3b82f6"></div>
+            <div class="mock-bar-wrap"><div class="mock-bar" style="width:105%;background:#E84545;"></div></div>
+            <span class="mock-amt" style="color:#E84545">₹80 over</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analytics -->
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(99,102,241,.12);">📈</div>
+        <div class="feature-title">Daily, monthly & yearly analytics</div>
+        <div class="feature-desc">Charts and breakdowns at every time scale — compare today vs yesterday, this month vs last, or browse a full year at a glance.</div>
+      </div>
+
+      <!-- Insights -->
+      <div class="feature-card card-wide reveal">
+        <div class="feature-icon" style="background:rgba(245,158,11,.12);">💡</div>
+        <div class="feature-title">Automatic spending insights</div>
+        <div class="feature-desc">Every month, your data surfaces 8 contextual insights — from savings rate to daily average spend to which category jumped the most.</div>
+        <div class="insight-mock">
+          <div class="insight-mock-card">
+            <div class="imk-lbl">Net Savings</div>
+            <div class="imk-val">Rate: <span>34%</span></div>
+          </div>
+          <div class="insight-mock-card red">
+            <div class="imk-lbl">Top Category</div>
+            <div class="imk-val"><span class="red">Bills 61%</span></div>
+          </div>
+          <div class="insight-mock-card amber">
+            <div class="imk-lbl">Budget Used</div>
+            <div class="imk-val">83% overall</div>
+          </div>
+          <div class="insight-mock-card blue">
+            <div class="imk-lbl">Daily Average</div>
+            <div class="imk-val">₹312/day</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Import/Export -->
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(16,185,129,.12);">🔄</div>
+        <div class="feature-title">CSV import & export</div>
+        <div class="feature-desc">Bring in your existing data or take it with you. Import transactions from any CSV and export everything with one tap.</div>
+      </div>
+
+      <!-- Search & filter -->
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(59,130,246,.12);">🔍</div>
+        <div class="feature-title">Powerful search & filters</div>
+        <div class="feature-desc">Search by description, filter by category, type, or date range. Find any transaction in seconds across your entire history.</div>
+      </div>
+
+      <!-- Sync -->
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(139,92,246,.12);">☁️</div>
+        <div class="feature-title">Real-time sync, everywhere</div>
+        <div class="feature-desc">Your data lives in the cloud and syncs instantly. Open it on your phone, tablet, or laptop — always up to date.</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── CTA strip ─────────────────────────────────────────────────────────── -->
+  <section style="padding: 80px 24px; text-align: center;">
+    <div style="max-width: 520px; margin: 0 auto;" class="reveal">
+      <h2 style="font-family:'DM Serif Display',serif; font-size: clamp(1.8rem,4vw,2.8rem); font-weight:400; letter-spacing:-.02em; color:var(--text-1); margin-bottom:16px; line-height:1.15;">
+        Ready to take control?
+      </h2>
+      <p style="color:var(--text-2); font-size:1rem; margin-bottom:32px; line-height:1.65;">
+        Free to use. No credit card. Sign up in 30 seconds.
+      </p>
+      <a class="btn-hero" href="login.html#signup" style="display:inline-flex;">
+        Create your account
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── Footer ────────────────────────────────────────────────────────────── -->
+  <footer>
+    <p>© 2026 Finance Tracker &nbsp;·&nbsp; <a href="login.html">Sign in</a></p>
+  </footer>
+
+  <!-- ── Auth redirect — skip landing for logged-in users ─────────────────── -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+
+    const app  = initializeApp({
+      apiKey:            "REDACTED",
+      authDomain:        "itisatharva-ft.firebaseapp.com",
+      projectId:         "itisatharva-ft",
+      storageBucket:     "itisatharva-ft.firebasestorage.app",
+      messagingSenderId: "1038076060696",
+      appId:             "1:1038076060696:web:4eabd0a57666554e7d4f6d"
+    });
+    const auth = getAuth(app);
+    onAuthStateChanged(auth, user => {
+      if (user) window.location.replace('index.html');
+    });
+  </script>
+
+  <!-- ── Scroll reveal ─────────────────────────────────────────────────────── -->
+  <script>
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Stagger feature cards
+    document.querySelectorAll('.feature-card').forEach((el, i) => {
+      el.style.transitionDelay = (i * 0.07) + 's';
+    });
+  </script>
+
+</body>
+</html>
