@@ -1311,67 +1311,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ========== TRANSACTION ANIMATIONS ========== */
 
-/* ── Monthly Spending Insights ─────────────────────────────────────────────── */
-.insights-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1.5px solid var(--border);
-}
-.insights-title {
-  font-size: .75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--text-3);
-}
-.insights-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 8px;
-}
-.insight-card {
-  background: var(--bg-card);
-  border: 1.5px solid var(--border);
-  border-radius: var(--r-xl);
-  padding: 18px 18px 16px;
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  transition: box-shadow .15s;
-}
-.insight-card:hover { box-shadow: var(--shadow-md); }
-.insight-card.insight-pos  { border-left: 3px solid var(--green); }
-.insight-card.insight-neg  { border-left: 3px solid var(--red); }
-.insight-card.insight-warn { border-left: 3px solid var(--amber, #f59e0b); }
-.insight-card.insight-neutral { border-left: 3px solid var(--border); }
-.insight-icon {
-  font-size: 1.5rem;
-  line-height: 1;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-.insight-body { flex: 1; min-width: 0; }
-.insight-label {
-  font-size: .72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .07em;
-  color: var(--text-3);
-  margin-bottom: 5px;
-}
-.insight-msg {
-  font-size: .88rem;
-  color: var(--text-2);
-  line-height: 1.5;
-}
-.insight-msg strong { color: var(--text-1); }
-@media (max-width: 600px) {
-  .insights-grid { grid-template-columns: 1fr; }
-}
-
 /* Transaction search bar */
 .tx-search-bar {
   display: flex;
@@ -1412,6 +1351,81 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
+/* Transaction date range bar */
+.tx-date-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.tx-date-range {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 0 14px;
+  height: 46px;
+}
+.tx-date-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.tx-date-field label {
+  font-size: .78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin: 0;
+}
+.tx-date-field input[type="date"] {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: .9rem;
+  color: var(--text-1);
+  width: 100%;
+  box-shadow: none;
+}
+.tx-date-field input[type="date"]:focus {
+  outline: none;
+  box-shadow: none;
+  border: none;
+}
+.tx-date-sep {
+  color: var(--text-3);
+  font-size: .85rem;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+.tx-clear-dates {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .tx-date-bar { flex-wrap: wrap; }
+  .tx-date-range {
+    flex: 1 1 100%;
+    flex-direction: column;
+    height: auto;
+    padding: 10px 14px;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .tx-date-sep { display: none; }
+  .tx-date-field { flex: 1 1 100%; }
+}
+
 /* Slide-in animation for newly added transactions */
 @keyframes txSlideIn {
   from {
@@ -1448,4 +1462,64 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   animation: txSlideOut 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
   overflow: hidden;
   pointer-events: none;
+}
+/* ── Monthly Spending Insights ─────────────────────────────────────────────── */
+.insights-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1.5px solid var(--border);
+}
+.insights-title {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-3);
+}
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.insight-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 18px 18px 16px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  transition: box-shadow .15s;
+}
+.insight-card:hover { box-shadow: var(--shadow-md); }
+.insight-card.insight-pos  { border-left: 3px solid var(--green); }
+.insight-card.insight-neg  { border-left: 3px solid var(--red); }
+.insight-card.insight-warn { border-left: 3px solid #f59e0b; }
+.insight-card.insight-neutral { border-left: 3px solid var(--border); }
+.insight-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.insight-body { flex: 1; min-width: 0; }
+.insight-label {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-3);
+  margin-bottom: 5px;
+}
+.insight-msg {
+  font-size: .88rem;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.insight-msg strong { color: var(--text-1); }
+@media (max-width: 600px) {
+  .insights-grid { grid-template-columns: 1fr; }
 }
