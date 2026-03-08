@@ -754,7 +754,7 @@ function buildTxDiv(tx) {
     <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
     <div class="tx-actions">
       <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
-      <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
+      <button class="btn-sm del" onclick="showDeleteConfirm(this,'${tx.id}')">Delete</button>
     </div>
   `;
   return div;
@@ -789,8 +789,11 @@ function renderTxList() {
       const div = buildTxDiv(tx);
       if (newIds.has(tx.id)) {
         div.classList.add('tx-adding');
-        // Remove class after animation completes
-        setTimeout(() => div.classList.remove('tx-adding'), 450);
+        setTimeout(() => {
+          div.classList.remove('tx-adding');
+          div.classList.add('tx-flash');
+          setTimeout(() => div.classList.remove('tx-flash'), 1000);
+        }, 450);
       }
       el.appendChild(div);
     });
@@ -873,7 +876,7 @@ function renderAllTxList() {
       <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
       <div class="tx-actions">
         <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
-        <button class="btn-sm del" onclick="deleteTx('${tx.id}')">Delete</button>
+        <button class="btn-sm del" onclick="showDeleteConfirm(this,'${tx.id}')">Delete</button>
       </div>
     `;
     el.appendChild(div);
@@ -922,6 +925,48 @@ let _pendingDeleteId = null;
     vibrate();
   });
 })();
+
+window.showDeleteConfirm = function(btn, id) {
+  const existing = btn.parentNode.querySelector('.tx-confirm-row');
+  if (existing) { existing.remove(); btn.style.display = ''; return; }
+  document.querySelectorAll('.tx-confirm-row').forEach(el => {
+    const ab = el.closest('.tx-actions');
+    el.remove();
+    if (ab) { const d = ab.querySelector('.btn-sm.del'); if (d) d.style.display = ''; }
+  });
+  btn.style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'tx-confirm-row';
+  const yesBtn = document.createElement('span');
+  yesBtn.className = 'tx-confirm-label';
+  yesBtn.textContent = 'Delete?';
+  const confirmBtn = document.createElement('button');
+  confirmBtn.className = 'btn-sm del';
+  confirmBtn.textContent = 'Yes';
+  confirmBtn.addEventListener('click', () => window.confirmDeleteTx(id));
+  const cancelBtn2 = document.createElement('button');
+  cancelBtn2.className = 'btn-sm';
+  cancelBtn2.textContent = 'No';
+  cancelBtn2.addEventListener('click', () => window.cancelDeleteTx(cancelBtn2));
+  row.appendChild(yesBtn);
+  row.appendChild(confirmBtn);
+  row.appendChild(cancelBtn2);
+  btn.parentNode.appendChild(row);
+};
+
+window.cancelDeleteTx = function(btn) {
+  const row = btn.closest('.tx-confirm-row');
+  const actions = row ? row.closest('.tx-actions') : null;
+  if (row) row.remove();
+  if (actions) { const d = actions.querySelector('.btn-sm.del'); if (d) d.style.display = ''; }
+};
+
+window.confirmDeleteTx = async function(id) {
+  const txEl = document.querySelector('[data-tx-id="' + id + '"]');
+  if (txEl) { txEl.classList.add('removing'); await new Promise(r => setTimeout(r, 350)); }
+  await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
+  vibrate();
+};
 
 window.deleteTx = async function(id) {
   if (localStorage.getItem('skipDeleteConfirm') === '1') {
@@ -1110,6 +1155,59 @@ function renderDaily() {
 document.getElementById('dailyDate').addEventListener('change', renderDaily);
 
 // ─── Analytics: Monthly ───────────────────────────────────────────────────────
+// ── Smart description suggestions ─────────────────────────────────────────────
+(function wireDescSuggestions() {
+  const noteInput = document.getElementById('txNote');
+  const catSelect = document.getElementById('txCategory');
+  if (!noteInput || !catSelect) return;
+  let suggestEl = null;
+
+  function getSuggestions(cat, query) {
+    if (!cat || !query) return [];
+    const q = query.toLowerCase();
+    const seen = new Set();
+    return transactions
+      .filter(t => t.category === cat && t.description && t.description.toLowerCase().includes(q))
+      .map(t => t.description.trim())
+      .filter(d => { if (seen.has(d)) return false; seen.add(d); return true; })
+      .slice(0, 5);
+  }
+
+  function showSuggestions(list) {
+    removeSuggestions();
+    if (!list.length) return;
+    suggestEl = document.createElement('div');
+    suggestEl.className = 'desc-suggestions';
+    list.forEach(text => {
+      const item = document.createElement('div');
+      item.className = 'desc-suggestion-item';
+      item.textContent = text;
+      item.addEventListener('mousedown', e => {
+        e.preventDefault();
+        noteInput.value = text;
+        removeSuggestions();
+      });
+      suggestEl.appendChild(item);
+    });
+    noteInput.parentNode.style.position = 'relative';
+    noteInput.parentNode.appendChild(suggestEl);
+  }
+
+  function removeSuggestions() {
+    if (suggestEl) { suggestEl.remove(); suggestEl = null; }
+  }
+
+  noteInput.addEventListener('input', () => {
+    const q = noteInput.value.trim();
+    if (q.length < 1) { removeSuggestions(); return; }
+    showSuggestions(getSuggestions(catSelect.value, q));
+  });
+  noteInput.addEventListener('blur', () => setTimeout(removeSuggestions, 150));
+  catSelect.addEventListener('change', () => {
+    if (noteInput.value.trim()) showSuggestions(getSuggestions(catSelect.value, noteInput.value.trim()));
+  });
+})();
+
 function renderMonthly() {
   const val = document.getElementById('monthlyDate').value;
   if (!val) return;

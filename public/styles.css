@@ -1481,6 +1481,56 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   animation: txSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Flash highlight on new transaction */
+@keyframes txFlash {
+  0%   { background: var(--bg-card); }
+  30%  { background: rgba(15,169,116,.13); }
+  100% { background: var(--bg-card); }
+}
+.tx-flash {
+  animation: txFlash 0.9s ease forwards;
+}
+
+/* Inline delete confirm row */
+.tx-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: fadeUp .15s ease;
+}
+.tx-confirm-label {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* Description suggestions dropdown */
+.desc-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  z-index: 200;
+  overflow: hidden;
+}
+.desc-suggestion-item {
+  padding: 9px 14px;
+  font-size: .88rem;
+  color: var(--text-1);
+  cursor: pointer;
+  transition: background .1s;
+}
+.desc-suggestion-item:hover {
+  background: var(--bg-subtle);
+}
+.desc-suggestion-item + .desc-suggestion-item {
+  border-top: 1px solid var(--border);
+}
+
 .tx-item.removing {
   animation: txSlideOut 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
   overflow: hidden;
