@@ -869,14 +869,16 @@ input[type="color"] {
 }
 .modal-backdrop.open { display: flex; }
 
-/* On mobile, float modals above the bottom navbar with a clear gap */
+/* On mobile, float modals above the bottom navbar — fully contained in viewport */
 @media (max-width: 768px) {
   .modal-backdrop {
-    padding: 16px 16px calc(112px + env(safe-area-inset-bottom, 0px));
+    /* 60px top keeps status bar clear; bottom clears the navbar + gap */
+    padding: 60px 16px calc(112px + env(safe-area-inset-bottom, 0px));
     align-items: flex-end;
   }
   .modal {
-    max-height: calc(90dvh - 112px);
+    /* total constrained height = 100dvh - 60px top - 112px bottom */
+    max-height: calc(100dvh - 172px);
     border-radius: var(--r-xl);
   }
 }
