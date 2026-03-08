@@ -62,6 +62,14 @@ window.firebaseReady.then(() => {
       document.getElementById('profilePanelName').textContent = displayName || email.split('@')[0];
       document.getElementById('profilePanelEmail').textContent = email;
       document.getElementById('profileNameInput').value = displayName;
+
+      // Dashboard greeting bar avatar
+      const dashImg = document.getElementById('dashAvatarImg');
+      const dashIni = document.getElementById('dashAvatarInitials');
+      if (dashImg && dashIni) {
+        if (photo) { dashImg.src = photo; dashImg.style.display = ''; dashIni.style.display = 'none'; }
+        else { dashIni.textContent = initials; dashIni.style.display = ''; dashImg.style.display = 'none'; }
+      }
     })();
 
     // Personalised greeting
@@ -86,7 +94,11 @@ window.firebaseReady.then(() => {
       else                           _pool = _lateGreets;
 
       const _tod = _pool[Math.floor(Math.random() * _pool.length)];
-      _greetEl.textContent = _name ? `${_tod}, ${_name}!` : `${_tod}!`;
+      // Old combined greeting (hidden on mobile, kept for any desktop use)
+      _greetEl.textContent = _tod;
+      // New split greeting bar
+      const _nameEl = document.getElementById('dashGreetingName');
+      if (_nameEl) _nameEl.textContent = _name || 'there';
     }
     const ts = user.metadata.creationTime;
     if (ts) document.getElementById('acctJoined').textContent =
@@ -241,11 +253,13 @@ function wireSettingsDrawer() {
         const ini = name.slice(0, 2).toUpperCase();
         document.getElementById('profilePanelInitials').textContent = ini;
       }
-      const greet = document.getElementById('dashGreeting');
-      if (greet) {
-        const text = greet.textContent;
-        const comma = text.indexOf(',');
-        if (comma !== -1) greet.textContent = text.slice(0, comma + 1) + ' ' + name + '!';
+      const nameEl = document.getElementById('dashGreetingName');
+      if (nameEl) nameEl.textContent = name;
+      // Also update dashboard greeting bar avatar initials
+      const dashIni2 = document.getElementById('dashAvatarInitials');
+      const dashImg2 = document.getElementById('dashAvatarImg');
+      if (dashIni2 && dashImg2 && !dashImg2.src) {
+        dashIni2.textContent = name.slice(0, 2).toUpperCase();
       }
       saveBtn.textContent = '✓ Saved';
       saveBtn.style.background = 'var(--green)';

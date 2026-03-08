@@ -298,6 +298,54 @@ body {
 .view-header h1 { font-size: 1.75rem; font-weight: 700; color: var(--text-1); letter-spacing: -.02em; }
 .view-header p  { font-size: .9rem; color: var(--text-3); margin-top: 2px; }
 
+/* ── Dashboard compact greeting bar ─────────────────────────────────────────── */
+.dash-greeting-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.dash-greeting-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+  background: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+}
+.dash-greeting-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.dash-greeting-initials {
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--ink-fg);
+  user-select: none;
+}
+.dash-greeting-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.dash-greeting-sub {
+  font-size: .78rem;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.dash-greeting-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ---------- STAT CARDS ---------- */
 
 .stats-row {
