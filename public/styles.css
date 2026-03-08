@@ -1794,6 +1794,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   /* ── Settings drawer → bottom sheet on mobile ── */
 
+  .settings-backdrop {
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    background: rgba(0, 0, 0, 0.35);
+  }
+
   .settings-drawer {
     /* Reset desktop side-drawer positioning */
     top: auto;

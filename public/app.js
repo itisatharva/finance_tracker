@@ -176,10 +176,12 @@ function wireSettingsDrawer() {
   function openDrawer() {
     drawer.classList.add('open');
     backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
   }
   function closeDrawer() {
     drawer.classList.remove('open');
     backdrop.classList.remove('open');
+    document.body.style.overflow = '';
   }
 
   btnOpen.addEventListener('click', openDrawer);
@@ -294,6 +296,7 @@ window.showView = function(v) {
   if (_drawer && _drawer.classList.contains('open')) {
     _drawer.classList.remove('open');
     _backdrop.classList.remove('open');
+    document.body.style.overflow = '';
   }
 
   document.getElementById('viewDashboard').classList.toggle('hidden', v !== 'dashboard');
