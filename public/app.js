@@ -185,6 +185,36 @@ function wireSettingsDrawer() {
   btnOpen.addEventListener('click', openDrawer);
   btnClose.addEventListener('click', closeDrawer);
   backdrop.addEventListener('click', closeDrawer);
+
+  // Mobile bottom nav settings button
+  const bnSettingsBtn = document.getElementById('bnSettings');
+  if (bnSettingsBtn) {
+    bnSettingsBtn.addEventListener('click', () => {
+      // Mark active visually
+      ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+      });
+      bnSettingsBtn.classList.add('active');
+      openDrawer();
+    });
+  }
+
+  // When drawer closes, restore nav active state
+  function closeDrawerAndRestoreNav() {
+    closeDrawer();
+    const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
+    ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    });
+    const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
+    if (activeEl) activeEl.classList.add('active');
+  }
+  btnClose.removeEventListener('click', closeDrawer);
+  btnClose.addEventListener('click', closeDrawerAndRestoreNav);
+  backdrop.removeEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', closeDrawerAndRestoreNav);
   const btnImportCSV = document.getElementById('btnImportCSV');
   if (btnImportCSV) {
     btnImportCSV.addEventListener('click', () => {
@@ -263,6 +293,16 @@ window.showView = function(v) {
   document.getElementById('tabDash').classList.toggle('active', v === 'dashboard');
   document.getElementById('tabAnalytics').classList.toggle('active', v === 'analytics');
   document.getElementById('tabTransactions').classList.toggle('active', v === 'transactions');
+  // Sync bottom nav
+  const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
+  ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  if (bnMap[v]) {
+    const el = document.getElementById(bnMap[v]);
+    if (el) el.classList.add('active');
+  }
   if (v === 'analytics') refreshCurrentPeriod();
   if (v === 'transactions') {
     populateTxCategoryFilter();
