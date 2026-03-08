@@ -287,6 +287,15 @@ function wireSettingsDrawer() {
 // ─── View switching ──────────────────────────────────────────────────────────
 window.showView = function(v) {
   activeView = v;
+
+  // Close settings drawer if open (e.g. user tapped another nav tab)
+  const _drawer   = document.getElementById('settingsDrawer');
+  const _backdrop = document.getElementById('settingsBackdrop');
+  if (_drawer && _drawer.classList.contains('open')) {
+    _drawer.classList.remove('open');
+    _backdrop.classList.remove('open');
+  }
+
   document.getElementById('viewDashboard').classList.toggle('hidden', v !== 'dashboard');
   document.getElementById('viewAnalytics').classList.toggle('hidden', v !== 'analytics');
   document.getElementById('viewTransactions').classList.toggle('hidden', v !== 'transactions');
