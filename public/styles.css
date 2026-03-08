@@ -1481,14 +1481,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   animation: txSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Flash highlight on new transaction */
-@keyframes txFlash {
-  0%   { background: rgba(15,169,116,.18); box-shadow: 0 0 0 1.5px rgba(15,169,116,.25); }
-  100% { background: var(--bg-card); box-shadow: none; }
-}
-.tx-flash {
-  animation: txFlash 1.1s ease-out forwards;
-}
 
 /* Inline delete confirm row */
 .tx-confirm-row {

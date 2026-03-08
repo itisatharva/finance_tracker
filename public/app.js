@@ -819,12 +819,6 @@ function renderTxList() {
       const div = buildTxDiv(tx);
       if (newIds.has(tx.id)) {
         div.classList.add('tx-adding');
-        // 380ms matches txSlideIn duration exactly — avoids bubbling animationend issues
-        setTimeout(() => {
-          div.classList.remove('tx-adding');
-          void div.offsetWidth; // force reflow so flash starts fresh
-          div.classList.add('tx-flash');
-        }, 380);
       }
       el.appendChild(div);
     });
