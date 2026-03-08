@@ -580,10 +580,39 @@ window.addCat = async function(type) {
   }
 };
 window.removeCat = async function(type, idx) {
-  if (!confirm('Remove this category?')) return;
   categories[type].splice(idx, 1);
   await saveCategories();
   renderCatLists();
+};
+
+window.showCatDeleteConfirm = function(btn, type, idx) {
+  // Toggle off if already showing
+  const existing = btn.parentNode.querySelector('.tx-confirm-row');
+  if (existing) { existing.remove(); btn.style.display = ''; return; }
+  // Close any others
+  document.querySelectorAll('.cat-item .tx-confirm-row').forEach(el => {
+    const p = el.closest('.cat-item');
+    el.remove();
+    if (p) { const d = p.querySelector('.btn-sm.del'); if (d) d.style.display = ''; }
+  });
+  btn.style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'tx-confirm-row';
+  const label = document.createElement('span');
+  label.className = 'tx-confirm-label';
+  label.textContent = 'Remove?';
+  const yesBtn = document.createElement('button');
+  yesBtn.className = 'btn-sm del';
+  yesBtn.textContent = 'Yes';
+  yesBtn.addEventListener('click', () => window.removeCat(type, idx));
+  const noBtn = document.createElement('button');
+  noBtn.className = 'btn-sm';
+  noBtn.textContent = 'No';
+  noBtn.addEventListener('click', () => { row.remove(); btn.style.display = ''; });
+  row.appendChild(label);
+  row.appendChild(yesBtn);
+  row.appendChild(noBtn);
+  btn.parentNode.appendChild(row);
 };
 window.syncSwatch = function(inputId, swatchId) {
   document.getElementById(swatchId).style.background = document.getElementById(inputId).value;
@@ -628,7 +657,7 @@ function renderCatLists() {
           <span class="cat-name">${catName(c)}</span>
           ${budgetInput}
         </div>
-        <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
+        <button class="btn-sm del" onclick="showCatDeleteConfirm(this,'${type}',${i})">Remove</button>
       `;
       el.appendChild(div);
     });
@@ -661,6 +690,7 @@ function listenTransactions() {
     }
     renderTxList();
     renderStats();
+    setTimeout(() => { window._newTxIds = new Set(); }, 600);
     if (activeView === 'analytics') refreshCurrentPeriod();
     
     populateTxCategoryFilter();
@@ -789,11 +819,13 @@ function renderTxList() {
       const div = buildTxDiv(tx);
       if (newIds.has(tx.id)) {
         div.classList.add('tx-adding');
-        setTimeout(() => {
+        div.addEventListener('animationend', () => {
           div.classList.remove('tx-adding');
+          // force reflow so flash animation restarts cleanly
+          void div.offsetWidth;
           div.classList.add('tx-flash');
-          setTimeout(() => div.classList.remove('tx-flash'), 1000);
-        }, 450);
+          div.addEventListener('animationend', () => div.classList.remove('tx-flash'), { once: true });
+        }, { once: true });
       }
       el.appendChild(div);
     });
@@ -803,8 +835,7 @@ function renderTxList() {
     sorted.forEach(tx => el.appendChild(buildTxDiv(tx)));
   }
 
-  // Clear new IDs after rendering
-  window._newTxIds = new Set();
+  // IDs cleared by snapshot handler after brief window
 }
 
 function populateTxCategoryFilter() {
