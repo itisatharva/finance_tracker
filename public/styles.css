@@ -875,6 +875,7 @@ input[type="color"] {
     /* 60px top keeps status bar clear; bottom clears the navbar + gap */
     padding: 60px 16px calc(112px + env(safe-area-inset-bottom, 0px));
     align-items: flex-end;
+    z-index: 960; /* above bottom nav (950) so it fully covers it */
   }
   .modal {
     /* total constrained height = 100dvh - 60px top - 112px bottom */

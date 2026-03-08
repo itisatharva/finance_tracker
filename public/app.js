@@ -299,6 +299,12 @@ window.showView = function(v) {
     document.body.style.overflow = '';
   }
 
+  // Close categories modal if open
+  const _catsBg = document.getElementById('catsModalBg');
+  if (_catsBg && _catsBg.classList.contains('open')) {
+    window.closeCatsModal();
+  }
+
   document.getElementById('viewDashboard').classList.toggle('hidden', v !== 'dashboard');
   document.getElementById('viewAnalytics').classList.toggle('hidden', v !== 'analytics');
   document.getElementById('viewTransactions').classList.toggle('hidden', v !== 'transactions');
@@ -489,6 +495,7 @@ window.closeCatsModal = function() {
   document.getElementById('catsModalBg').classList.remove('open');
   document.body.style.overflow = '';
   populateCategoryDropdowns();
+  saveCategories().catch(e => console.error('auto-save categories failed:', e));
 };
 
 // ─── CSV Import ──────────────────────────────────────────────────────────────
