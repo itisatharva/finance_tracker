@@ -869,13 +869,15 @@ input[type="color"] {
 }
 .modal-backdrop.open { display: flex; }
 
-/* On mobile, add bottom padding so modals clear the bottom navbar */
+/* On mobile, float modals above the bottom navbar with a clear gap */
 @media (max-width: 768px) {
   .modal-backdrop {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    padding: 16px 16px calc(112px + env(safe-area-inset-bottom, 0px));
+    align-items: flex-end;
   }
   .modal {
-    max-height: calc(88dvh - 96px);
+    max-height: calc(90dvh - 112px);
+    border-radius: var(--r-xl);
   }
 }
 

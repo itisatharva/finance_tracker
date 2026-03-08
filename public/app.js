@@ -483,9 +483,11 @@ function populateCategoryDropdowns() {
 window.openCatsModal = function() {
   renderCatLists();
   document.getElementById('catsModalBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
 };
 window.closeCatsModal = function() {
   document.getElementById('catsModalBg').classList.remove('open');
+  document.body.style.overflow = '';
   populateCategoryDropdowns();
 };
 
@@ -495,10 +497,12 @@ window.openImportModal = function() {
   document.getElementById('importPreview').style.display = 'none';
   document.getElementById('importError').style.display = 'none';
   document.getElementById('importModalBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
 };
 
 window.closeImportModal = function() {
   document.getElementById('importModalBg').classList.remove('open');
+  document.body.style.overflow = '';
 };
 
 window.previewImport = function() {
@@ -1040,6 +1044,7 @@ let _pendingDeleteId = null;
 
   function closeModal() {
     bg.classList.remove('open');
+    document.body.style.overflow = '';
     _pendingDeleteId = null;
   }
 
@@ -1130,6 +1135,7 @@ window.deleteTx = async function(id) {
   _pendingDeleteId = id;
   document.getElementById('deleteNoAsk').checked = false;
   document.getElementById('deleteModalBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
 };
 
 // ── Transaction Detail Panel ──────────────────────────────────────────────────
@@ -1297,9 +1303,11 @@ window.openEditModal = function(id) {
   document.getElementById('editAmount').value   = tx.amount;
   document.getElementById('editNote').value     = tx.description || '';
   document.getElementById('editModalBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
 };
 window.closeEditModal = function() {
   document.getElementById('editModalBg').classList.remove('open');
+  document.body.style.overflow = '';
   editTxId = null;
 };
 window.saveEdit = async function() {
