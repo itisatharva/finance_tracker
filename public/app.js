@@ -44,10 +44,43 @@ window.firebaseReady.then(() => {
     // Account info
     document.getElementById('acctEmail').textContent = user.email || '—';
 
+    // Profile panel — populate avatar, name, email
+    (function populateProfile() {
+      const photo = user.photoURL;
+      const email = user.email || '';
+      const savedName = localStorage.getItem('profileName_' + user.uid) || '';
+      const displayName = savedName || user.displayName || '';
+      const initials = (displayName || email).replace(/[@+].*/, '').slice(0, 2).toUpperCase() || '?';
+
+      // Button avatar
+      const btnImg = document.getElementById('profileAvatarImg');
+      const btnIni = document.getElementById('profileAvatarInitials');
+      if (photo) { btnImg.src = photo; btnImg.style.display = ''; btnIni.style.display = 'none'; }
+      else { btnIni.textContent = initials; btnIni.style.display = ''; btnImg.style.display = 'none'; }
+
+      // Panel avatar
+      const panelImg = document.getElementById('profilePanelImg');
+      const panelIni = document.getElementById('profilePanelInitials');
+      if (photo) { panelImg.src = photo; panelImg.style.display = ''; panelIni.style.display = 'none'; }
+      else { panelIni.textContent = initials; panelIni.style.display = ''; panelImg.style.display = 'none'; }
+
+      // Panel name/email
+      document.getElementById('profilePanelName').textContent = displayName || email.split('@')[0];
+      document.getElementById('profilePanelEmail').textContent = email;
+      document.getElementById('profileEmail2').textContent = email;
+      document.getElementById('profileNameInput').value = displayName;
+
+      // Joined
+      const ts = user.metadata.creationTime;
+      if (ts) document.getElementById('profileJoined').textContent =
+        new Date(ts).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+    })();
+
     // Personalised greeting
     const _greetEl = document.getElementById('dashGreeting');
     if (_greetEl) {
-      const _name = (user.displayName || user.email || '').split(/[@\s]/)[0];
+      const _savedN = localStorage.getItem('profileName_' + user.uid);
+      const _name = (_savedN || user.displayName || user.email || '').split(/[@\s]/)[0];
       const _hr = new Date().getHours();
       const _day = new Date().getDay();
 
@@ -84,6 +117,7 @@ window.firebaseReady.then(() => {
     listenPending();
     listenTransactions();
     wireSettingsDrawer();
+    wireProfilePanel();
     wireAddTxForm();
     wireAddPending();
   });
@@ -140,6 +174,55 @@ function initMonthDropdown(currentDate, txList) {
 
 
 // ─── Settings Drawer ─────────────────────────────────────────────────────────
+function wireProfilePanel() {
+  const btn       = document.getElementById('btnProfile');
+  const backdrop  = document.getElementById('profileBackdrop');
+  const panel     = document.getElementById('profilePanel');
+  const closeBtn  = document.getElementById('btnCloseProfile');
+  const saveBtn   = document.getElementById('profileNameSave');
+  const nameInput = document.getElementById('profileNameInput');
+  const signOutBtn= document.getElementById('profileSignOut');
+
+  function openPanel()  { panel.classList.add('open'); backdrop.classList.add('open'); document.body.style.overflow = 'hidden'; }
+  function closePanel() { panel.classList.remove('open'); backdrop.classList.remove('open'); document.body.style.overflow = ''; }
+
+  btn.addEventListener('click', openPanel);
+  closeBtn.addEventListener('click', closePanel);
+  backdrop.addEventListener('click', closePanel);
+
+  saveBtn.addEventListener('click', () => {
+    const name = nameInput.value.trim();
+    if (!name) return;
+    localStorage.setItem('profileName_' + uid, name);
+    document.getElementById('profilePanelName').textContent = name;
+    // Update initials on button if no photo
+    const user = window.auth && window.auth.currentUser;
+    if (user && !user.photoURL) {
+      const ini = name.slice(0, 2).toUpperCase();
+      document.getElementById('profileAvatarInitials').textContent = ini;
+      document.getElementById('profilePanelInitials').textContent = ini;
+    }
+    // Update greeting name
+    const greet = document.getElementById('dashGreeting');
+    if (greet) {
+      const text = greet.textContent;
+      const comma = text.indexOf(',');
+      if (comma !== -1) greet.textContent = text.slice(0, comma + 1) + ' ' + name + '!';
+    }
+    saveBtn.textContent = '✓ Saved';
+    saveBtn.style.background = 'var(--green)';
+    setTimeout(() => { saveBtn.textContent = 'Save'; saveBtn.style.background = ''; }, 1800);
+  });
+
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveBtn.click(); });
+
+  signOutBtn.addEventListener('click', async () => {
+    closePanel();
+    await window.fbSignOut(window.auth).catch(console.error);
+    window.location.replace('landing.html');
+  });
+}
+
 function wireSettingsDrawer() {
   const btnOpen   = document.getElementById('btnSettings');
   const backdrop  = document.getElementById('settingsBackdrop');
@@ -1209,6 +1292,9 @@ window.saveEdit = async function() {
 
 // ─── Stats (all-time) ─────────────────────────────────────────────────────────
 function renderStats() {
+  // Update profile tx count
+  const tcEl = document.getElementById('profileTxCount');
+  if (tcEl) tcEl.textContent = transactions.length;
   const now = new Date();
   const curY = now.getFullYear();
   const curM = now.getMonth();
