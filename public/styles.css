@@ -1739,6 +1739,15 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
   .txd-backdrop.open .txd-panel { transform: scale(1) translateY(0); }
 }
+
+/* Mobile: lift the panel above the bottom navbar */
+@media (max-width: 599px) {
+  .txd-panel {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    max-height: 92dvh;
+    overflow-y: auto;
+  }
+}
 /* =============================================
    MOBILE BOTTOM NAV BAR
    Frosted glass, icon+label tabs, active pill
@@ -1793,12 +1802,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 
   /* ── Settings drawer → bottom sheet on mobile ── */
-
-  .settings-backdrop {
-    backdrop-filter: blur(8px) saturate(140%);
-    -webkit-backdrop-filter: blur(8px) saturate(140%);
-    background: rgba(0, 0, 0, 0.35);
-  }
 
   .settings-drawer {
     /* Reset desktop side-drawer positioning */
