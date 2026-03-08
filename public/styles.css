@@ -869,18 +869,28 @@ input[type="color"] {
 }
 .modal-backdrop.open { display: flex; }
 
-/* On mobile, float modals above the bottom navbar — fully contained in viewport */
+/* ── Mobile: full-screen modal that covers the navbar ─────────────────────── */
 @media (max-width: 768px) {
   .modal-backdrop {
-    /* 60px top keeps status bar clear; bottom clears the navbar + gap */
-    padding: 60px 16px calc(112px + env(safe-area-inset-bottom, 0px));
-    align-items: flex-end;
-    z-index: 960; /* above bottom nav (950) so it fully covers it */
+    /* Sit above the navbar (950) and everything else */
+    z-index: 1000;
+    /* Full viewport — no bottom gap, the modal covers the nav */
+    padding: env(safe-area-inset-top, 16px) 16px 16px;
+    align-items: center;
+    justify-content: center;
+    /* Stronger blur to match the transaction detail panel */
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(8px) saturate(160%);
+    -webkit-backdrop-filter: blur(8px) saturate(160%);
   }
   .modal {
-    /* total constrained height = 100dvh - 60px top - 112px bottom */
-    max-height: calc(100dvh - 172px);
+    /* Fill the space between status bar and bottom edge */
+    max-height: calc(100dvh - env(safe-area-inset-top, 16px) - 32px);
     border-radius: var(--r-xl);
+    /* Smooth inner scroll, no background bleed-through */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

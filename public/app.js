@@ -490,10 +490,16 @@ window.openCatsModal = function() {
   renderCatLists();
   document.getElementById('catsModalBg').classList.add('open');
   document.body.style.overflow = 'hidden';
+  // Hide navbar so modal is the only interactive layer
+  const nav = document.getElementById('bottomNav');
+  if (nav) nav.style.display = 'none';
 };
 window.closeCatsModal = function() {
   document.getElementById('catsModalBg').classList.remove('open');
   document.body.style.overflow = '';
+  // Restore navbar
+  const nav = document.getElementById('bottomNav');
+  if (nav) nav.style.display = '';
   populateCategoryDropdowns();
   saveCategories().catch(e => console.error('auto-save categories failed:', e));
 };
