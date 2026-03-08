@@ -869,6 +869,16 @@ input[type="color"] {
 }
 .modal-backdrop.open { display: flex; }
 
+/* On mobile, add bottom padding so modals clear the bottom navbar */
+@media (max-width: 768px) {
+  .modal-backdrop {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+  .modal {
+    max-height: calc(88dvh - 96px);
+  }
+}
+
 .modal {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
@@ -1738,15 +1748,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     overflow-y: auto;
   }
   .txd-backdrop.open .txd-panel { transform: scale(1) translateY(0); }
-}
-
-/* Mobile: lift the panel above the bottom navbar */
-@media (max-width: 599px) {
-  .txd-panel {
-    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-    max-height: 92dvh;
-    overflow-y: auto;
-  }
 }
 /* =============================================
    MOBILE BOTTOM NAV BAR
