@@ -775,6 +775,7 @@ function buildTxDiv(tx) {
   const div   = document.createElement('div');
   div.className = 'tx-item';
   div.setAttribute('data-tx-id', tx.id);
+  div.style.cursor = 'pointer';
   div.innerHTML = `
     <div class="tx-meta">
       <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
@@ -783,10 +784,14 @@ function buildTxDiv(tx) {
     </div>
     <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
     <div class="tx-actions">
-      <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
-      <button class="btn-sm del" onclick="showDeleteConfirm(this,'${tx.id}')">Delete</button>
+      <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
+      <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm(this,'${tx.id}')">Delete</button>
     </div>
   `;
+  div.addEventListener('click', e => {
+    if (e.target.closest('.tx-actions') || e.target.closest('.tx-confirm-row')) return;
+    openTxDetail('${tx.id}');
+  });
   return div;
 }
 
@@ -891,6 +896,7 @@ function renderAllTxList() {
     const div   = document.createElement('div');
     div.className = 'tx-item';
     div.setAttribute('data-tx-id', tx.id);
+    div.style.cursor = 'pointer';
     div.innerHTML = `
       <div class="tx-meta">
         <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
@@ -899,10 +905,14 @@ function renderAllTxList() {
       </div>
       <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
       <div class="tx-actions">
-        <button class="btn-sm" onclick="openEditModal('${tx.id}')">Edit</button>
-        <button class="btn-sm del" onclick="showDeleteConfirm(this,'${tx.id}')">Delete</button>
+        <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
+        <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm(this,'${tx.id}')">Delete</button>
       </div>
     `;
+    div.addEventListener('click', e => {
+      if (e.target.closest('.tx-actions') || e.target.closest('.tx-confirm-row')) return;
+      openTxDetail('${tx.id}');
+    });
     el.appendChild(div);
   });
 }
@@ -1009,6 +1019,161 @@ window.deleteTx = async function(id) {
   _pendingDeleteId = id;
   document.getElementById('deleteNoAsk').checked = false;
   document.getElementById('deleteModalBg').classList.add('open');
+};
+
+// ── Transaction Detail Panel ──────────────────────────────────────────────────
+let _txDetailId = null;
+let _txDetailEditing = false;
+
+function fmtDateTime(v) {
+  if (!v) return '—';
+  const d = v && v.toDate ? v.toDate() : new Date(v);
+  return d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })
+    + ' · ' + d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true });
+}
+
+window.openTxDetail = function(id) {
+  const tx = transactions.find(t => t.id === id);
+  if (!tx) return;
+  _txDetailId = id;
+  _txDetailEditing = false;
+
+  const d = toDate(tx.selectedDate);
+  const color = catColorByName(tx.type, tx.category);
+
+  // Populate view
+  document.getElementById('txdTypeDot').style.background = tx.type === 'income' ? 'var(--green)' : 'var(--red)';
+  document.getElementById('txdTypeLabel').textContent = tx.type;
+  const amtEl = document.getElementById('txdAmount');
+  amtEl.textContent = (tx.type === 'income' ? '+' : '−') + fmt(tx.amount);
+  amtEl.className = 'txd-amount ' + tx.type;
+  document.getElementById('txdCategory').innerHTML =
+    `<span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span>`;
+  document.getElementById('txdDate').textContent =
+    d.toLocaleDateString('en-IN', { weekday:'short', day:'2-digit', month:'long', year:'numeric' });
+
+  const noteRow = document.getElementById('txdNoteRow');
+  if (tx.description) {
+    document.getElementById('txdNote').textContent = tx.description;
+    noteRow.style.display = '';
+  } else {
+    noteRow.style.display = 'none';
+  }
+
+  document.getElementById('txdAdded').textContent = fmtDateTime(tx.createdAt);
+
+  const updRow = document.getElementById('txdUpdatedRow');
+  if (tx.updatedAt) {
+    document.getElementById('txdUpdated').textContent = fmtDateTime(tx.updatedAt);
+    updRow.style.display = '';
+  } else {
+    updRow.style.display = 'none';
+  }
+
+  // Show view, hide edit
+  document.getElementById('txdView').style.display = '';
+  document.getElementById('txdEdit').style.display = 'none';
+
+  // Open
+  document.getElementById('txDetailBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+};
+
+window.closeTxDetail = function(e) {
+  if (e && e.target !== document.getElementById('txDetailBg')) return;
+  const bg = document.getElementById('txDetailBg');
+  bg.classList.remove('open');
+  document.body.style.overflow = '';
+  _txDetailId = null;
+};
+
+// Close on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('txDetailBg').classList.contains('open')) {
+    document.getElementById('txDetailBg').classList.remove('open');
+    document.body.style.overflow = '';
+    _txDetailId = null;
+  }
+});
+
+window.txDetailStartEdit = function() {
+  const tx = transactions.find(t => t.id === _txDetailId);
+  if (!tx) return;
+  const d = toDate(tx.selectedDate);
+
+  // Populate edit fields
+  document.getElementById('txdEditDate').value = toInputDate(d);
+  document.getElementById('txdEditAmount').value = tx.amount;
+  document.getElementById('txdEditNote').value = tx.description || '';
+
+  // Populate category dropdown
+  const sel = document.getElementById('txdEditCategory');
+  sel.innerHTML = '<option value="">Select</option>';
+  const allCats = [...(categories.income||[]), ...(categories.expense||[])];
+  allCats.forEach(cat => {
+    const name = typeof cat === 'string' ? cat : cat.name;
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    if (name === tx.category) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  document.getElementById('txdView').style.display = 'none';
+  document.getElementById('txdEdit').style.display = '';
+};
+
+window.txDetailCancelEdit = function() {
+  document.getElementById('txDetailBg').classList.remove('open');
+  document.body.style.overflow = '';
+  _txDetailId = null;
+};
+
+window.txDetailSave = async function() {
+  const category = document.getElementById('txdEditCategory').value;
+  const rawAmt   = document.getElementById('txdEditAmount').value.replace(/,/g,'').trim();
+  const amount   = parseFloat(rawAmt);
+  const dateVal  = document.getElementById('txdEditDate').value;
+  const note     = document.getElementById('txdEditNote').value.trim();
+  const type     = catType(category);
+  if (!category || !amount || !dateVal || !type) { alert('Please fill all fields'); return; }
+  await window.setDoc(
+    window.doc(window.db, 'users', uid, 'transactions', _txDetailId),
+    { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), updatedAt: window.serverTimestamp() },
+    { merge: true }
+  );
+  document.getElementById('txDetailBg').classList.remove('open');
+  document.body.style.overflow = '';
+  _txDetailId = null;
+  vibrate();
+};
+
+window.txDetailDelete = function() {
+  const btn = document.getElementById('txdDeleteBtn');
+  const existing = document.getElementById('txDetailBg').querySelector('.tx-confirm-row');
+  if (existing) { existing.remove(); btn.style.display = ''; return; }
+  btn.style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'tx-confirm-row';
+  row.style.cssText = 'padding:0 20px 14px;';
+  const label = document.createElement('span');
+  label.className = 'tx-confirm-label'; label.textContent = 'Delete this transaction?';
+  const yes = document.createElement('button');
+  yes.className = 'btn-sm del'; yes.textContent = 'Yes, delete';
+  yes.addEventListener('click', async () => {
+    const id = _txDetailId;
+    document.getElementById('txDetailBg').classList.remove('open');
+    document.body.style.overflow = '';
+    _txDetailId = null;
+    const el = document.querySelector('[data-tx-id="' + id + '"]');
+    if (el) { el.classList.add('removing'); await new Promise(r => setTimeout(r, 350)); }
+    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
+    vibrate();
+  });
+  const no = document.createElement('button');
+  no.className = 'btn-sm'; no.textContent = 'Cancel';
+  no.addEventListener('click', () => { row.remove(); btn.style.display = ''; });
+  row.appendChild(label); row.appendChild(yes); row.appendChild(no);
+  btn.parentNode.appendChild(row);
 };
 
 window.openEditModal = function(id) {

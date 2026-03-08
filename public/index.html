@@ -338,6 +338,79 @@
 </div><!-- /container -->
 
 <!-- Edit Modal -->
+<!-- Transaction Detail Panel -->
+<div class="txd-backdrop" id="txDetailBg" onclick="closeTxDetail(event)">
+  <div class="txd-panel" id="txDetailPanel">
+
+    <!-- VIEW MODE -->
+    <div id="txdView">
+      <div class="txd-head">
+        <div class="txd-head-left">
+          <span class="txd-type-dot" id="txdTypeDot"></span>
+          <span class="txd-type-label" id="txdTypeLabel"></span>
+        </div>
+        <div class="txd-head-right">
+          <button class="btn-sm" id="txdEditBtn" onclick="txDetailStartEdit()">Edit</button>
+          <button class="btn-close-settings" onclick="closeTxDetail()">×</button>
+        </div>
+      </div>
+      <div class="txd-amount-row">
+        <span class="txd-amount" id="txdAmount"></span>
+      </div>
+      <div class="txd-body">
+        <div class="txd-row">
+          <span class="txd-label">Category</span>
+          <span class="txd-value" id="txdCategory"></span>
+        </div>
+        <div class="txd-row">
+          <span class="txd-label">Date</span>
+          <span class="txd-value" id="txdDate"></span>
+        </div>
+        <div class="txd-row" id="txdNoteRow">
+          <span class="txd-label">Note</span>
+          <span class="txd-value" id="txdNote"></span>
+        </div>
+        <div class="txd-row">
+          <span class="txd-label">Added</span>
+          <span class="txd-value" id="txdAdded"></span>
+        </div>
+        <div class="txd-row" id="txdUpdatedRow">
+          <span class="txd-label">Updated</span>
+          <span class="txd-value" id="txdUpdated"></span>
+        </div>
+      </div>
+      <div class="txd-foot">
+        <button class="btn btn-secondary txd-del-btn" id="txdDeleteBtn" onclick="txDetailDelete()">Delete</button>
+      </div>
+    </div>
+
+    <!-- EDIT MODE -->
+    <div id="txdEdit" style="display:none">
+      <div class="txd-head">
+        <span style="font-size:.9rem;font-weight:700;color:var(--text-1)">Edit Transaction</span>
+        <div class="txd-head-right">
+          <button class="btn-close-settings" onclick="txDetailCancelEdit()">×</button>
+        </div>
+      </div>
+      <div class="txd-body">
+        <div class="form-grid">
+          <div class="field"><label>Date</label><div class="date-wrap"><input type="date" id="txdEditDate" /></div></div>
+          <div class="field"><label>Category</label><select id="txdEditCategory"><option value="">Select</option></select></div>
+        </div>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="field"><label>Amount (₹)</label><input type="text" id="txdEditAmount" inputmode="decimal" /></div>
+          <div class="field"><label>Note</label><input type="text" id="txdEditNote" /></div>
+        </div>
+      </div>
+      <div class="txd-foot" style="justify-content:flex-end;gap:10px">
+        <button class="btn btn-secondary" onclick="txDetailCancelEdit()">Cancel</button>
+        <button class="btn btn-primary" onclick="txDetailSave()">Save</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <div class="modal-backdrop" id="editModalBg">
   <div class="modal">
     <div class="modal-head"><h2>Edit Transaction</h2><button class="btn-close-settings" onclick="closeEditModal()">×</button></div>
