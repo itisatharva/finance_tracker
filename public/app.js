@@ -790,7 +790,7 @@ function buildTxDiv(tx) {
   `;
   div.addEventListener('click', e => {
     if (e.target.closest('.tx-actions') || e.target.closest('.tx-confirm-row')) return;
-    openTxDetail('${tx.id}');
+    openTxDetail(tx.id);
   });
   return div;
 }
@@ -911,7 +911,7 @@ function renderAllTxList() {
     `;
     div.addEventListener('click', e => {
       if (e.target.closest('.tx-actions') || e.target.closest('.tx-confirm-row')) return;
-      openTxDetail('${tx.id}');
+      openTxDetail(tx.id);
     });
     el.appendChild(div);
   });
