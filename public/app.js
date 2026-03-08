@@ -183,8 +183,21 @@ function wireProfilePanel() {
   const nameInput = document.getElementById('profileNameInput');
   const signOutBtn= document.getElementById('profileSignOut');
 
-  function openPanel()  { panel.classList.add('open'); backdrop.classList.add('open'); document.body.style.overflow = 'hidden'; }
-  function closePanel() { panel.classList.remove('open'); backdrop.classList.remove('open'); document.body.style.overflow = ''; }
+  const settingsBtn = document.getElementById('btnSettings');
+  function openPanel() {
+    panel.classList.add('open');
+    backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (settingsBtn) settingsBtn.style.opacity = '0';
+    if (settingsBtn) settingsBtn.style.pointerEvents = 'none';
+  }
+  function closePanel() {
+    panel.classList.remove('open');
+    backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+    if (settingsBtn) settingsBtn.style.opacity = '';
+    if (settingsBtn) settingsBtn.style.pointerEvents = '';
+  }
 
   btn.addEventListener('click', openPanel);
   closeBtn.addEventListener('click', closePanel);
@@ -233,8 +246,19 @@ function wireSettingsDrawer() {
   const btnSaveBal= document.getElementById('saveStartingBalance');
   const balInput  = document.getElementById('startingBalanceInput');
 
-  function openDrawer()  { drawer.classList.add('open'); backdrop.classList.add('open'); }
-  function closeDrawer() { drawer.classList.remove('open'); backdrop.classList.remove('open'); }
+  const profileBtn2 = document.getElementById('btnProfile');
+  function openDrawer() {
+    drawer.classList.add('open');
+    backdrop.classList.add('open');
+    if (profileBtn2) profileBtn2.style.opacity = '0';
+    if (profileBtn2) profileBtn2.style.pointerEvents = 'none';
+  }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    backdrop.classList.remove('open');
+    if (profileBtn2) profileBtn2.style.opacity = '';
+    if (profileBtn2) profileBtn2.style.pointerEvents = '';
+  }
 
   btnOpen.addEventListener('click', openDrawer);
   btnClose.addEventListener('click', closeDrawer);
