@@ -819,13 +819,12 @@ function renderTxList() {
       const div = buildTxDiv(tx);
       if (newIds.has(tx.id)) {
         div.classList.add('tx-adding');
-        div.addEventListener('animationend', () => {
+        // 380ms matches txSlideIn duration exactly — avoids bubbling animationend issues
+        setTimeout(() => {
           div.classList.remove('tx-adding');
-          // force reflow so flash animation restarts cleanly
-          void div.offsetWidth;
+          void div.offsetWidth; // force reflow so flash starts fresh
           div.classList.add('tx-flash');
-          div.addEventListener('animationend', () => div.classList.remove('tx-flash'), { once: true });
-        }, { once: true });
+        }, 380);
       }
       el.appendChild(div);
     });
