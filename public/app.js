@@ -500,6 +500,14 @@ window.closeCatsModal = function() {
   // Restore navbar
   const nav = document.getElementById('bottomNav');
   if (nav) nav.style.display = '';
+  // Re-sync bottom nav highlight to whichever view is actually on screen
+  const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
+  ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
+  if (activeEl) activeEl.classList.add('active');
   populateCategoryDropdowns();
   saveCategories().catch(e => console.error('auto-save categories failed:', e));
 };
