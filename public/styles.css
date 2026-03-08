@@ -1753,6 +1753,15 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
   .txd-backdrop.open .txd-panel { transform: scale(1) translateY(0); }
 }
+
+/* Mobile: lift panel content above the bottom navbar */
+@media (max-width: 599px) {
+  .txd-panel {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    max-height: 92dvh;
+    overflow-y: auto;
+  }
+}
 /* =============================================
    MOBILE BOTTOM NAV BAR
    Frosted glass, icon+label tabs, active pill
