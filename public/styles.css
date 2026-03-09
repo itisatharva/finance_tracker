@@ -910,12 +910,15 @@ input[type="color"] {
   background: rgba(0,0,0,.5);
   backdrop-filter: blur(4px);
   z-index: 800;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s ease;
 }
-.modal-backdrop.open { display: flex; }
+.modal-backdrop.open { opacity: 1; pointer-events: all; }
 
 /* ── Mobile: full-screen modal that covers the navbar ─────────────────────── */
 @media (max-width: 768px) {
@@ -951,6 +954,11 @@ input[type="color"] {
   max-height: 88vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
+  transform: scale(.96) translateY(6px);
+  transition: transform .26s cubic-bezier(0.22,1,0.36,1);
+}
+.modal-backdrop.open .modal {
+  transform: scale(1) translateY(0);
 }
 .modal-head {
   display: flex;

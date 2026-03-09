@@ -240,6 +240,52 @@ function wireSettingsDrawer() {
     });
   }
 
+  const btnExportCSV = document.getElementById('btnExportCSV');
+  if (btnExportCSV) {
+    btnExportCSV.addEventListener('click', async () => {
+      if (!transactions.length) { alert('No transactions to export.'); return; }
+      const orig = btnExportCSV.innerHTML;
+      btnExportCSV.innerHTML = '<span class="btn-spinner" style="width:14px;height:14px;border-width:2px;margin-right:8px;display:inline-block;vertical-align:middle;"></span>Exporting…';
+      btnExportCSV.disabled = true;
+      await new Promise(r => setTimeout(r, 40)); // allow repaint
+      try {
+        const rows = [['Date','Type','Category','Amount','Description']];
+        txSorted(transactions).forEach(tx => {
+          const d = toDate(tx.selectedDate);
+          const dateStr = [
+            String(d.getDate()).padStart(2,'0'),
+            String(d.getMonth()+1).padStart(2,'0'),
+            d.getFullYear()
+          ].join('/');
+          const desc = (tx.description||'').replace(/"/g,'""');
+          rows.push([dateStr, tx.type, tx.category, tx.amount, `"${desc}"`]);
+        });
+        const csv = rows.map(r => r.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        const today = new Date();
+        a.href = url;
+        a.download = `transactions_${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        btnExportCSV.innerHTML = '✓ Exported';
+        btnExportCSV.style.color = 'var(--green)';
+        setTimeout(() => {
+          btnExportCSV.innerHTML = orig;
+          btnExportCSV.style.color = '';
+          btnExportCSV.disabled = false;
+        }, 2000);
+      } catch(e) {
+        alert('Export failed: ' + e.message);
+        btnExportCSV.innerHTML = orig;
+        btnExportCSV.disabled = false;
+      }
+    });
+  }
+
 
   // Name save
   if (saveBtn && nameInput) {
