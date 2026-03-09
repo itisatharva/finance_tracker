@@ -903,6 +903,21 @@ input[type="color"] {
 }
 .add-cat-color-wrap:hover .add-cat-color-swatch { transform: scale(1.1); }
 
+/* ---------- DRAG HANDLE (mobile bottom sheets only) ---------- */
+@media (max-width: 599px) {
+  .drag-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 999px;
+    margin: 10px auto 6px;
+    flex-shrink: 0;
+    pointer-events: none;
+    user-select: none;
+    position: relative;
+  }
+}
+
 /* ---------- IMPORT PANEL (mirrors txd-backdrop pattern exactly) ---------- */
 .import-backdrop {
   position: fixed; inset: 0;

@@ -132,6 +132,60 @@ function fmt(n) {
 }
 function vibrate() { if (navigator.vibrate) navigator.vibrate(40); }
 
+// ─── Drag-to-close for mobile bottom sheets ───────────────────────────────────
+// Injects a visual drag pill and wires touch events.
+// Closes when dragged down > 80px; snaps back otherwise.
+// Only active on mobile (≤599px).
+function wireBottomSheetDrag(panel, closeFn) {
+  if (!panel) return;
+
+  // Inject drag handle pill as first child (hidden on desktop via CSS)
+  const handle = document.createElement("div");
+  handle.className = "drag-handle";
+  panel.insertBefore(handle, panel.firstChild);
+
+  let startY = 0;
+  let lastY  = 0;
+  let dragging = false;
+
+  panel.addEventListener("touchstart", function(e) {
+    if (window.innerWidth >= 600) return;
+    startY   = e.touches[0].clientY;
+    lastY    = startY;
+    dragging = false;
+  }, { passive: true });
+
+  panel.addEventListener("touchmove", function(e) {
+    if (window.innerWidth >= 600) return;
+    lastY = e.touches[0].clientY;
+    var dy = lastY - startY;
+    // Only start drag when swiping down AND panel is scrolled to top
+    if (!dragging && dy > 8 && panel.scrollTop <= 0) {
+      dragging = true;
+    }
+    if (!dragging) return;
+    var offset = Math.max(0, dy);
+    panel.style.transition = "none";
+    panel.style.transform  = "translateY(" + offset + "px)";
+  }, { passive: true });
+
+  function onDragEnd() {
+    if (!dragging) return;
+    dragging = false;
+    var dy = lastY - startY;
+    panel.style.transition = "";
+    panel.style.transform  = "";
+    if (dy > 80) closeFn();
+  }
+
+  panel.addEventListener("touchend",    onDragEnd);
+  panel.addEventListener("touchcancel", function() {
+    dragging = false;
+    panel.style.transition = "";
+    panel.style.transform  = "";
+  });
+}
+
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 // Initialize month dropdown
 function initMonthDropdown(currentDate, txList) {
@@ -557,6 +611,14 @@ window.openCatsModal = function() {
   const nav = document.getElementById('bottomNav');
   if (nav) nav.style.display = 'none';
 };
+// drag-to-close on mobile (wired once)
+(function() {
+  var panel = document.querySelector('#catsModalBg .modal');
+  if (panel && !panel._dragWired) {
+    panel._dragWired = true;
+    wireBottomSheetDrag(panel, function() { window.closeCatsModal(); });
+  }
+})();
 window.closeCatsModal = function() {
   document.getElementById('catsModalBg').classList.remove('open');
   document.body.style.overflow = '';
@@ -607,6 +669,9 @@ window.closeCatsModal = function() {
   // expose for settings button
   window.openImportModal  = openImport;
   window.closeImportModal = closeImport;
+
+  // drag-to-close on mobile
+  wireBottomSheetDrag(document.getElementById("importPanel"), closeImport);
 
   closeBtn.addEventListener('click', closeImport);
   cancelBtn.addEventListener('click', closeImport);
@@ -1238,6 +1303,18 @@ window.closeTxDetail = function(e) {
   document.body.style.overflow = '';
   _txDetailId = null;
 };
+// drag-to-close on mobile (wired once at startup)
+(function() {
+  var panel = document.getElementById('txDetailPanel');
+  if (panel && !panel._dragWired) {
+    panel._dragWired = true;
+    wireBottomSheetDrag(panel, function() {
+      document.getElementById('txDetailBg').classList.remove('open');
+      document.body.style.overflow = '';
+      _txDetailId = null;
+    });
+  }
+})();
 
 // Close on Escape
 document.addEventListener('keydown', e => {
