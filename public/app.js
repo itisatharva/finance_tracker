@@ -365,6 +365,12 @@ window.showView = function(v) {
     window.closeCatsModal();
   }
 
+  // Close transaction detail panel if open
+  const _txBg = document.getElementById('txDetailBg');
+  if (_txBg && _txBg.classList.contains('open')) {
+    window.closeTxDetail && window.closeTxDetail();
+  }
+
   document.getElementById('viewDashboard').classList.toggle('hidden', v !== 'dashboard');
   document.getElementById('viewAnalytics').classList.toggle('hidden', v !== 'analytics');
   document.getElementById('viewTransactions').classList.toggle('hidden', v !== 'transactions');
