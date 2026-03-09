@@ -250,7 +250,7 @@ function wireSettingsDrawer() {
       await new Promise(r => setTimeout(r, 40)); // allow repaint
       try {
         const rows = [['Date','Type','Category','Amount','Description']];
-        txSorted(transactions).forEach(tx => {
+        txSorted(transactions).slice().reverse().forEach(tx => {
           const d = toDate(tx.selectedDate);
           const dateStr = [
             String(d.getDate()).padStart(2,'0'),

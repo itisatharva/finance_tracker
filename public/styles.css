@@ -907,8 +907,6 @@ input[type="color"] {
 
 .modal-backdrop {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,.5);
-  backdrop-filter: blur(4px);
   z-index: 800;
   display: flex;
   align-items: center;
@@ -918,19 +916,27 @@ input[type="color"] {
   pointer-events: none;
   transition: opacity .22s ease;
 }
+/* Blur lives on ::before so it never blocks child rendering */
+.modal-backdrop::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: -1;
+}
 .modal-backdrop.open { opacity: 1; pointer-events: all; }
 
 /* ── Mobile: full-screen modal that covers the navbar ─────────────────────── */
 @media (max-width: 768px) {
   .modal-backdrop {
-    /* Sit above the navbar (950) and everything else */
     z-index: 1000;
-    /* Full viewport — no bottom gap, the modal covers the nav */
     padding: env(safe-area-inset-top, 16px) 16px 16px;
     align-items: center;
     justify-content: center;
-    /* Stronger blur to match the transaction detail panel */
-    background: rgba(0, 0, 0, 0.55);
+  }
+  .modal-backdrop::before {
+    background: rgba(0,0,0,.55);
     backdrop-filter: blur(8px) saturate(160%);
     -webkit-backdrop-filter: blur(8px) saturate(160%);
   }
@@ -956,6 +962,7 @@ input[type="color"] {
   box-shadow: var(--shadow-lg);
   transform: scale(.96) translateY(6px);
   transition: transform .26s cubic-bezier(0.22,1,0.36,1);
+  will-change: transform;
 }
 .modal-backdrop.open .modal {
   transform: scale(1) translateY(0);
