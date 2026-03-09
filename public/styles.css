@@ -907,25 +907,23 @@ input[type="color"] {
 
 .modal-backdrop {
   position: fixed; inset: 0;
+  background: transparent;
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
   z-index: 800;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  opacity: 0;
   pointer-events: none;
-  transition: opacity .22s ease;
+  transition: backdrop-filter .28s ease, background .28s ease;
 }
-/* Blur lives on ::before so it never blocks child rendering */
-.modal-backdrop::before {
-  content: '';
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  z-index: -1;
+.modal-backdrop.open {
+  background: rgba(0,0,0,.12);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: all;
 }
-.modal-backdrop.open { opacity: 1; pointer-events: all; }
 
 /* ── Mobile: full-screen modal that covers the navbar ─────────────────────── */
 @media (max-width: 768px) {
@@ -935,10 +933,10 @@ input[type="color"] {
     align-items: center;
     justify-content: center;
   }
-  .modal-backdrop::before {
-    background: rgba(0,0,0,.55);
-    backdrop-filter: blur(8px) saturate(160%);
-    -webkit-backdrop-filter: blur(8px) saturate(160%);
+  .modal-backdrop.open {
+    background: rgba(0,0,0,.15);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
   }
   .modal {
     /* Fill the space between status bar and bottom edge */
