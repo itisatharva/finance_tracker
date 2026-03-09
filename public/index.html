@@ -567,40 +567,32 @@
 <script type="module" src="app.js"></script>
 
 <!-- IMPORT CSV MODAL -->
-<div class="modal-backdrop" id="importModalBg">
-  <div class="modal" style="max-width:640px;">
-    <div class="modal-head">
-      <h2>Import Transactions</h2>
-      <button class="btn-close-settings" onclick="closeImportModal()">×</button>
+<!-- ── Import Transactions Panel ── -->
+<div id="importPanelBg" class="import-backdrop">
+  <div class="import-panel" id="importPanel">
+    <div class="import-head">
+      <span class="import-title">Import Transactions</span>
+      <button class="import-close-btn" id="importCloseBtn" aria-label="Close">×</button>
     </div>
-    <div class="modal-body">
-      <p style="color:var(--text-2);font-size:.9rem;margin-bottom:16px;">
-        Paste your CSV data below. Format: <code>Date,Type,Category,Amount,Description</code>
-      </p>
-      
-      <div style="background:var(--bg-subtle);padding:12px;border-radius:var(--r-md);margin-bottom:16px;font-family:monospace;font-size:.82rem;color:var(--text-2);">
-        <strong>Example:</strong><br>
-        01/02/2026,income,Salary,4000,Money from Baba<br>
-        01/02/2026,expense,Bills & Utilities,3100,Room Bill<br>
-        01/02/2026,expense,Transport,211.44,Train ticket
+    <div class="import-body">
+      <p class="import-hint">Format: <code>DD/MM/YYYY,type,Category,Amount,Description</code></p>
+      <div class="import-example">
+        <span class="import-example-label">Example</span>
+        01/02/2026,income,Salary,4000,Monthly salary<br>
+        05/02/2026,expense,Food &amp; Dining,350,Lunch
       </div>
-      
-      <div style="margin-bottom:16px;">
-        <label style="display:block;margin-bottom:8px;font-weight:600;">CSV Data:</label>
-        <textarea id="csvInput" rows="12" style="width:100%;font-family:monospace;font-size:.85rem;padding:12px;border:1.5px solid var(--border);border-radius:var(--r-md);background:var(--bg-page);color:var(--text-1);resize:vertical;" placeholder="Paste CSV here..."></textarea>
+      <label class="import-field-label">Paste CSV data</label>
+      <textarea id="csvInput" class="import-textarea" placeholder="01/02/2026,expense,Transport,211,Train ticket&#10;..."></textarea>
+      <div id="importError" class="import-error" style="display:none;"></div>
+      <div id="importPreview" class="import-preview" style="display:none;">
+        <span class="import-preview-label">Preview</span>
+        <div id="importPreviewList" class="import-preview-list"></div>
       </div>
-      
-      <div id="importPreview" style="display:none;margin-top:16px;padding:16px;background:var(--bg-subtle);border-radius:var(--r-md);max-height:200px;overflow-y:auto;">
-        <strong style="display:block;margin-bottom:8px;">Preview:</strong>
-        <div id="importPreviewList"></div>
-      </div>
-      
-      <div id="importError" style="display:none;margin-top:12px;padding:12px;background:rgba(232,69,69,0.1);color:var(--red);border-radius:var(--r-md);font-size:.88rem;"></div>
     </div>
-    <div class="modal-foot" style="display:flex;gap:8px;">
-      <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
-      <button class="btn btn-secondary" onclick="previewImport()">Preview</button>
-      <button class="btn btn-primary" onclick="executeImport()">Import</button>
+    <div class="import-foot">
+      <button class="btn btn-secondary" id="importCancelBtn">Cancel</button>
+      <button class="btn btn-secondary" id="importPreviewBtn">Preview</button>
+      <button class="btn btn-primary" id="importDoBtn">Import</button>
     </div>
   </div>
 </div>

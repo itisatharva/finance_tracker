@@ -579,185 +579,135 @@ window.closeCatsModal = function() {
 };
 
 // ─── CSV Import ──────────────────────────────────────────────────────────────
-window.openImportModal = function() {
-  document.getElementById('csvInput').value = '';
-  document.getElementById('importPreview').style.display = 'none';
-  document.getElementById('importError').style.display = 'none';
-  document.getElementById('importModalBg').classList.add('open');
-  document.body.style.overflow = 'hidden';
-};
-
-window.closeImportModal = function() {
-  document.getElementById('importModalBg').classList.remove('open');
-  document.body.style.overflow = '';
-};
-
-window.previewImport = function() {
-  const csvText = document.getElementById('csvInput').value.trim();
+(function wireImport() {
+  const bg      = document.getElementById('importPanelBg');
+  const closeBtn = document.getElementById('importCloseBtn');
+  const cancelBtn = document.getElementById('importCancelBtn');
+  const previewBtn = document.getElementById('importPreviewBtn');
+  const doBtn   = document.getElementById('importDoBtn');
+  const textarea = document.getElementById('csvInput');
   const errorEl = document.getElementById('importError');
   const previewEl = document.getElementById('importPreview');
   const previewList = document.getElementById('importPreviewList');
-  
-  errorEl.style.display = 'none';
-  previewEl.style.display = 'none';
-  
-  if (!csvText) {
-    errorEl.textContent = 'Please paste CSV data first';
-    errorEl.style.display = 'block';
-    return;
-  }
-  
-  try {
-    const parsed = parseCSV(csvText);
-    if (parsed.length === 0) {
-      errorEl.textContent = 'No valid transactions found';
-      errorEl.style.display = 'block';
-      return;
-    }
-    
-    previewList.innerHTML = parsed.slice(0, 10).map(tx => 
-      `<div style="padding:4px 0;font-size:.85rem;">
-        ${tx.date} • ${tx.type} • ${tx.category} • ₹${tx.amount} • ${tx.description}
-      </div>`
-    ).join('') + (parsed.length > 10 ? `<div style="padding:8px 0;color:var(--text-3);">...and ${parsed.length - 10} more</div>` : '');
-    
-    previewEl.style.display = 'block';
-  } catch (err) {
-    errorEl.textContent = 'Error: ' + err.message;
-    errorEl.style.display = 'block';
-  }
-};
 
-window.executeImport = async function() {
-  const csvText = document.getElementById('csvInput').value.trim();
-  const errorEl = document.getElementById('importError');
-  const previewEl = document.getElementById('importPreview');
-  const previewList = document.getElementById('importPreviewList');
-  const importBtn = document.querySelector('#importModalBg .modal-foot .btn-primary');
-  
-  if (!csvText) {
-    errorEl.textContent = 'Please paste CSV data first';
-    errorEl.style.display = 'block';
-    return;
+  function openImport() {
+    textarea.value = '';
+    errorEl.style.display = 'none';
+    previewEl.style.display = 'none';
+    doBtn.textContent = 'Import';
+    doBtn.disabled = false;
+    doBtn.style.background = '';
+    bg.classList.add('open');
+    document.body.style.overflow = 'hidden';
   }
-  
-  try {
-    const parsed = parseCSV(csvText);
-    if (parsed.length === 0) throw new Error('No valid transactions found');
-    
-    importBtn.disabled = true;
-    importBtn.textContent = 'Importing...';
-    
+
+  function closeImport() {
+    bg.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // expose for settings button
+  window.openImportModal  = openImport;
+  window.closeImportModal = closeImport;
+
+  closeBtn.addEventListener('click', closeImport);
+  cancelBtn.addEventListener('click', closeImport);
+
+  // close on backdrop click (not panel click)
+  bg.addEventListener('click', function(e) {
+    if (e.target === bg) closeImport();
+  });
+
+  previewBtn.addEventListener('click', function() {
+    const csv = textarea.value.trim();
+    errorEl.style.display = 'none';
+    previewEl.style.display = 'none';
+    if (!csv) { showError('Please paste CSV data first.'); return; }
+    try {
+      const rows = parseCSV(csv);
+      if (!rows.length) { showError('No valid transactions found. Check the format.'); return; }
+      previewList.innerHTML = rows.slice(0, 10).map(r =>
+        `<div>${r.date} · <span style="color:${r.type==='income'?'var(--green)':'var(--red)'}">${r.type}</span> · ${r.category} · ₹${r.amount}${r.description ? ' · ' + r.description : ''}</div>`
+      ).join('') + (rows.length > 10 ? `<div style="color:var(--text-3);margin-top:4px;">…and ${rows.length - 10} more</div>` : '');
+      previewEl.style.display = 'block';
+    } catch(e) { showError('Parse error: ' + e.message); }
+  });
+
+  doBtn.addEventListener('click', async function() {
+    const csv = textarea.value.trim();
+    errorEl.style.display = 'none';
+    if (!csv) { showError('Please paste CSV data first.'); return; }
+    let rows;
+    try {
+      rows = parseCSV(csv);
+      if (!rows.length) { showError('No valid transactions found.'); return; }
+    } catch(e) { showError('Parse error: ' + e.message); return; }
+
+    doBtn.disabled = true;
+    doBtn.innerHTML = '<span class="btn-spinner" style="display:inline-block;vertical-align:middle;width:13px;height:13px;border-width:2px;margin-right:6px;"></span>Importing…';
     previewEl.style.display = 'block';
-    previewList.innerHTML = `<div style="color:var(--text-2);">Starting import of ${parsed.length} transactions...</div>`;
-    
-    let imported = 0;
-    let failed = 0;
-    const errors = [];
-    
-    for (let i = 0; i < parsed.length; i++) {
-      const tx = parsed[i];
-      
+    previewList.innerHTML = `<div style="color:var(--text-2)">Starting import of ${rows.length} transactions…</div>`;
+
+    let ok = 0, fail = 0, errs = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
       try {
-        await window.addDoc(
-          window.collection(window.db, 'users', uid, 'transactions'),
-          {
-            type: tx.type,
-            category: tx.category,
-            amount: tx.amount,
-            description: tx.description,
-            selectedDate: tx.dateObj,
-            createdAt: window.serverTimestamp()
-          }
-        );
-        imported++;
-        
-        if (i % 10 === 0 || i === parsed.length - 1) {
-          importBtn.textContent = `Importing... ${imported}/${parsed.length}`;
-          previewList.innerHTML = `<div style="color:var(--green);font-weight:600;">✓ Imported ${imported} of ${parsed.length}</div>`;
-        }
-        
-        if (i % 20 === 0 && i > 0) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-        
-      } catch (err) {
-        failed++;
-        errors.push(`Row ${i + 2}: ${err.message}`);
-        console.error('Import error:', tx, err);
-      }
+        await window.addDoc(window.collection(window.db, 'users', uid, 'transactions'), {
+          type: r.type, category: r.category, amount: r.amount,
+          description: r.description, selectedDate: r.dateObj,
+          createdAt: window.serverTimestamp()
+        });
+        ok++;
+        if (i % 5 === 0 || i === rows.length - 1)
+          previewList.innerHTML = `<div style="color:var(--green);font-weight:600">✓ Imported ${ok} of ${rows.length}</div>`;
+      } catch(e) { fail++; errs.push(`Row ${i+2}: ${e.message}`); }
+      if (i % 20 === 0 && i > 0) await new Promise(r => setTimeout(r, 200));
     }
-    
-    if (failed > 0) {
-      errorEl.innerHTML = `<strong>Imported ${imported}, Failed ${failed}</strong><br>${errors.slice(0, 3).join('<br>')}`;
+
+    if (fail) {
+      errorEl.innerHTML = `<strong>Imported ${ok}, failed ${fail}</strong><br>${errs.slice(0,3).join('<br>')}`;
       errorEl.style.display = 'block';
     }
-    
-    importBtn.textContent = `✓ Imported ${imported}!`;
-    importBtn.style.background = 'var(--green)';
-    previewList.innerHTML = `<div style="color:var(--green);font-weight:700;font-size:1rem;">✓ Successfully imported ${imported} transactions!</div>`;
-    
-    setTimeout(() => {
-      closeImportModal();
-      importBtn.disabled = false;
-      importBtn.textContent = 'Import';
-      importBtn.style.background = '';
-    }, 2000);
-    
-  } catch (err) {
-    errorEl.textContent = 'Import failed: ' + err.message;
+    previewList.innerHTML = `<div style="color:var(--green);font-weight:700">✓ Done! ${ok} transaction${ok!==1?'s':''} imported.</div>`;
+    doBtn.innerHTML = '✓ Done!';
+    doBtn.style.background = 'var(--green)';
+    setTimeout(() => { closeImport(); }, 1800);
+  });
+
+  function showError(msg) {
+    errorEl.textContent = msg;
     errorEl.style.display = 'block';
-    importBtn.disabled = false;
-    importBtn.textContent = 'Import';
   }
-};
+})();
 
 function parseCSV(csvText) {
   const lines = csvText.split('\n').map(l => l.trim()).filter(l => l);
   const results = [];
-  
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    
     if (i === 0 && line.toLowerCase().includes('date')) continue;
-    if (!line) continue;
-    
     const parts = line.split(',').map(p => p.trim());
     if (parts.length < 4) continue;
-    
     const dateStr = parts[0];
     const type = parts[1].toLowerCase();
     const category = parts[2];
     const amountStr = parts[3];
     const description = parts.slice(4).join(',').replace(/^["']|["']$/g, '');
-    
     if (type !== 'income' && type !== 'expense') continue;
-    
     const amount = parseFloat(amountStr.replace(/[^0-9.]/g, ''));
     if (isNaN(amount) || amount <= 0) continue;
-    
     const dateParts = dateStr.split('/');
     if (dateParts.length !== 3) continue;
-    
-    const month = parseInt(dateParts[0]);
-    const day = parseInt(dateParts[1]);
-    const year = parseInt(dateParts[2]);
-    
-    if (isNaN(month) || isNaN(day) || isNaN(year)) continue;
-    if (month < 1 || month > 12 || day < 1 || day > 31) continue;
-    
-    const dateObj = new Date(year, month - 1, day, 12, 0, 0);
-    
-    results.push({
-      date: dateStr,
-      type,
-      category,
-      amount,
-      description: description || '',
-      dateObj
-    });
+    let day, month, year;
+    // Support DD/MM/YYYY or MM/DD/YYYY — if first part > 12 assume DD/MM/YYYY
+    const a = parseInt(dateParts[0]), b = parseInt(dateParts[1]), yr = parseInt(dateParts[2]);
+    if (isNaN(a)||isNaN(b)||isNaN(yr)) continue;
+    if (a > 12) { day=a; month=b; year=yr; }
+    else { month=a; day=b; year=yr; }
+    if (month<1||month>12||day<1||day>31) continue;
+    results.push({ date: dateStr, type, category, amount, description: description||'',
+      dateObj: new Date(year, month-1, day, 12, 0, 0) });
   }
-  
   return results;
 }
 window.addCat = async function(type) {
