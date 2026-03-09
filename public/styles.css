@@ -928,12 +928,11 @@ input[type="color"] {
 .import-backdrop.open .import-panel {
   transform: translateY(0);
 }
-/* Desktop: centred modal with dim overlay */
+/* Desktop: centred modal */
 @media (min-width: 600px) {
   .import-backdrop.open {
     align-items: center;
     padding: 20px;
-    background: rgba(0,0,0,.4);
   }
   .import-panel {
     border-radius: var(--r-xl);
