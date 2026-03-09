@@ -903,23 +903,17 @@ input[type="color"] {
 }
 .add-cat-color-wrap:hover .add-cat-color-swatch { transform: scale(1.1); }
 
-/* ---------- IMPORT PANEL (same pattern as tx detail panel) ---------- */
+/* ---------- IMPORT PANEL ---------- */
+/* No overlay/blur — pure panel slide-in, no compositing issues on any browser */
 .import-backdrop {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0);
-  backdrop-filter: blur(0px);
-  -webkit-backdrop-filter: blur(0px);
   z-index: 900;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   pointer-events: none;
-  transition: background .28s ease, backdrop-filter .28s ease;
 }
 .import-backdrop.open {
-  background: rgba(0,0,0,.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   pointer-events: all;
 }
 .import-panel {
@@ -928,26 +922,35 @@ input[type="color"] {
   border-radius: var(--r-xl) var(--r-xl) 0 0;
   width: 100%;
   max-width: 620px;
-  box-shadow: 0 -4px 40px rgba(0,0,0,.18);
+  box-shadow: 0 -8px 48px rgba(0,0,0,.28);
   transform: translateY(100%);
-  opacity: 0;
-  transition: transform .32s cubic-bezier(0.22,1,0.36,1), opacity .22s ease;
+  transition: transform .32s cubic-bezier(0.22,1,0.36,1);
   overflow: hidden;
 }
 .import-backdrop.open .import-panel {
   transform: translateY(0);
-  opacity: 1;
 }
-/* Desktop: show as centred modal */
+/* Desktop: centred modal */
 @media (min-width: 600px) {
-  .import-backdrop { align-items: center; padding: 20px; }
+  .import-backdrop {
+    align-items: center;
+    padding: 20px;
+    background: rgba(0,0,0,0);
+    transition: background .22s ease;
+  }
+  .import-backdrop.open {
+    background: rgba(0,0,0,.35);
+  }
   .import-panel {
     border-radius: var(--r-xl);
-    transform: scale(.95) translateY(10px);
+    transform: scale(.95) translateY(12px);
     max-height: 88vh;
     overflow-y: auto;
+    box-shadow: 0 8px 48px rgba(0,0,0,.22);
   }
-  .import-backdrop.open .import-panel { transform: scale(1) translateY(0); }
+  .import-backdrop.open .import-panel {
+    transform: scale(1) translateY(0);
+  }
 }
 /* Mobile: sit above navbar */
 @media (max-width: 599px) {

@@ -598,7 +598,8 @@ window.closeCatsModal = function() {
     doBtn.disabled = false;
     doBtn.style.background = '';
     bg.classList.add('open');
-    document.body.style.overflow = 'hidden';
+    // Only lock scroll on desktop (mobile has no bg overlay to scroll under)
+    if (window.innerWidth >= 600) document.body.style.overflow = 'hidden';
   }
 
   function closeImport() {
