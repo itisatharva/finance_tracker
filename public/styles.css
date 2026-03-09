@@ -905,38 +905,35 @@ input[type="color"] {
 
 /* ---------- MODALS ---------- */
 
+@keyframes modal-bg-in  { from { opacity:0 } to { opacity:1 } }
+@keyframes modal-box-in { from { opacity:0; transform:scale(.95) translateY(8px) } to { opacity:1; transform:scale(1) translateY(0) } }
+
 .modal-backdrop {
   position: fixed; inset: 0;
-  background: transparent;
-  backdrop-filter: blur(0px);
-  -webkit-backdrop-filter: blur(0px);
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   z-index: 800;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  pointer-events: none;
-  transition: backdrop-filter .28s ease, background .28s ease;
 }
 .modal-backdrop.open {
-  background: rgba(0,0,0,.12);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  pointer-events: all;
+  display: flex;
+  animation: modal-bg-in .2s ease forwards;
+}
+.modal-backdrop.open .modal {
+  animation: modal-box-in .25s cubic-bezier(0.22,1,0.36,1) forwards;
 }
 
 /* ── Mobile: full-screen modal that covers the navbar ─────────────────────── */
 @media (max-width: 768px) {
-  .modal-backdrop {
+  .modal-backdrop.open {
     z-index: 1000;
     padding: env(safe-area-inset-top, 16px) 16px 16px;
     align-items: center;
     justify-content: center;
-  }
-  .modal-backdrop.open {
-    background: rgba(0,0,0,.15);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
   }
   .modal {
     /* Fill the space between status bar and bottom edge */
@@ -958,12 +955,6 @@ input[type="color"] {
   max-height: 88vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
-  transform: scale(.96) translateY(6px);
-  transition: transform .26s cubic-bezier(0.22,1,0.36,1);
-  will-change: transform;
-}
-.modal-backdrop.open .modal {
-  transform: scale(1) translateY(0);
 }
 .modal-head {
   display: flex;
