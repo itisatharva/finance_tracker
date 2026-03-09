@@ -232,11 +232,7 @@ function wireSettingsDrawer() {
   const btnImportCSV = document.getElementById('btnImportCSV');
   if (btnImportCSV) {
     btnImportCSV.addEventListener('click', () => {
-      const drawer = document.getElementById('settingsDrawer');
-      const backdrop = document.getElementById('settingsBackdrop');
-      if (drawer) drawer.classList.remove('open');
-      if (backdrop) backdrop.classList.remove('open');
-      document.body.style.overflow = '';
+      closeDrawerAndRestoreNav();
       openImportModal();
     });
   }
