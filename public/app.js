@@ -967,31 +967,67 @@ function wireAddTxForm() {
     spinner.classList.remove('hidden');
     btn.disabled = true;
 
+    // Helper: race Firestore write against a timeout so the spinner always clears.
+    // If offline, Firestore queues the write locally (if persistence is on) — we
+    // treat a timeout as a successful queue and show "Saved" optimistically.
+    const _withTimeout = (promise, ms) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), ms))
+    ]);
+
+    const offline = !navigator.onLine;
     try {
-      await window.addDoc(
-        window.collection(window.db, 'users', uid, 'transactions'),
-        { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), createdAt: window.serverTimestamp() }
+      await _withTimeout(
+        window.addDoc(
+          window.collection(window.db, 'users', uid, 'transactions'),
+          { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), createdAt: window.serverTimestamp() }
+        ),
+        offline ? 3500 : 10000   // short wait offline (queued fast), longer online
       );
       spinner.classList.add('hidden');
       done.classList.remove('hidden');
       btn.style.background = 'var(--green)';
       vibrate();
+      if (offline) {
+        label.textContent = '✓ Queued';
+      }
       document.getElementById('txAmount').value = '';
       document.getElementById('txNote').value   = '';
       document.getElementById('txCategory').value = '';
       document.getElementById('txDate').valueAsDate = new Date();
       setTimeout(() => {
         done.classList.add('hidden');
+        label.textContent = 'Add';
         label.classList.remove('hidden');
         btn.style.background = '';
         btn.disabled = false;
-      }, 2000);
+      }, offline ? 2500 : 2000);
     } catch (err) {
-      console.error(err);
-      alert('Failed to save — check your connection.');
-      spinner.classList.add('hidden');
-      label.classList.remove('hidden');
-      btn.disabled = false;
+      const timedOut = err.message === '__timeout__';
+      if (timedOut) {
+        // Timed out — Firestore has the write queued; treat as success
+        spinner.classList.add('hidden');
+        done.classList.remove('hidden');
+        btn.style.background = 'var(--green)';
+        vibrate();
+        document.getElementById('txAmount').value = '';
+        document.getElementById('txNote').value   = '';
+        document.getElementById('txCategory').value = '';
+        document.getElementById('txDate').valueAsDate = new Date();
+        setTimeout(() => {
+          done.classList.add('hidden');
+          label.textContent = 'Add';
+          label.classList.remove('hidden');
+          btn.style.background = '';
+          btn.disabled = false;
+        }, 2000);
+      } else {
+        console.error(err);
+        alert('Failed to save — check your connection.');
+        spinner.classList.add('hidden');
+        label.classList.remove('hidden');
+        btn.disabled = false;
+      }
     }
   });
 }
@@ -1453,21 +1489,20 @@ window.saveEdit = async function() {
     saveBtn.innerHTML = '<span class="btn-spinner"></span> Saving…';
   }
 
-  try {
-    await window.setDoc(
-      window.doc(window.db, 'users', uid, 'transactions', editTxId),
-      { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), updatedAt: window.serverTimestamp() },
-      { merge: true }
-    );
+  const _editTimeout = (promise, ms) => Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), ms))
+  ]);
+
+  const _editOffline = !navigator.onLine;
+  const _showEditSaved = () => {
     vibrate();
-    // Show green saved state
     if (saveBtn) {
-      saveBtn.innerHTML = '✓ Saved';
+      saveBtn.innerHTML = _editOffline ? '✓ Queued' : '✓ Saved';
       saveBtn.style.background = 'var(--green)';
       saveBtn.style.color = '#fff';
       saveBtn.style.borderColor = 'var(--green)';
     }
-    // Auto-close after brief confirmation
     setTimeout(() => {
       if (saveBtn) {
         saveBtn.style.background = '';
@@ -1478,12 +1513,29 @@ window.saveEdit = async function() {
       }
       closeEditModal();
     }, 900);
+  };
+
+  try {
+    await _editTimeout(
+      window.setDoc(
+        window.doc(window.db, 'users', uid, 'transactions', editTxId),
+        { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), updatedAt: window.serverTimestamp() },
+        { merge: true }
+      ),
+      _editOffline ? 3500 : 10000
+    );
+    _showEditSaved();
   } catch (e) {
-    if (saveBtn) {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = origHtml || 'Save';
+    if (e.message === '__timeout__') {
+      // Queued offline — treat as success
+      _showEditSaved();
+    } else {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = origHtml || 'Save';
+      }
+      alert('Could not save: ' + e.message);
     }
-    alert('Could not save: ' + e.message);
   }
 };
 
