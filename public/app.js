@@ -1444,12 +1444,47 @@ window.saveEdit = async function() {
   const note     = document.getElementById('editNote').value.trim();
   const type     = catType(category);
   if (!category || !amount || !dateVal || !type) { alert('Please fill all fields'); return; }
-  await window.setDoc(
-    window.doc(window.db, 'users', uid, 'transactions', editTxId),
-    { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), updatedAt: window.serverTimestamp() },
-    { merge: true }
-  );
-  closeEditModal(); vibrate();
+
+  // Show saving state
+  const saveBtn = document.querySelector('#editModalBg .btn-primary');
+  const origHtml = saveBtn ? saveBtn.innerHTML : null;
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="btn-spinner"></span> Saving…';
+  }
+
+  try {
+    await window.setDoc(
+      window.doc(window.db, 'users', uid, 'transactions', editTxId),
+      { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), updatedAt: window.serverTimestamp() },
+      { merge: true }
+    );
+    vibrate();
+    // Show green saved state
+    if (saveBtn) {
+      saveBtn.innerHTML = '✓ Saved';
+      saveBtn.style.background = 'var(--green)';
+      saveBtn.style.color = '#fff';
+      saveBtn.style.borderColor = 'var(--green)';
+    }
+    // Auto-close after brief confirmation
+    setTimeout(() => {
+      if (saveBtn) {
+        saveBtn.style.background = '';
+        saveBtn.style.color = '';
+        saveBtn.style.borderColor = '';
+        saveBtn.disabled = false;
+        if (origHtml) saveBtn.innerHTML = origHtml;
+      }
+      closeEditModal();
+    }, 900);
+  } catch (e) {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = origHtml || 'Save';
+    }
+    alert('Could not save: ' + e.message);
+  }
 };
 
 // ─── Stats (all-time) ─────────────────────────────────────────────────────────
@@ -1531,34 +1566,15 @@ function wireAddPending() {
     const raw    = document.getElementById('pendingAmt').value.replace(/,/g,'').trim();
     const amount = parseFloat(raw);
     if (!name || !amount || amount <= 0) { alert('Enter a name and amount'); return; }
-
-    if (_editPendingId) {
-      // Save edit
-      await window.setDoc(
-        window.doc(window.db, 'users', uid, 'pending', _editPendingId),
-        { name, amount, updatedAt: window.serverTimestamp() },
-        { merge: true }
-      );
-      cancelEditPending();
-    } else {
-      // Add new
-      await window.addDoc(
-        window.collection(window.db, 'users', uid, 'pending'),
-        { name, amount, createdAt: window.serverTimestamp() }
-      );
-      document.getElementById('pendingName').value = '';
-      document.getElementById('pendingAmt').value  = '';
-    }
+    await window.addDoc(
+      window.collection(window.db, 'users', uid, 'pending'),
+      { name, amount, createdAt: window.serverTimestamp() }
+    );
+    document.getElementById('pendingName').value = '';
+    document.getElementById('pendingAmt').value  = '';
     vibrate();
   });
-
-  // ESC key cancels edit mode
-  document.getElementById('pendingName').addEventListener('keydown', e => {
-    if (e.key === 'Escape' && _editPendingId) cancelEditPending();
-  });
 }
-
-let _editPendingId = null;
 
 function renderPendingList() {
   const el = document.getElementById('pendingList');
@@ -1571,41 +1587,15 @@ function renderPendingList() {
       <input type="checkbox" title="Mark as cleared" onchange="clearPending('${p.id}')">
       <span class="p-name">${p.name}</span>
       <span class="p-amount">${fmt(p.amount)}</span>
-      <button class="p-edit-btn" onclick="openEditPending('${p.id}')" title="Edit" aria-label="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
     `;
     el.appendChild(div);
   });
 }
 
 window.clearPending = async function(id) {
-  // If currently editing this pending item, cancel the edit
-  if (_editPendingId === id) cancelEditPending();
   await window.deleteDoc(window.doc(window.db, 'users', uid, 'pending', id));
   vibrate();
 };
-
-window.openEditPending = function(id) {
-  const p = pendingAmounts.find(x => x.id === id);
-  if (!p) return;
-  _editPendingId = id;
-  document.getElementById('pendingName').value = p.name;
-  document.getElementById('pendingAmt').value  = p.amount;
-  const btn = document.getElementById('addPendingBtn');
-  btn.textContent = 'Save';
-  btn.classList.add('btn-primary');
-  // scroll form into view on mobile
-  document.getElementById('pendingName').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  document.getElementById('pendingName').focus();
-};
-
-function cancelEditPending() {
-  _editPendingId = null;
-  document.getElementById('pendingName').value = '';
-  document.getElementById('pendingAmt').value  = '';
-  const btn = document.getElementById('addPendingBtn');
-  btn.textContent = 'Add';
-  btn.classList.remove('btn-primary');
-}
 
 // ─── Analytics: Daily ─────────────────────────────────────────────────────────
 function renderDaily() {

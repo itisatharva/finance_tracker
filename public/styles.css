@@ -589,26 +589,7 @@ input[type="color"] {
 }
 .pending-item .p-name  { flex: 1; font-weight: 600; font-size: .9rem; color: var(--text-1); }
 .pending-item .p-amount { font-weight: 700; color: var(--orange); font-size: .95rem; white-space: nowrap; }
-.pending-item .p-edit-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  border: 1.5px solid var(--border);
-  background: transparent;
-  color: var(--text-3);
-  transition: all .18s ease;
-  padding: 0;
-}
-.pending-item .p-edit-btn:hover {
-  border-color: var(--ink);
-  color: var(--text-1);
-  background: var(--bg-subtle);
-}
+
 
 /* ---------- ANALYTICS ---------- */
 
@@ -1335,15 +1316,23 @@ select:focus option { animation: fadeIn .1s ease; }
   .tx-item { flex-wrap: wrap; }
   .tx-actions { width: 100%; }
   .tx-actions .btn-sm { flex: 1; text-align: center; }
-  .txa-confirm { flex-wrap: wrap; }
+  /* confirm row on mobile: buttons side-by-side, dont-ask below */
+  .txa-confirm {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 4px 0 2px;
+  }
+  .txa-confirm .tx-confirm-label { font-size: .82rem; }
+  .txa-confirm .btn-sm { flex: 1; min-width: 0; }
   .txa-confirm .tx-dont-ask {
     width: 100%;
-    margin-top: 4px;
+    margin-top: 2px;
     margin-left: 0;
     justify-content: flex-start;
     border: none;
     padding: 0;
-    font-size: .72rem;
+    font-size: .75rem;
+    gap: 5px;
   }
 }
 
