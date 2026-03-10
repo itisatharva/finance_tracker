@@ -987,14 +987,24 @@ function wireAddTxForm() {
     btn.disabled = true;
 
     try {
-      await window.addDoc(
+      // When offline, Firestore queues the write locally but the addDoc promise
+      // never resolves until connectivity returns. Race it against a short
+      // timeout — if it hasn't resolved and we're offline, treat as "Queued".
+      const QUEUE_TIMEOUT = 800; // ms
+      const addDocPromise = window.addDoc(
         window.collection(window.db, 'users', uid, 'transactions'),
         { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), createdAt: window.serverTimestamp() }
       );
+      const timeoutPromise = new Promise(resolve =>
+        setTimeout(() => resolve('__queued__'), QUEUE_TIMEOUT)
+      );
+      const result = await Promise.race([addDocPromise, timeoutPromise]);
+      const wasQueued = result === '__queued__' && !navigator.onLine;
+
       spinner.classList.add('hidden');
       done.classList.remove('hidden');
-      btn.style.background = 'var(--green)';
-      vibrate();
+      btn.style.background = wasQueued ? 'var(--amber, #f59e0b)' : 'var(--green)';
+      if (!wasQueued) vibrate();
       document.getElementById('txAmount').value = '';
       document.getElementById('txNote').value   = '';
       document.getElementById('txCategory').value = '';
