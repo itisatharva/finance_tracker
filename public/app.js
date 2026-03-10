@@ -1003,8 +1003,16 @@ function wireAddTxForm() {
 
       spinner.classList.add('hidden');
       done.classList.remove('hidden');
-      btn.style.background = wasQueued ? 'var(--amber, #f59e0b)' : 'var(--green)';
-      if (!wasQueued) vibrate();
+      if (wasQueued) {
+        done.textContent = '↑ Saved offline — will sync';
+        btn.style.background = '#f59e0b';
+        btn.style.color = '#1a1200';  // dark amber text — readable in both light & dark mode
+      } else {
+        done.textContent = '✓ Added!';
+        btn.style.background = 'var(--green)';
+        btn.style.color = '#fff';
+        vibrate();
+      }
       document.getElementById('txAmount').value = '';
       document.getElementById('txNote').value   = '';
       document.getElementById('txCategory').value = '';
@@ -1013,6 +1021,7 @@ function wireAddTxForm() {
         done.classList.add('hidden');
         label.classList.remove('hidden');
         btn.style.background = '';
+        btn.style.color = '';
         btn.disabled = false;
       }, 2000);
     } catch (err) {
