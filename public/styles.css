@@ -590,17 +590,19 @@ input[type="color"] {
 .pending-item .p-name  { flex: 1; font-weight: 600; font-size: .9rem; color: var(--text-1); }
 .pending-item .p-amount { font-weight: 700; color: var(--orange); font-size: .95rem; white-space: nowrap; }
 .pending-item .p-edit-btn {
-  font-family: inherit;
-  font-size: .75rem;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--r-pill);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   cursor: pointer;
   border: 1.5px solid var(--border);
   background: transparent;
   color: var(--text-3);
-  transition: all .15s;
-  flex-shrink: 0;
+  transition: all .18s ease;
+  padding: 0;
 }
 .pending-item .p-edit-btn:hover {
   border-color: var(--ink);
@@ -1333,6 +1335,16 @@ select:focus option { animation: fadeIn .1s ease; }
   .tx-item { flex-wrap: wrap; }
   .tx-actions { width: 100%; }
   .tx-actions .btn-sm { flex: 1; text-align: center; }
+  .txa-confirm { flex-wrap: wrap; }
+  .txa-confirm .tx-dont-ask {
+    width: 100%;
+    margin-top: 4px;
+    margin-left: 0;
+    justify-content: flex-start;
+    border: none;
+    padding: 0;
+    font-size: .72rem;
+  }
 }
 
 @media (max-width: 400px) {
@@ -1756,49 +1768,60 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Inline delete confirm row */
 /* ── tx-actions two-state: normal ↔ confirm ───────────── */
-/* Normal state inner wrapper */
+/* JS controls display via inline style — CSS is just for animation + layout */
 .txa-normal {
   display: flex;
   gap: 6px;
   align-items: center;
-  /* no transition here — we just hide instantly then show confirm */
 }
-/* Confirm state inner wrapper */
+/* Confirm row: always hidden by default via inline style="display:none" on element */
 .txa-confirm {
   display: none;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
-  flex-wrap: wrap;
-}
-/* When .tx-actions has .confirming class, swap views */
-.tx-actions.confirming .txa-normal {
-  display: none;
-}
-.tx-actions.confirming .txa-confirm {
-  display: flex;
-  animation: tx-confirm-in .24s cubic-bezier(.34,1.25,.64,1) both;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  animation: tx-confirm-in .22s cubic-bezier(.34,1.25,.64,1) both;
 }
 @keyframes tx-confirm-in {
-  from { opacity: 0; transform: scale(.82) translateX(8px); }
-  to   { opacity: 1; transform: scale(1)  translateX(0); }
+  from { opacity: 0; transform: scale(.84) translateX(6px); }
+  to   { opacity: 1; transform: scale(1) translateX(0); }
 }
 .tx-confirm-label {
   font-size: .78rem;
   font-weight: 600;
   color: var(--text-2);
   white-space: nowrap;
+  flex-shrink: 0;
 }
+/* "Don't ask again" — inline pill on desktop, wraps on mobile */
 .tx-dont-ask {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  width: 100%;
-  margin-top: 2px;
-  font-size: .72rem;
+  gap: 4px;
+  font-size: .7rem;
   color: var(--text-3);
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 3px 8px;
+  margin-left: 2px;
+  transition: border-color .15s, color .15s;
+}
+.tx-dont-ask:hover {
+  border-color: var(--text-3);
+  color: var(--text-2);
+}
+.tx-dont-ask input[type="checkbox"] {
+  accent-color: var(--red);
+  width: 11px;
+  height: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin: 0;
 }
 
 /* Description suggestions dropdown */

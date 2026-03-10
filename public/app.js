@@ -1037,7 +1037,7 @@ function buildTxDiv(tx) {
         <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
         <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
       </div>
-      <div class="txa-confirm">
+      <div class="txa-confirm" style="display:none">
         <span class="tx-confirm-label">Delete?</span>
         <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
         <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
@@ -1167,7 +1167,7 @@ function renderAllTxList() {
           <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
           <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
         </div>
-        <div class="txa-confirm">
+        <div class="txa-confirm" style="display:none">
           <span class="tx-confirm-label">Delete?</span>
           <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
           <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
@@ -1187,6 +1187,29 @@ function renderAllTxList() {
 // Uses pre-rendered .txa-normal / .txa-confirm divs inside .tx-actions.
 // Toggle class .confirming on .tx-actions — pure CSS animation, zero DOM churn.
 
+// Helper to show/hide confirm panels via inline style (bypasses SW-cached CSS issues)
+function _txConfirmShow(actions) {
+  const normal  = actions.querySelector('.txa-normal');
+  const confirm = actions.querySelector('.txa-confirm');
+  if (!normal || !confirm) return;
+  normal.style.display  = 'none';
+  confirm.style.display = 'flex';
+  // Re-trigger animation
+  confirm.style.animationName = 'none';
+  confirm.offsetWidth; // force reflow
+  confirm.style.animationName = '';
+  actions.classList.add('confirming');
+}
+
+function _txConfirmHide(actions) {
+  const normal  = actions.querySelector('.txa-normal');
+  const confirm = actions.querySelector('.txa-confirm');
+  if (!normal || !confirm) return;
+  normal.style.display  = '';
+  confirm.style.display = 'none';
+  actions.classList.remove('confirming');
+}
+
 window.showDeleteConfirm = function(id) {
   if (localStorage.getItem('skipDeleteConfirm') === '1') {
     window.confirmDeleteTx(id);
@@ -1198,15 +1221,20 @@ window.showDeleteConfirm = function(id) {
 
   // Close any other open confirms
   document.querySelectorAll('.tx-actions.confirming').forEach(a => {
-    if (a !== actions) a.classList.remove('confirming');
+    if (a !== actions) _txConfirmHide(a);
   });
+
   // Toggle this one
-  actions.classList.toggle('confirming');
+  if (actions.classList.contains('confirming')) {
+    _txConfirmHide(actions);
+  } else {
+    _txConfirmShow(actions);
+  }
 };
 
 window.cancelDeleteTx = function(btn) {
   const actions = btn.closest('.tx-actions');
-  if (actions) actions.classList.remove('confirming');
+  if (actions) _txConfirmHide(actions);
 };
 
 // Called by the pre-rendered Yes button in .txa-confirm
@@ -1543,7 +1571,7 @@ function renderPendingList() {
       <input type="checkbox" title="Mark as cleared" onchange="clearPending('${p.id}')">
       <span class="p-name">${p.name}</span>
       <span class="p-amount">${fmt(p.amount)}</span>
-      <button class="p-edit-btn" onclick="openEditPending('${p.id}')">Edit</button>
+      <button class="p-edit-btn" onclick="openEditPending('${p.id}')" title="Edit" aria-label="Edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
     `;
     el.appendChild(div);
   });

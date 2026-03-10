@@ -182,6 +182,9 @@
       display: none;
       align-items: center;
       gap: 5px;
+      width: fit-content;
+      min-width: 0;
+      max-width: max-content;
       font-family: 'DM Sans', sans-serif;
       font-size: .72rem;
       font-weight: 600;
@@ -189,10 +192,11 @@
       background: rgba(245,158,11,.12);
       border: 1.5px solid rgba(245,158,11,.3);
       border-radius: 999px;
-      padding: 2px 8px 2px 6px;
+      padding: 2px 10px 2px 7px;
       white-space: nowrap;
       margin-left: 10px;
       vertical-align: middle;
+      box-sizing: content-box;
       animation: __pwa_fadein .3s ease both;
     }
     @keyframes __pwa_fadein { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:none; } }
