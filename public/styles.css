@@ -1040,7 +1040,7 @@ input[type="color"] {
   background: rgba(0,0,0,0);
   backdrop-filter: blur(0px);
   -webkit-backdrop-filter: blur(0px);
-  z-index: 800;
+  z-index: 960;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1104,6 +1104,10 @@ input[type="color"] {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-card);
+  z-index: 1;
 }
 
 .section-label {

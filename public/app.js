@@ -1415,15 +1415,11 @@ window.openEditModal = function(id) {
   document.getElementById('editNote').value     = tx.description || '';
   document.getElementById('editModalBg').classList.add('open');
   document.body.style.overflow = 'hidden';
-  const nav = document.getElementById('bottomNav');
-  if (nav) nav.style.display = 'none';
 };
 window.closeEditModal = function() {
   document.getElementById('editModalBg').classList.remove('open');
   document.body.style.overflow = '';
   editTxId = null;
-  const nav = document.getElementById('bottomNav');
-  if (nav) nav.style.display = '';
 };
 window.saveEdit = async function() {
   const category = document.getElementById('editCategory').value;
