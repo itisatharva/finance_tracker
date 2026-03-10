@@ -31,6 +31,31 @@
   // so all states (in, idle, text-swap, out) are perfectly smooth.
 
   const BADGE_CSS = `
+    /*
+     * Only opacity + transform are GPU-composited.
+     * Layout properties (max-width, padding, margin) cause reflow on every
+     * frame and produce the choppiness. We avoid animating them entirely:
+     * badge always has its natural padding/width. Visibility is managed
+     * with a wrapper that instantly snaps between width:0 and width:auto,
+     * so layout shifts are instant (imperceptible) while the VISUAL fade
+     * runs at full GPU speed.
+     */
+
+    /* ── Wrapper: clips the badge to zero width when hidden ── */
+    #__pwa_badge_wrap {
+      display: inline-flex;
+      align-items: center;
+      overflow: hidden;
+      width: 0;
+      /* snap — no transition on the wrapper */
+      vertical-align: middle;
+    }
+    #__pwa_badge_wrap.pwa-wrap-show {
+      width: auto;
+      margin-left: 7px;
+    }
+
+    /* ── The badge itself — only opacity + transform animate ── */
     #__pwa_badge {
       display: inline-flex;
       align-items: center;
@@ -40,65 +65,61 @@
       font-weight: 600;
       white-space: nowrap;
       border-radius: 999px;
-      overflow: hidden;
-      pointer-events: none;
+      padding: 3px 10px 3px 8px;
       cursor: default;
       user-select: none;
-      vertical-align: middle;
+      flex-shrink: 0;
+      will-change: opacity, transform;
 
-      /* Hidden state — pure opacity + geometry, zero display toggling */
+      /* Hidden: invisible + shifted slightly up-left */
       opacity: 0;
-      max-width: 0;
-      padding: 3px 0;
-      margin-left: 0;
-      transform: scale(0.78) translateY(1px);
+      transform: scale(0.72) translateX(-6px);
+      pointer-events: none;
 
+      /* GPU-only transitions — silky 60fps */
       transition:
-        opacity     .45s ease,
-        max-width   .50s cubic-bezier(.34,1.1,.64,1),
-        padding     .40s ease,
-        margin-left .40s ease,
-        transform   .45s cubic-bezier(.34,1.3,.64,1);
+        opacity   0.65s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Offline state */
+    /* Offline colours */
     #__pwa_badge.pwa-badge-offline {
       color: #92400e;
       background: rgba(245,158,11,.13);
       border: 1.5px solid rgba(245,158,11,.35);
     }
-    /* Back-online state */
+    /* Back-online colours */
     #__pwa_badge.pwa-badge-online {
       color: #065f46;
       background: rgba(15,169,116,.1);
       border: 1.5px solid rgba(15,169,116,.3);
     }
 
-    /* Visible */
+    /* Visible: full opacity, natural position */
     #__pwa_badge.pwa-badge-show {
       opacity: 1;
-      max-width: 200px;
-      padding: 3px 10px 3px 7px;
-      margin-left: 6px;
-      transform: scale(1) translateY(0);
+      transform: scale(1) translateX(0);
       pointer-events: auto;
     }
 
+    /* Dot */
     #__pwa_badge_dot {
       width: 6px; height: 6px;
       border-radius: 50%;
       flex-shrink: 0;
       background: #f59e0b;
       box-shadow: 0 0 0 2px rgba(245,158,11,.25);
-      transition: background .5s ease, box-shadow .5s ease;
+      will-change: background, box-shadow;
+      transition: background 0.7s ease, box-shadow 0.7s ease;
     }
     #__pwa_badge_dot.pwa-dot-online {
       background: #0FA974;
       box-shadow: 0 0 0 2px rgba(15,169,116,.25);
     }
 
+    /* Text crossfade — fade out, swap, fade in */
     #__pwa_badge_text {
-      transition: opacity .3s ease;
+      transition: opacity 0.45s ease;
     }
     #__pwa_badge_text.pwa-text-fade {
       opacity: 0;
@@ -120,18 +141,25 @@
     s.textContent = BADGE_CSS;
     document.head.appendChild(s);
 
+    // Wrapper clips badge to zero-width when hidden (instant snap, no layout reflow animation)
+    const wrap = document.createElement('span');
+    wrap.id = '__pwa_badge_wrap';
+
     const badge = document.createElement('span');
     badge.id = '__pwa_badge';
     badge.className = 'pwa-badge-offline';
     badge.innerHTML = `<span id="__pwa_badge_dot"></span><span id="__pwa_badge_text">Offline</span>`;
-    document.body.appendChild(badge);
+
+    wrap.appendChild(badge);
+    document.body.appendChild(wrap);
   }
 
+  function _wrap()    { return document.getElementById('__pwa_badge_wrap'); }
   function _badge()   { return document.getElementById('__pwa_badge'); }
   function _dot()     { return document.getElementById('__pwa_badge_dot'); }
   function _badgeTxt(){ return document.getElementById('__pwa_badge_text'); }
 
-  // Move badge inside #dashGreetingName so it sits inline on the same line.
+  // Move wrapper inside #dashGreetingName so badge sits inline on the same line.
   // Safe to call multiple times — moves only once.
   let _placed = false;
   function _placeBadge() {
@@ -139,7 +167,7 @@
     const nameEl = document.getElementById('dashGreetingName');
     if (!nameEl) return;
     _placed = true;
-    nameEl.appendChild(_badge());
+    nameEl.appendChild(_wrap());
   }
 
   // ── Offline verification ──
@@ -167,17 +195,20 @@
 
     const fn = () => {
       _placeBadge();
-      const b = _badge(), dot = _dot(), txt = _badgeTxt();
+      const w = _wrap(), b = _badge(), dot = _dot(), txt = _badgeTxt();
       if (!b) return;
 
-      // Reset to offline styling
+      // Reset colours + text while badge is still invisible
       b.classList.remove('pwa-badge-online');
       b.classList.add('pwa-badge-offline');
       dot.classList.remove('pwa-dot-online');
       txt.classList.remove('pwa-text-fade');
       txt.textContent = 'Offline';
 
-      // Trigger fade-in on next paint
+      // Step 1: Snap wrapper open (no animation — instant layout, imperceptible)
+      w.classList.add('pwa-wrap-show');
+
+      // Step 2: Next two frames — start GPU fade-in of badge (opacity + transform only)
       requestAnimationFrame(() => requestAnimationFrame(() => {
         b.classList.add('pwa-badge-show');
       }));
@@ -193,32 +224,38 @@
     clearTimeout(_hideTimer);
     clearTimeout(_textTimer);
 
-    const b = _badge(), dot = _dot(), txt = _badgeTxt();
-    // If badge was never shown (came online before offline was triggered) — do nothing
+    const w = _wrap(), b = _badge(), dot = _dot(), txt = _badgeTxt();
+    // If badge was never shown — nothing to do
     if (!b || !b.classList.contains('pwa-badge-show')) return;
 
-    // Crossfade: fade out text → swap content + colour → fade back in
+    // Step 1: Fade out text (GPU opacity only — 450ms)
     txt.classList.add('pwa-text-fade');
+
     _textTimer = setTimeout(() => {
+      // Step 2: While text is invisible, swap colours + content (instant, no visual change)
       b.classList.remove('pwa-badge-offline');
       b.classList.add('pwa-badge-online');
       dot.classList.add('pwa-dot-online');
       txt.textContent = 'Back online!';
+
+      // Step 3: Fade text back in
       txt.classList.remove('pwa-text-fade');
 
-      // After 2.5s: fade badge out entirely
+      // Step 4: After 2.6s hold, fade the whole badge out
       _hideTimer = setTimeout(() => {
-        b.classList.remove('pwa-badge-show');
-        // After fade-out transition finishes, reset state
+        b.classList.remove('pwa-badge-show');   // GPU opacity + transform fade-out
+
+        // Step 5: After fade-out completes (650ms), snap wrapper closed + reset colours
         setTimeout(() => {
           if (!_isOffline) {
+            w.classList.remove('pwa-wrap-show');
             b.classList.remove('pwa-badge-online');
             b.classList.add('pwa-badge-offline');
             dot.classList.remove('pwa-dot-online');
           }
-        }, 500);
-      }, 2500);
-    }, 300); // matches pwa-text-fade transition
+        }, 700); // slightly longer than transition duration
+      }, 2600);
+    }, 450); // matches pwa-text-fade transition duration
   }
 
   // ── Event wiring with debounce + verification ──
