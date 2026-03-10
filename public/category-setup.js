@@ -106,7 +106,11 @@ async function persist(expenseList, incomeList) {
 
   let attempts = 0;
   while (!(window.auth && window.auth.currentUser && window.setDoc && window.db)) {
-    if (++attempts > 100) { alert('Firebase not ready — please reload.'); return; }
+    if (++attempts > 100) {
+      alert('Firebase not ready — please reload.');
+      if (btn) { btn.disabled = false; btn.textContent = 'Continue →'; }
+      return;
+    }
     await new Promise(r => setTimeout(r, 50));
   }
 

@@ -123,8 +123,14 @@ window.firebaseReady.then(() => {
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function toInputDate(d) { return d.toISOString().split('T')[0]; }
-function toDate(v) { return v && v.toDate ? v.toDate() : (v instanceof Date ? v : new Date(v || 0)); }
+function toInputDate(d) { return d ? d.toISOString().split('T')[0] : ''; }
+function toDate(v) {
+  if (v == null) return null;
+  if (v.toDate) return v.toDate();
+  if (v instanceof Date) return v;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
 function fmt(n) {
   const abs = Math.abs(n);
   const str = '₹' + abs.toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
@@ -199,7 +205,7 @@ function initMonthDropdown(currentDate, txList) {
   // Find the earliest year across all transactions; fall back to currentYear - 2
   let startYear = currentYear - 2;
   if (txList && txList.length) {
-    const years = txList.map(t => toDate(t.selectedDate).getFullYear()).filter(y => !isNaN(y));
+    const years = txList.map(t => { const d = toDate(t.selectedDate); return d ? d.getFullYear() : NaN; }).filter(y => !isNaN(y));
     if (years.length) startYear = Math.min(...years, startYear);
   }
 
@@ -355,7 +361,8 @@ function wireSettingsDrawer() {
       // Also update dashboard greeting bar avatar initials
       const dashIni2 = document.getElementById('dashAvatarInitials');
       const dashImg2 = document.getElementById('dashAvatarImg');
-      if (dashIni2 && dashImg2 && !dashImg2.src) {
+      const _user = window.auth && window.auth.currentUser;
+      if (dashIni2 && dashImg2 && !(_user && _user.photoURL)) {
         dashIni2.textContent = name.slice(0, 2).toUpperCase();
       }
       saveBtn.textContent = '✓ Saved';
@@ -971,7 +978,13 @@ function wireAddTxForm() {
 // Sort helper: selectedDate desc, then createdAt desc for same-day ties
 function txSorted(list) {
   return list.slice().sort((a, b) => {
-    const selDiff = toDate(b.selectedDate) - toDate(a.selectedDate);
+    const da = toDate(a.selectedDate);
+    const db = toDate(b.selectedDate);
+    // Transactions with no date sort to the bottom
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    const selDiff = db - da;
     if (selDiff !== 0) return selDiff;
     // null createdAt = pending server write (just added) → sort to top
     if (!a.createdAt && !b.createdAt) return 0;
@@ -983,6 +996,9 @@ function txSorted(list) {
 
 function buildTxDiv(tx) {
   const d     = toDate(tx.selectedDate);
+  const dateLabel = d
+    ? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
+    : 'No date';
   const color = catColorByName(tx.type, tx.category);
   const div   = document.createElement('div');
   div.className = 'tx-item';
@@ -992,7 +1008,7 @@ function buildTxDiv(tx) {
     <div class="tx-meta">
       <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
       ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
-      <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      <div class="tx-date">${dateLabel}</div>
     </div>
     <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
     <div class="tx-actions">
@@ -1104,6 +1120,7 @@ function renderAllTxList() {
   el.innerHTML = '';
   sorted.forEach(tx => {
     const d     = toDate(tx.selectedDate);
+    const dateLabel = d ? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : 'No date';
     const color = catColorByName(tx.type, tx.category);
     const div   = document.createElement('div');
     div.className = 'tx-item';
@@ -1113,7 +1130,7 @@ function renderAllTxList() {
       <div class="tx-meta">
         <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
         ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
-        <div class="tx-date">${d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+        <div class="tx-date">${dateLabel}</div>
       </div>
       <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
       <div class="tx-actions">
@@ -1263,8 +1280,9 @@ window.openTxDetail = function(id) {
   amtEl.className = 'txd-amount ' + tx.type;
   document.getElementById('txdCategory').innerHTML =
     `<span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span>`;
-  document.getElementById('txdDate').textContent =
-    d.toLocaleDateString('en-IN', { weekday:'short', day:'2-digit', month:'long', year:'numeric' });
+  document.getElementById('txdDate').textContent = d
+    ? d.toLocaleDateString('en-IN', { weekday:'short', day:'2-digit', month:'long', year:'numeric' })
+    : 'No date';
 
   const noteRow = document.getElementById('txdNoteRow');
   if (tx.description) {
@@ -1548,8 +1566,8 @@ function renderDaily() {
   const sel  = new Date(dateVal);
   const prev = new Date(sel); prev.setDate(prev.getDate() - 1);
 
-  const selExp  = transactions.filter(t => t.type==='expense' && toDate(t.selectedDate).toDateString()===sel.toDateString());
-  const prevExp = transactions.filter(t => t.type==='expense' && toDate(t.selectedDate).toDateString()===prev.toDateString());
+  const selExp  = transactions.filter(t => { const d = toDate(t.selectedDate); return t.type==='expense' && d && d.toDateString()===sel.toDateString(); });
+  const prevExp = transactions.filter(t => { const d = toDate(t.selectedDate); return t.type==='expense' && d && d.toDateString()===prev.toDateString(); });
   const selTotal  = selExp.reduce((s,t)=>s+t.amount,0);
   const prevTotal = prevExp.reduce((s,t)=>s+t.amount,0);
 
@@ -1634,7 +1652,7 @@ function renderMonthly() {
 
   const monthTx  = transactions.filter(t => {
     const d = toDate(t.selectedDate);
-    return d.getFullYear()===y && d.getMonth()===m-1;
+    return d && d.getFullYear()===y && d.getMonth()===m-1;
   });
   
   const prevDate = new Date(y, m-1, 1);
@@ -1643,7 +1661,7 @@ function renderMonthly() {
   const prevM = prevDate.getMonth();
   const prevMonthTx = transactions.filter(t => {
     const d = toDate(t.selectedDate);
-    return d.getFullYear()===prevY && d.getMonth()===prevM;
+    return d && d.getFullYear()===prevY && d.getMonth()===prevM;
   });
 
   const monthInc = monthTx.filter(t=>t.type==='income');
@@ -1930,7 +1948,7 @@ function renderYearly() {
   const typeLabel = yearlyType === 'income' ? 'Income' : 'Expenses';
   document.getElementById('yearlyLabel').textContent = `Monthly ${typeLabel} by Category`;
   
-  const yearlyData = transactions.filter(t => t.type===yearlyType && toDate(t.selectedDate).getFullYear()===year);
+  const yearlyData = transactions.filter(t => { const d = toDate(t.selectedDate); return t.type===yearlyType && d && d.getFullYear()===year; });
   const catSet = new Set(); yearlyData.forEach(t => catSet.add(t.category));
   if (!catSet.size) {
     document.getElementById('yearlyBody').innerHTML = `<tr><td colspan="15" class="empty">No ${yearlyType} data for ${year}</td></tr>`;
@@ -1938,7 +1956,7 @@ function renderYearly() {
   }
   const data = {};
   catSet.forEach(c => { data[c] = Array(12).fill(0); });
-  yearlyData.forEach(t => { data[t.category][toDate(t.selectedDate).getMonth()] += t.amount; });
+  yearlyData.forEach(t => { const d = toDate(t.selectedDate); if (d) data[t.category][d.getMonth()] += t.amount; });
   const sorted = Object.keys(data).sort((a,b) => data[b].reduce((s,v)=>s+v,0) - data[a].reduce((s,v)=>s+v,0));
 
   const tbody = document.getElementById('yearlyBody');
@@ -1960,7 +1978,7 @@ function renderCashflow() {
   const year = parseInt(document.getElementById('cashflowYear').value);
   if (!year) return;
 
-  const yearTx = transactions.filter(t => toDate(t.selectedDate).getFullYear() === year);
+  const yearTx = transactions.filter(t => { const d = toDate(t.selectedDate); return d && d.getFullYear() === year; });
 
   // Build monthly income + expense
   const monthInc = Array(12).fill(0);
@@ -1979,10 +1997,22 @@ function renderCashflow() {
     return;
   }
 
-  // Rolling balance: starts with startingBalance, carries month-to-month
+  // Opening balance for the selected year = startingBalance + all net from transactions
+  // that occurred strictly before Jan 1 of the selected year.
+  const yearStart = new Date(year, 0, 1);
+  const priorNet = transactions.reduce((sum, t) => {
+    const d = toDate(t.selectedDate);
+    if (d && d < yearStart) {
+      return sum + (t.type === 'income' ? t.amount : -t.amount);
+    }
+    return sum;
+  }, 0);
+  const openingBalance = startingBalance + priorNet;
+
+  // Rolling balance: starts with opening balance for the year, carries month-to-month
   const tbody = document.getElementById('cashflowBody');
   tbody.innerHTML = '';
-  let runningBalance = startingBalance;
+  let runningBalance = openingBalance;
 
   const _now = new Date();
   const _curYear = _now.getFullYear();
