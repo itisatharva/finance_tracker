@@ -32,83 +32,138 @@
   }
 
   // ── 2. Offline / Online pill ────────────────────────────────────────────────
-  function _injectOfflinePill() {
-    if (document.getElementById('__pwa_offline_pill')) return;
+  // Behaviour:
+  //  Offline: slides in from top-right → shows full message 4 s → collapses to dot + "Offline"
+  //  Online:  dot turns green, text changes to "Online" → slides out upward after 3 s
 
-    const pill = document.createElement('div');
-    pill.id = '__pwa_offline_pill';
-    pill.setAttribute('aria-live', 'polite');
-    pill.setAttribute('role', 'status');
-    pill.innerHTML = `
-      <span class="__pwa_pill_dot"></span>
-      Offline — changes will sync when you reconnect
-    `;
+  const PILL_STYLE = `
+    #__pwa_offline_pill {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 9000;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0;
+      pointer-events: none;
+      user-select: none;
+    }
+    #__pwa_pill_chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px 6px 10px;
+      border-radius: 999px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .78rem;
+      font-weight: 600;
+      letter-spacing: .01em;
+      color: var(--text-1, #1c1c1c);
+      background: var(--bg-card, #fff);
+      border: 1.5px solid var(--border, #E2D9CF);
+      box-shadow: 0 4px 16px rgba(0,0,0,.10);
+      transform: translateY(-56px);
+      opacity: 0;
+      transition: transform .38s cubic-bezier(.34,1.4,.64,1), opacity .25s, max-width .4s ease;
+      white-space: nowrap;
+      max-width: 300px;
+      overflow: hidden;
+    }
+    #__pwa_pill_chip.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    #__pwa_pill_chip.collapsed {
+      max-width: 90px;
+    }
+    .__pwa_pill_dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: background .3s, box-shadow .3s;
+      background: #f59e0b;
+      box-shadow: 0 0 0 2px rgba(245,158,11,.22);
+    }
+    .__pwa_pill_dot.online {
+      background: #0FA974;
+      box-shadow: 0 0 0 2px rgba(15,169,116,.22);
+    }
+    #__pwa_pill_text {
+      transition: opacity .25s;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  `;
 
-    const style = document.createElement('style');
-    style.textContent = `
-      #__pwa_offline_pill {
-        position: fixed;
-        top: 16px;
-        left: 50%;
-        transform: translateX(-50%) translateY(-80px);
-        z-index: 9000;
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        padding: 7px 16px 7px 12px;
-        border-radius: 999px;
-        font-family: 'DM Sans', sans-serif;
-        font-size: .8rem;
-        font-weight: 600;
-        letter-spacing: .01em;
-        color: var(--text-1, #1c1c1c);
-        background: var(--bg-card, #fff);
-        border: 1.5px solid var(--border, #E2D9CF);
-        box-shadow: 0 4px 16px rgba(0,0,0,.10);
-        transition: transform .35s cubic-bezier(.34,1.56,.64,1), opacity .25s;
-        opacity: 0;
-        pointer-events: none;
-        white-space: nowrap;
-        user-select: none;
-      }
-      #__pwa_offline_pill.visible {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
-      }
-      .__pwa_pill_dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        background: #f59e0b;
-        box-shadow: 0 0 0 2px rgba(245,158,11,.25);
-      }
-    `;
+  let _pillInjected  = false;
+  let _collapseTimer = null;
+  let _hideTimer     = null;
 
-    document.head.appendChild(style);
-    document.body.appendChild(pill);
-    return pill;
+  function _injectPill() {
+    if (_pillInjected) return;
+    _pillInjected = true;
+    const s = document.createElement('style');
+    s.textContent = PILL_STYLE;
+    document.head.appendChild(s);
+    const wrap = document.createElement('div');
+    wrap.id = '__pwa_offline_pill';
+    wrap.setAttribute('aria-live', 'polite');
+    wrap.setAttribute('role', 'status');
+    wrap.innerHTML = `
+      <div id="__pwa_pill_chip">
+        <span class="__pwa_pill_dot" id="__pwa_pill_dot"></span>
+        <span id="__pwa_pill_text">Offline — changes will sync when you reconnect</span>
+      </div>`;
+    document.body.appendChild(wrap);
   }
 
-  function _setPillVisible(visible) {
-    // Defer until DOM is ready
-    const run = () => {
-      const pill = document.getElementById('__pwa_offline_pill') || _injectOfflinePill();
-      if (!pill) return;
-      if (visible) {
-        pill.classList.add('visible');
-      } else {
-        pill.classList.remove('visible');
-      }
+  function _getPill() {
+    _injectPill();
+    return {
+      chip: document.getElementById('__pwa_pill_chip'),
+      dot:  document.getElementById('__pwa_pill_dot'),
+      text: document.getElementById('__pwa_pill_text'),
     };
-    if (document.body) run();
-    else document.addEventListener('DOMContentLoaded', run);
   }
 
-  // Initialise based on current state
-  if (!navigator.onLine) _setPillVisible(true);
-  window.addEventListener('offline', () => _setPillVisible(true));
-  window.addEventListener('online',  () => _setPillVisible(false));
+  function _showOffline() {
+    clearTimeout(_collapseTimer);
+    clearTimeout(_hideTimer);
+    const { chip, dot, text } = _getPill();
+    dot.classList.remove('online');
+    text.textContent = 'Offline — changes will sync when you reconnect';
+    chip.classList.remove('collapsed');
+    // Trigger slide-in
+    requestAnimationFrame(() => requestAnimationFrame(() => chip.classList.add('visible')));
+    // After 4 s collapse to short pill
+    _collapseTimer = setTimeout(() => {
+      text.textContent = 'Offline';
+      chip.classList.add('collapsed');
+    }, 4000);
+  }
+
+  function _showOnline() {
+    clearTimeout(_collapseTimer);
+    clearTimeout(_hideTimer);
+    const { chip, dot, text } = _getPill();
+    // Only animate if pill is visible (user was offline)
+    if (!chip.classList.contains('visible')) return;
+    dot.classList.add('online');
+    text.textContent = 'Online';
+    chip.classList.remove('collapsed');
+    // After 3 s slide out upward
+    _hideTimer = setTimeout(() => {
+      chip.classList.remove('visible');
+    }, 3000);
+  }
+
+  const _run = fn => document.body ? fn() : document.addEventListener('DOMContentLoaded', fn);
+
+  if (!navigator.onLine) _run(_showOffline);
+  window.addEventListener('offline', () => _run(_showOffline));
+  window.addEventListener('online',  () => _run(_showOnline));
 
   // ── 3. Install prompt (mobile only) ─────────────────────────────────────────
   let _deferredPrompt = null;

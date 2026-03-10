@@ -1741,12 +1741,25 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
   animation: fadeUp .15s ease;
 }
 .tx-confirm-label {
   font-size: .78rem;
   font-weight: 600;
   color: var(--text-2);
+  white-space: nowrap;
+}
+.tx-dont-ask {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  margin-top: 4px;
+  font-size: .72rem;
+  color: var(--text-3);
+  cursor: pointer;
+  user-select: none;
   white-space: nowrap;
 }
 

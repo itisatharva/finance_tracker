@@ -115,13 +115,6 @@
       </button>
     </div>
 
-    <div class="settings-group">
-      <h3>Danger Zone</h3>
-      <button class="settings-row" id="btnResetDeleteConfirm">
-        <span>Re-enable delete confirmation</span>
-      </button>
-    </div>
-
   </div>
 </aside>
 
@@ -505,24 +498,6 @@
       </div>
     </div>
     <div class="modal-foot"><button class="btn btn-primary" onclick="closeCatsModal()">Done</button></div>
-  </div>
-</div>
-
-<!-- Delete Confirmation Modal -->
-<div class="modal-backdrop" id="deleteModalBg">
-  <div class="modal" style="max-width:380px;">
-    <div class="modal-head"><h2>Delete Transaction</h2><button class="btn-close-settings" id="deleteModalClose">×</button></div>
-    <div class="modal-body" style="padding-top:8px;">
-      <p style="color:var(--text-secondary);font-size:.95rem;margin-bottom:20px;">Are you sure you want to delete this transaction? This cannot be undone.</p>
-      <label style="display:flex;align-items:center;gap:10px;font-size:.88rem;color:var(--text-3);cursor:pointer;user-select:none;">
-        <input type="checkbox" id="deleteNoAsk" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);" />
-        Don't ask again — always delete directly
-      </label>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-secondary" id="deleteCancelBtn">Cancel</button>
-      <button class="btn" id="deleteConfirmBtn" style="background:var(--red,#ef4444);color:#fff;">Delete</button>
-    </div>
   </div>
 </div>
 

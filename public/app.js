@@ -376,25 +376,11 @@ function wireSettingsDrawer() {
 
   btnOut.addEventListener('click', async () => {
     if (!confirm('Sign out?')) return;
+    // Reset delete-confirmation preference on every sign-out so it defaults to asking again on next login
+    localStorage.removeItem('skipDeleteConfirm');
     await window.fbSignOut(window.auth).catch(console.error);
     window.location.replace('login.html');
   });
-
-  const btnResetDeleteConfirm = document.getElementById('btnResetDeleteConfirm');
-  if (btnResetDeleteConfirm) {
-    // Keep button label in sync with current state
-    function syncResetBtn() {
-      const active = localStorage.getItem('skipDeleteConfirm') === '1';
-      btnResetDeleteConfirm.style.display = active ? '' : 'none';
-    }
-    syncResetBtn();
-    btnResetDeleteConfirm.addEventListener('click', () => {
-      localStorage.removeItem('skipDeleteConfirm');
-      syncResetBtn();
-      btnResetDeleteConfirm.textContent = '✓ Confirmation re-enabled';
-      setTimeout(() => { btnResetDeleteConfirm.innerHTML = '<span>Re-enable delete confirmation</span>'; }, 2000);
-    });
-  }
 
   btnCats.addEventListener('click', () => { closeDrawer(); openCatsModal(); });
 
@@ -1181,75 +1167,58 @@ function renderAllTxList() {
   });
 }
 
-// ─── Delete confirmation modal wiring ────────────────────────────────────────
-let _pendingDeleteId = null;
-
-(function wireDeleteModal() {
-  const bg          = document.getElementById('deleteModalBg');
-  const closeBtn    = document.getElementById('deleteModalClose');
-  const cancelBtn   = document.getElementById('deleteCancelBtn');
-  const confirmBtn  = document.getElementById('deleteConfirmBtn');
-  const noAskChk    = document.getElementById('deleteNoAsk');
-
-  function closeModal() {
-    bg.classList.remove('open');
-    document.body.style.overflow = '';
-    _pendingDeleteId = null;
+// ─── Inline delete confirmation ───────────────────────────────────────────────
+window.showDeleteConfirm = function(btn, id) {
+  // If user previously chose "don't ask again" this session, delete immediately
+  if (localStorage.getItem('skipDeleteConfirm') === '1') {
+    window.confirmDeleteTx(id);
+    return;
   }
 
-  closeBtn.addEventListener('click', closeModal);
-  cancelBtn.addEventListener('click', closeModal);
-  bg.addEventListener('click', e => { if (e.target === bg) closeModal(); });
-
-  confirmBtn.addEventListener('click', async () => {
-    if (!_pendingDeleteId) return;
-    const id = _pendingDeleteId;
-    closeModal();
-    if (noAskChk.checked) {
-      localStorage.setItem('skipDeleteConfirm', '1');
-    }
-    
-    // Simple fade out animation
-    const txElement = document.querySelector(`[data-tx-id="${id}"]`);
-    if (txElement) {
-      txElement.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
-      txElement.style.opacity = '0';
-      txElement.style.transform = 'scale(0.95)';
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-    
-
-    
-    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
-    vibrate();
-  });
-})();
-
-window.showDeleteConfirm = function(btn, id) {
+  // Toggle off if already showing for this button
   const existing = btn.parentNode.querySelector('.tx-confirm-row');
   if (existing) { existing.remove(); btn.style.display = ''; return; }
+
+  // Close any other open confirm rows
   document.querySelectorAll('.tx-confirm-row').forEach(el => {
     const ab = el.closest('.tx-actions');
     el.remove();
     if (ab) { const d = ab.querySelector('.btn-sm.del'); if (d) d.style.display = ''; }
   });
+
   btn.style.display = 'none';
+
   const row = document.createElement('div');
   row.className = 'tx-confirm-row';
-  const yesBtn = document.createElement('span');
-  yesBtn.className = 'tx-confirm-label';
-  yesBtn.textContent = 'Delete?';
-  const confirmBtn = document.createElement('button');
-  confirmBtn.className = 'btn-sm del';
-  confirmBtn.textContent = 'Yes';
-  confirmBtn.addEventListener('click', () => window.confirmDeleteTx(id));
-  const cancelBtn2 = document.createElement('button');
-  cancelBtn2.className = 'btn-sm';
-  cancelBtn2.textContent = 'No';
-  cancelBtn2.addEventListener('click', () => window.cancelDeleteTx(cancelBtn2));
+
+  const label = document.createElement('span');
+  label.className = 'tx-confirm-label';
+  label.textContent = 'Delete?';
+
+  const yesBtn = document.createElement('button');
+  yesBtn.className = 'btn-sm del';
+  yesBtn.textContent = 'Yes';
+
+  const noBtn = document.createElement('button');
+  noBtn.className = 'btn-sm';
+  noBtn.textContent = 'No';
+
+  // "Don't ask again" — lives inline under the confirm buttons
+  const dontAskWrap = document.createElement('label');
+  dontAskWrap.className = 'tx-dont-ask';
+  dontAskWrap.innerHTML = `<input type="checkbox" id="__dontAskChk_${id}" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0;"> <span>Don't ask again</span>`;
+
+  yesBtn.addEventListener('click', () => {
+    const chk = document.getElementById(`__dontAskChk_${id}`);
+    if (chk && chk.checked) localStorage.setItem('skipDeleteConfirm', '1');
+    window.confirmDeleteTx(id);
+  });
+  noBtn.addEventListener('click', () => window.cancelDeleteTx(noBtn));
+
+  row.appendChild(label);
   row.appendChild(yesBtn);
-  row.appendChild(confirmBtn);
-  row.appendChild(cancelBtn2);
+  row.appendChild(noBtn);
+  row.appendChild(dontAskWrap);
   btn.parentNode.appendChild(row);
 };
 
@@ -1265,26 +1234,6 @@ window.confirmDeleteTx = async function(id) {
   if (txEl) { txEl.classList.add('removing'); await new Promise(r => setTimeout(r, 350)); }
   await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
   vibrate();
-};
-
-window.deleteTx = async function(id) {
-  if (localStorage.getItem('skipDeleteConfirm') === '1') {
-    // Skip confirmation — delete directly
-    const txElement = document.querySelector(`[data-tx-id="${id}"]`);
-    if (txElement) {
-      txElement.classList.add('removing');
-      // Wait for animation to complete
-      await new Promise(resolve => setTimeout(resolve, 400));
-    }
-    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
-    vibrate();
-    return;
-  }
-  // Show custom modal
-  _pendingDeleteId = id;
-  document.getElementById('deleteNoAsk').checked = false;
-  document.getElementById('deleteModalBg').classList.add('open');
-  document.body.style.overflow = 'hidden';
 };
 
 // ── Transaction Detail Panel ──────────────────────────────────────────────────
