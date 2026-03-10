@@ -1,5 +1,5 @@
 // ─── Finance Tracker — PWA client logic ─────────────────────────────────────
-// Handles: SW registration, offline/online pill, install prompt (mobile).
+// Handles: SW registration, offline/online badge, install prompt (mobile).
 // Include as a plain <script> (not module) so it runs early on all pages.
 
 (function () {
@@ -25,356 +25,228 @@
     });
   }
 
-  // ── 2. Offline / Online pill ────────────────────────────────────────────────
-  // Mobile:  slides down from top-centre → 3s → shrinks + drifts to top-right
-  //          tap collapsed pill → info panel zooms out from pill origin
-  // Desktop: inline badge injected beside #dashGreetingName on dashboard
+  // ── 2. Offline / Online badge ───────────────────────────────────────────────
+  // Appears inline beside #dashGreetingName on both mobile + desktop.
+  // Uses opacity + max-width transitions only — never toggles display,
+  // so all states (in, idle, text-swap, out) are perfectly smooth.
 
-  const PILL_CSS = `
-    /* ── Offline pill wrapper ── */
-    #__pwa_pill_wrap {
-      position: fixed;
-      top: 14px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 9100;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      pointer-events: none;
-      /* NO transition on wrapper — it snaps via JS to avoid all jitter */
-    }
-    #__pwa_pill_wrap.pwa-collapsed {
-      left: auto;
-      right: 14px;
-      transform: none;
-      align-items: flex-end;
-    }
-
-    /* ── The pill chip itself ── */
-    #__pwa_pill_chip {
+  const BADGE_CSS = `
+    #__pwa_badge {
       display: inline-flex;
       align-items: center;
-      gap: 7px;
-      padding: 8px 14px;
-      border-radius: 999px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: .82rem;
-      font-weight: 600;
-      color: var(--text-1, #1c1c1c);
-      background: var(--bg-card, #fff);
-      border: 1.5px solid var(--border, #E2D9CF);
-      box-shadow: 0 4px 20px rgba(0,0,0,.13);
-      white-space: nowrap;
-      overflow: hidden;
-      cursor: default;
-      user-select: none;
-      pointer-events: none;
-      /* hide state */
-      opacity: 0;
-      transform: translateY(-52px) scale(.9);
-      transition: opacity .3s ease,
-                  transform .38s cubic-bezier(.34,1.3,.64,1),
-                  max-width .38s cubic-bezier(.34,1.1,.64,1),
-                  padding .3s ease;
-      max-width: 340px;
-    }
-    #__pwa_pill_chip.pwa-visible {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      pointer-events: auto;
-    }
-    #__pwa_pill_chip.pwa-collapsed {
-      max-width: 100px;
-      padding: 7px 12px;
-    }
-
-    /* dot */
-    #__pwa_pill_dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: #f59e0b;
-      box-shadow: 0 0 0 2.5px rgba(245,158,11,.2);
-      transition: background .3s, box-shadow .3s;
-    }
-    #__pwa_pill_dot.pwa-online {
-      background: #0FA974;
-      box-shadow: 0 0 0 2.5px rgba(15,169,116,.2);
-    }
-    #__pwa_pill_text {
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    /* ── Info panel (tap on collapsed pill) ── */
-    #__pwa_info_panel {
-      margin-top: 8px;
-      width: calc(100vw - 32px);
-      max-width: 300px;
-      background: var(--bg-card, #fff);
-      border: 1.5px solid var(--border, #E2D9CF);
-      border-radius: 18px;
-      box-shadow: 0 8px 36px rgba(0,0,0,.15);
-      overflow: hidden;
-      /* zoom from pill (top-right when collapsed) */
-      transform-origin: top right;
-      transform: scale(0);
-      opacity: 0;
-      pointer-events: none;
-      transition: transform .28s cubic-bezier(.34,1.3,.64,1),
-                  opacity .22s ease;
-    }
-    #__pwa_info_panel.pwa-open {
-      transform: scale(1);
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .__pwa_ip_head {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 13px 15px 9px;
-      border-bottom: 1px solid var(--border, #E2D9CF);
-    }
-    .__pwa_ip_icon { font-size: 1.2rem; flex-shrink: 0; }
-    .__pwa_ip_title {
-      font-family: 'DM Sans', sans-serif;
-      font-size: .88rem;
-      font-weight: 700;
-      color: var(--text-1, #1c1c1c);
-    }
-    .__pwa_ip_body {
-      padding: 10px 15px 14px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: .8rem;
-      color: var(--text-2, #5a5a5a);
-      line-height: 1.65;
-    }
-    .__pwa_ip_step {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      margin-bottom: 7px;
-    }
-    .__pwa_ip_step:last-child { margin-bottom: 0; }
-    .__pwa_ip_num {
-      width: 18px; height: 18px;
-      border-radius: 50%;
-      background: rgba(245,158,11,.15);
-      color: #b45309;
-      font-size: .7rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-
-    /* ── Desktop inline badge ── */
-    #__pwa_desk_badge {
-      display: none;
-      align-items: center;
       gap: 5px;
-      width: fit-content;
-      min-width: 0;
-      max-width: max-content;
       font-family: 'DM Sans', sans-serif;
       font-size: .72rem;
       font-weight: 600;
-      color: #92400e;
-      background: rgba(245,158,11,.12);
-      border: 1.5px solid rgba(245,158,11,.3);
-      border-radius: 999px;
-      padding: 2px 10px 2px 7px;
       white-space: nowrap;
-      margin-left: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      pointer-events: none;
+      cursor: default;
+      user-select: none;
       vertical-align: middle;
-      box-sizing: content-box;
-      animation: __pwa_fadein .3s ease both;
+
+      /* Hidden state — pure opacity + geometry, zero display toggling */
+      opacity: 0;
+      max-width: 0;
+      padding: 3px 0;
+      margin-left: 0;
+      transform: scale(0.78) translateY(1px);
+
+      transition:
+        opacity     .45s ease,
+        max-width   .50s cubic-bezier(.34,1.1,.64,1),
+        padding     .40s ease,
+        margin-left .40s ease,
+        transform   .45s cubic-bezier(.34,1.3,.64,1);
     }
-    @keyframes __pwa_fadein { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:none; } }
-    #__pwa_desk_badge.pwa-desk-visible { display: inline-flex; }
-    #__pwa_desk_badge .__pwa_db_dot {
+
+    /* Offline state */
+    #__pwa_badge.pwa-badge-offline {
+      color: #92400e;
+      background: rgba(245,158,11,.13);
+      border: 1.5px solid rgba(245,158,11,.35);
+    }
+    /* Back-online state */
+    #__pwa_badge.pwa-badge-online {
+      color: #065f46;
+      background: rgba(15,169,116,.1);
+      border: 1.5px solid rgba(15,169,116,.3);
+    }
+
+    /* Visible */
+    #__pwa_badge.pwa-badge-show {
+      opacity: 1;
+      max-width: 200px;
+      padding: 3px 10px 3px 7px;
+      margin-left: 6px;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
+    }
+
+    #__pwa_badge_dot {
       width: 6px; height: 6px;
       border-radius: 50%;
-      background: #f59e0b;
       flex-shrink: 0;
+      background: #f59e0b;
+      box-shadow: 0 0 0 2px rgba(245,158,11,.25);
+      transition: background .5s ease, box-shadow .5s ease;
+    }
+    #__pwa_badge_dot.pwa-dot-online {
+      background: #0FA974;
+      box-shadow: 0 0 0 2px rgba(15,169,116,.25);
+    }
+
+    #__pwa_badge_text {
+      transition: opacity .3s ease;
+    }
+    #__pwa_badge_text.pwa-text-fade {
+      opacity: 0;
     }
   `;
 
-  let _injected      = false;
-  let _collapseTimer = null;
-  let _hideTimer     = null;
-  let _panelOpen     = false;
+  let _badgeInjected = false;
   let _isOffline     = false;
-  let _deskTried     = false;
+  let _hideTimer     = null;
+  let _textTimer     = null;
+  let _offlineDebounce = null;
+  let _onlineDebounce  = null;
 
-  function _injectCSS() {
-    if (_injected) return;
-    _injected = true;
+  function _injectBadge() {
+    if (_badgeInjected) return;
+    _badgeInjected = true;
+
     const s = document.createElement('style');
-    s.textContent = PILL_CSS;
+    s.textContent = BADGE_CSS;
     document.head.appendChild(s);
 
-    // ── Pill wrap + chip ──
-    const wrap = document.createElement('div');
-    wrap.id = '__pwa_pill_wrap';
-    wrap.innerHTML = `
-      <div id="__pwa_pill_chip" role="status" aria-live="polite">
-        <span id="__pwa_pill_dot"></span>
-        <span id="__pwa_pill_text">Offline — data will sync once online</span>
-      </div>
-      <div id="__pwa_info_panel" role="tooltip">
-        <div class="__pwa_ip_head">
-          <span class="__pwa_ip_icon">📶</span>
-          <span class="__pwa_ip_title">You're offline — here's what happens</span>
-        </div>
-        <div class="__pwa_ip_body">
-          <div class="__pwa_ip_step">
-            <div class="__pwa_ip_num">1</div>
-            <div>Any transactions you add are <strong>saved locally</strong> in your browser's storage.</div>
-          </div>
-          <div class="__pwa_ip_step">
-            <div class="__pwa_ip_num">2</div>
-            <div>The moment you're <strong>back online</strong>, they sync to your account automatically.</div>
-          </div>
-          <div class="__pwa_ip_step">
-            <div class="__pwa_ip_num">3</div>
-            <div>All your <strong>existing data</strong> is still available to view and browse.</div>
-          </div>
-        </div>
-      </div>`;
-    document.body.appendChild(wrap);
-
-    // ── Desktop badge (will be moved next to name when online state known) ──
     const badge = document.createElement('span');
-    badge.id = '__pwa_desk_badge';
-    badge.innerHTML = `<span class="__pwa_db_dot"></span>Offline`;
+    badge.id = '__pwa_badge';
+    badge.className = 'pwa-badge-offline';
+    badge.innerHTML = `<span id="__pwa_badge_dot"></span><span id="__pwa_badge_text">Offline</span>`;
     document.body.appendChild(badge);
-
-    // Tap chip to toggle info panel
-    document.getElementById('__pwa_pill_chip').addEventListener('click', e => {
-      e.stopPropagation();
-      if (!_isOffline) return;
-      _panelOpen ? _closePanel() : _openPanel();
-    });
-    // Close panel on outside tap
-    document.addEventListener('click', () => { if (_panelOpen) _closePanel(); });
   }
 
-  function _chip()   { return document.getElementById('__pwa_pill_chip'); }
-  function _wrap()   { return document.getElementById('__pwa_pill_wrap'); }
-  function _dot()    { return document.getElementById('__pwa_pill_dot'); }
-  function _text()   { return document.getElementById('__pwa_pill_text'); }
-  function _panel()  { return document.getElementById('__pwa_info_panel'); }
-  function _badge()  { return document.getElementById('__pwa_desk_badge'); }
+  function _badge()   { return document.getElementById('__pwa_badge'); }
+  function _dot()     { return document.getElementById('__pwa_badge_dot'); }
+  function _badgeTxt(){ return document.getElementById('__pwa_badge_text'); }
 
-  function _openPanel() {
-    _panelOpen = true;
-    _panel().classList.add('pwa-open');
-  }
-  function _closePanel() {
-    _panelOpen = false;
-    _panel().classList.remove('pwa-open');
-  }
-
-  // Try to inject desktop badge beside the greeting name on the dashboard
-  function _injectDeskBadge() {
-    if (_deskTried) return;
+  // Move badge inside #dashGreetingName so it sits inline on the same line.
+  // Safe to call multiple times — moves only once.
+  let _placed = false;
+  function _placeBadge() {
+    if (_placed) return;
     const nameEl = document.getElementById('dashGreetingName');
     if (!nameEl) return;
-    _deskTried = true;
-    // Append inside dashGreetingName — it's display:flex so badge sits
-    // right after the name text on the same line
+    _placed = true;
     nameEl.appendChild(_badge());
   }
 
-  function _showOffline() {
-    _injectCSS();
-    _isOffline = true;
-    clearTimeout(_collapseTimer);
-    clearTimeout(_hideTimer);
-    _closePanel();
-
-    const chip = _chip(), wrap = _wrap(), dot = _dot(), text = _text();
-    dot.classList.remove('pwa-online');
-
-    const mobile = window.innerWidth < 769;
-
-    if (!mobile) {
-      // ── Desktop: inject badge beside name ──
-      const fn = () => {
-        _injectDeskBadge();
-        const b = _badge();
-        if (b) b.classList.add('pwa-desk-visible');
-      };
-      document.readyState === 'loading'
-        ? document.addEventListener('DOMContentLoaded', fn)
-        : fn();
-      return;
+  // ── Offline verification ──
+  // Debounce 600ms + a real HEAD fetch before deciding we're offline.
+  // Prevents false-positives from momentary connectivity blips.
+  async function _confirmOffline() {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 2500);
+      await fetch('/manifest.json?_ping=' + Date.now(), {
+        method: 'HEAD', cache: 'no-store', signal: ctrl.signal
+      });
+      clearTimeout(t);
+      return false; // fetch succeeded → still online
+    } catch {
+      return true; // confirmed offline
     }
-
-    // ── Mobile: slide down from top-centre ──
-    wrap.classList.remove('pwa-collapsed');
-    chip.classList.remove('pwa-collapsed');
-    text.textContent = 'Offline — data will sync once online';
-
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      chip.classList.add('pwa-visible');
-    }));
-
-    // After 3s: shrink chip text, then snap wrapper to top-right once chip is small.
-    // No CSS transition on wrapper — instant snap avoids position-interpolation jitter.
-    _collapseTimer = setTimeout(() => {
-      _closePanel();
-      text.textContent = 'Offline';
-      chip.classList.add('pwa-collapsed');   // chip max-width shrinks (300ms transition)
-      setTimeout(() => {
-        // Disable wrapper transition, snap position, re-enable
-        wrap.style.transition = 'none';
-        wrap.classList.add('pwa-collapsed');
-        // Force reflow so the transition:none takes effect before re-enabling
-        void wrap.offsetWidth;
-        wrap.style.transition = '';
-      }, 320);                               // after chip has visually shrunk
-    }, 3000);
   }
 
-  function _showOnline() {
-    _isOffline = false;
-    clearTimeout(_collapseTimer);
+  function _showOfflineBadge() {
+    _injectBadge();
+    _isOffline = true;
     clearTimeout(_hideTimer);
-    _closePanel();
+    clearTimeout(_textTimer);
 
-    // Desktop: remove badge
-    const b = _badge();
-    if (b) b.classList.remove('pwa-desk-visible');
+    const fn = () => {
+      _placeBadge();
+      const b = _badge(), dot = _dot(), txt = _badgeTxt();
+      if (!b) return;
 
-    const chip = _chip();
-    if (!chip || !chip.classList.contains('pwa-visible')) return;
+      // Reset to offline styling
+      b.classList.remove('pwa-badge-online');
+      b.classList.add('pwa-badge-offline');
+      dot.classList.remove('pwa-dot-online');
+      txt.classList.remove('pwa-text-fade');
+      txt.textContent = 'Offline';
 
-    const wrap = _wrap(), dot = _dot(), text = _text();
-    // Bring pill back to centre before showing "Back online"
-    wrap.classList.remove('pwa-collapsed');
-    chip.classList.remove('pwa-collapsed');
-    dot.classList.add('pwa-online');
-    text.textContent = 'Back online!';
+      // Trigger fade-in on next paint
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        b.classList.add('pwa-badge-show');
+      }));
+    };
 
-    _hideTimer = setTimeout(() => {
-      chip.classList.remove('pwa-visible');
-      setTimeout(() => {
-        wrap.classList.remove('pwa-collapsed');
-        dot.classList.remove('pwa-online');
-      }, 400);
-    }, 2500);
+    document.readyState === 'loading'
+      ? document.addEventListener('DOMContentLoaded', fn)
+      : fn();
   }
 
+  function _showOnlineBadge() {
+    _isOffline = false;
+    clearTimeout(_hideTimer);
+    clearTimeout(_textTimer);
+
+    const b = _badge(), dot = _dot(), txt = _badgeTxt();
+    // If badge was never shown (came online before offline was triggered) — do nothing
+    if (!b || !b.classList.contains('pwa-badge-show')) return;
+
+    // Crossfade: fade out text → swap content + colour → fade back in
+    txt.classList.add('pwa-text-fade');
+    _textTimer = setTimeout(() => {
+      b.classList.remove('pwa-badge-offline');
+      b.classList.add('pwa-badge-online');
+      dot.classList.add('pwa-dot-online');
+      txt.textContent = 'Back online!';
+      txt.classList.remove('pwa-text-fade');
+
+      // After 2.5s: fade badge out entirely
+      _hideTimer = setTimeout(() => {
+        b.classList.remove('pwa-badge-show');
+        // After fade-out transition finishes, reset state
+        setTimeout(() => {
+          if (!_isOffline) {
+            b.classList.remove('pwa-badge-online');
+            b.classList.add('pwa-badge-offline');
+            dot.classList.remove('pwa-dot-online');
+          }
+        }, 500);
+      }, 2500);
+    }, 300); // matches pwa-text-fade transition
+  }
+
+  // ── Event wiring with debounce + verification ──
   const _run = fn => document.body ? fn() : document.addEventListener('DOMContentLoaded', fn);
-  if (!navigator.onLine) _run(_showOffline);
-  window.addEventListener('offline', () => _run(_showOffline));
-  window.addEventListener('online',  () => _run(_showOnline));
+
+  // On page load: only show if truly offline (not just slow)
+  if (!navigator.onLine) {
+    _run(() => setTimeout(async () => {
+      if (await _confirmOffline()) _showOfflineBadge();
+    }, 400));
+  }
+
+  window.addEventListener('offline', () => {
+    clearTimeout(_offlineDebounce);
+    clearTimeout(_onlineDebounce);
+    _offlineDebounce = setTimeout(async () => {
+      if (await _confirmOffline()) _run(_showOfflineBadge);
+    }, 600);
+  });
+
+  window.addEventListener('online', () => {
+    clearTimeout(_onlineDebounce);
+    clearTimeout(_offlineDebounce);
+    // Small delay — 'online' event fires before full connectivity is restored
+    _onlineDebounce = setTimeout(() => {
+      _run(_showOnlineBadge);
+    }, 400);
+  });
 
   // ── 3. Install prompt (mobile only) ─────────────────────────────────────────
   let _deferredPrompt = null;
