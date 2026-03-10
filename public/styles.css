@@ -1319,14 +1319,25 @@ select:focus option { animation: fadeIn .1s ease; }
   /* confirm row on mobile: buttons side-by-side, dont-ask below */
   .txa-confirm {
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     padding: 4px 0 2px;
+    width: 100%;
+    align-items: center;
   }
-  .txa-confirm .tx-confirm-label { font-size: .82rem; }
-  .txa-confirm .btn-sm { flex: 1; min-width: 0; }
+  .txa-confirm .tx-confirm-label {
+    font-size: .82rem;
+    flex-shrink: 0;
+  }
+  /* Yes + No each take equal space, filling the row with the label */
+  .txa-confirm .btn-sm {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+  /* Don't-ask pill: full row below, left-aligned, no border */
   .txa-confirm .tx-dont-ask {
     width: 100%;
-    margin-top: 2px;
+    margin-top: 0;
     margin-left: 0;
     justify-content: flex-start;
     border: none;

@@ -35,6 +35,7 @@
     #__pwa_pill_wrap {
       position: fixed;
       top: 14px;
+      /* Always use left+transform so we can animate without left:auto jumps */
       left: 50%;
       transform: translateX(-50%);
       z-index: 9100;
@@ -42,17 +43,14 @@
       flex-direction: column;
       align-items: center;
       pointer-events: none;
-      /* transition for the move to top-right */
-      transition: top .4s cubic-bezier(.34,1.1,.64,1),
-                  left .4s cubic-bezier(.34,1.1,.64,1),
-                  transform .4s cubic-bezier(.34,1.1,.64,1),
-                  align-items .01s;
+      /* Only transform transitions — left:auto is un-animatable and causes jitter */
+      transition: transform .42s cubic-bezier(.34,1.1,.64,1),
+                  left .42s cubic-bezier(.34,1.1,.64,1);
     }
     #__pwa_pill_wrap.pwa-collapsed {
-      top: 14px;
-      left: auto;
-      right: 14px;
-      transform: none;
+      /* Move to top-right using left+transform instead of right:14px */
+      left: calc(100% - 14px);
+      transform: translateX(-100%);
       align-items: flex-end;
     }
 
