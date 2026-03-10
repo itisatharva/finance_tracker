@@ -2015,7 +2015,21 @@ function renderCashflow() {
 
 document.getElementById('cashflowYear').addEventListener('change', renderCashflow);
 
-// ─── Shared Pie/Doughnut chart ────────────────────────────────────────────────
+// ─── Shared theme-change observer for charts ─────────────────────────────────
+// A single MutationObserver shared across all chart renderers.
+// Each chart registers its update callback by container element.
+// Re-rendering a chart simply overwrites the previous entry — no leak.
+const _chartThemeCallbacks = new Map();
+const _chartThemeObserver = new MutationObserver(() => {
+  _chartThemeCallbacks.forEach(cb => cb());
+});
+_chartThemeObserver.observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ['data-theme'],
+});
+function registerChartThemeCallback(container, cb) {
+  _chartThemeCallbacks.set(container, cb);
+}
 
 // ─── Analytics: Monthly Daily Line Chart ─────────────────────────────────────
 function renderMonthlyLineChart(year, month, txList, type) {
@@ -2123,8 +2137,8 @@ function renderMonthlyLineChart(year, month, txList, type) {
 
   Plotly.newPlot(container, trace, layout, config);
 
-  // Theme sync
-  const obs = new MutationObserver(() => {
+  // Register theme-sync callback in the shared observer (replaces any previous entry for this container)
+  registerChartThemeCallback(container, () => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const nl = nowDark ? '#E8E6E1' : '#1c1c1c';
     const nb = nowDark ? '#1c1c1c' : '#ffffff';
@@ -2137,7 +2151,6 @@ function renderMonthlyLineChart(year, month, txList, type) {
         'hoverlabel.bgcolor': hl }
     );
   });
-  obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
 
 function renderPieChart(wrapId, txList, type) {
@@ -2241,14 +2254,13 @@ function renderPieChart(wrapId, txList, type) {
   };
 
   Plotly.newPlot(container, data, layout, config);
-  
-  // Update chart on theme change
-  const observer = new MutationObserver(() => {
+
+  // Register theme-sync callback in the shared observer (replaces any previous entry for this container)
+  registerChartThemeCallback(container, () => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const newTextColor = nowDark ? '#E8E6E1' : '#2D2D2D';
     const newBgColor = nowDark ? '#1c1c1c' : '#ffffff';
     const newBorderColor = nowDark ? '#3a3a3a' : '#ffffff';
-    
     Plotly.update(container, {
       'marker.line.color': newBorderColor,
       'textfont.color': newTextColor,
@@ -2258,10 +2270,5 @@ function renderPieChart(wrapId, txList, type) {
       'plot_bgcolor': newBgColor,
       'font.color': newTextColor
     });
-  });
-  
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-theme']
   });
 }
