@@ -304,8 +304,8 @@ function wireSettingsDrawer() {
         txSorted(transactions).slice().reverse().forEach(tx => {
           const d = toDate(tx.selectedDate);
           const dateStr = [
-            String(d.getDate()).padStart(2,'0'),
             String(d.getMonth()+1).padStart(2,'0'),
+            String(d.getDate()).padStart(2,'0'),
             d.getFullYear()
           ].join('/');
           const desc = (tx.description||'').replace(/"/g,'""');
@@ -761,12 +761,9 @@ function parseCSV(csvText) {
     if (isNaN(amount) || amount <= 0) continue;
     const dateParts = dateStr.split('/');
     if (dateParts.length !== 3) continue;
-    let day, month, year;
-    // Support DD/MM/YYYY or MM/DD/YYYY — if first part > 12 assume DD/MM/YYYY
-    const a = parseInt(dateParts[0]), b = parseInt(dateParts[1]), yr = parseInt(dateParts[2]);
-    if (isNaN(a)||isNaN(b)||isNaN(yr)) continue;
-    if (a > 12) { day=a; month=b; year=yr; }
-    else { month=a; day=b; year=yr; }
+    // Format: MM/DD/YYYY
+    const month = parseInt(dateParts[0]), day = parseInt(dateParts[1]), year = parseInt(dateParts[2]);
+    if (isNaN(month)||isNaN(day)||isNaN(year)) continue;
     if (month<1||month>12||day<1||day>31) continue;
     results.push({ date: dateStr, type, category, amount, description: description||'',
       dateObj: new Date(year, month-1, day, 12, 0, 0) });
