@@ -344,6 +344,10 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* flex so the desktop offline badge sits inline on the same line */
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ---------- STAT CARDS ---------- */
@@ -543,7 +547,7 @@ input[type="color"] {
 .tx-amount.income  { color: var(--green); }
 .tx-amount.expense { color: var(--red); }
 
-.tx-actions { display: flex; gap: 6px; flex-shrink: 0; position: relative; }
+.tx-actions { display: flex; gap: 6px; flex-shrink: 0; position: relative; min-width: 0; }
 
 .btn-sm {
   font-family: inherit;
@@ -1314,31 +1318,29 @@ select:focus option { animation: fadeIn .1s ease; }
   .cmp-arrow { font-size: 1.5rem; }
   .period-tab { padding: 8px 14px; font-size: .82rem; }
   .tx-item { flex-wrap: wrap; }
-  .tx-actions { width: 100%; }
-  .tx-actions .btn-sm { flex: 1; text-align: center; }
-  /* confirm row on mobile: buttons side-by-side, dont-ask below */
+  .tx-actions { width: 100%; flex-shrink: 0; }
+  .txa-normal { width: 100%; }
+  .txa-normal .btn-sm { flex: 1; text-align: center; }
+  /* Confirm row: label + Yes + No in row 1, Don't-ask in row 2 */
   .txa-confirm {
+    width: 100%;
     flex-wrap: wrap;
     gap: 6px;
-    padding: 4px 0 2px;
-    width: 100%;
-    align-items: center;
+    padding: 2px 0;
   }
   .txa-confirm .tx-confirm-label {
     font-size: .82rem;
     flex-shrink: 0;
+    margin-right: 2px;
   }
-  /* Yes + No each take equal space, filling the row with the label */
   .txa-confirm .btn-sm {
     flex: 1;
-    min-width: 0;
+    min-width: 60px;
     text-align: center;
   }
-  /* Don't-ask pill: full row below, left-aligned, no border */
   .txa-confirm .tx-dont-ask {
-    width: 100%;
-    margin-top: 0;
-    margin-left: 0;
+    flex-basis: 100%;
+    margin: 2px 0 0 0;
     justify-content: flex-start;
     border: none;
     padding: 0;
@@ -1776,11 +1778,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 /* Confirm row: always hidden by default via inline style="display:none" on element */
 .txa-confirm {
-  display: none;
-  gap: 5px;
+  display: none;          /* JS overrides to flex */
+  width: 100%;
+  gap: 6px;
   align-items: center;
-  flex-wrap: nowrap;
-  white-space: nowrap;
+  flex-wrap: wrap;        /* wraps "Don't ask" to 2nd line on narrow screens */
   animation: tx-confirm-in .22s cubic-bezier(.34,1.25,.64,1) both;
 }
 @keyframes tx-confirm-in {

@@ -35,7 +35,6 @@
     #__pwa_pill_wrap {
       position: fixed;
       top: 14px;
-      /* Always use left+transform so we can animate without left:auto jumps */
       left: 50%;
       transform: translateX(-50%);
       z-index: 9100;
@@ -43,14 +42,12 @@
       flex-direction: column;
       align-items: center;
       pointer-events: none;
-      /* Only transform transitions — left:auto is un-animatable and causes jitter */
-      transition: transform .42s cubic-bezier(.34,1.1,.64,1),
-                  left .42s cubic-bezier(.34,1.1,.64,1);
+      /* NO transition on wrapper — it snaps via JS to avoid all jitter */
     }
     #__pwa_pill_wrap.pwa-collapsed {
-      /* Move to top-right using left+transform instead of right:14px */
-      left: calc(100% - 14px);
-      transform: translateX(-100%);
+      left: auto;
+      right: 14px;
+      transform: none;
       align-items: flex-end;
     }
 
@@ -289,7 +286,9 @@
     const nameEl = document.getElementById('dashGreetingName');
     if (!nameEl) return;
     _deskTried = true;
-    nameEl.parentNode.insertBefore(_badge(), nameEl.nextSibling);
+    // Append inside dashGreetingName — it's display:flex so badge sits
+    // right after the name text on the same line
+    nameEl.appendChild(_badge());
   }
 
   function _showOffline() {
@@ -326,13 +325,20 @@
       chip.classList.add('pwa-visible');
     }));
 
-    // After 3s: shrink text and move to top-right
+    // After 3s: shrink chip text, then snap wrapper to top-right once chip is small.
+    // No CSS transition on wrapper — instant snap avoids position-interpolation jitter.
     _collapseTimer = setTimeout(() => {
       _closePanel();
       text.textContent = 'Offline';
-      chip.classList.add('pwa-collapsed');
-      // Give text time to shrink, then move pill wrap to top-right
-      setTimeout(() => wrap.classList.add('pwa-collapsed'), 150);
+      chip.classList.add('pwa-collapsed');   // chip max-width shrinks (300ms transition)
+      setTimeout(() => {
+        // Disable wrapper transition, snap position, re-enable
+        wrap.style.transition = 'none';
+        wrap.classList.add('pwa-collapsed');
+        // Force reflow so the transition:none takes effect before re-enabling
+        void wrap.offsetWidth;
+        wrap.style.transition = '';
+      }, 320);                               // after chip has visually shrunk
     }, 3000);
   }
 
