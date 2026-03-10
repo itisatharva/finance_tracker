@@ -84,15 +84,15 @@
 
     /* Offline colours */
     #__pwa_badge.pwa-badge-offline {
-      color: #92400e;
-      background: rgba(245,158,11,.13);
-      border: 1.5px solid rgba(245,158,11,.35);
+      color: #fff;
+      background: #d97706;
+      border: 1.5px solid #b45309;
     }
     /* Back-online colours */
     #__pwa_badge.pwa-badge-online {
-      color: #065f46;
-      background: rgba(15,169,116,.1);
-      border: 1.5px solid rgba(15,169,116,.3);
+      color: #fff;
+      background: #0FA974;
+      border: 1.5px solid #0a8a5e;
     }
 
     /* Visible: full opacity, natural position */

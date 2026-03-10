@@ -580,14 +580,14 @@ input[type="color"] {
   transform: scale(1) translateX(0);
 }
 .tx-queue-pill.tqp-queued {
-  color: #92400e;
-  background: rgba(245,158,11,.13);
-  border: 1px solid rgba(245,158,11,.35);
+  color: #fff;
+  background: #d97706;
+  border: 1px solid #b45309;
 }
 .tx-queue-pill.tqp-synced {
-  color: #065f46;
-  background: rgba(15,169,116,.1);
-  border: 1px solid rgba(15,169,116,.3);
+  color: #fff;
+  background: #0FA974;
+  border: 1px solid #0a8a5e;
 }
 .tqp-dot {
   width: 5px; height: 5px;
