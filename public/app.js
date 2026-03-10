@@ -9,6 +9,10 @@ let pendingAmounts  = [];
 let categories      = { income: [], expense: [] };
 let startingBalance = 0;
 let editTxId        = null;
+// ── Pending-sync pill tracking ────────────────────────────────────────────────
+let _pendingTxIds    = new Set();   // IDs currently hasPendingWrites
+let _justSyncedIds   = new Set();   // IDs that just confirmed — show green briefly
+const _syncTimers    = {};          // cleanup timers per txId
 let activeView      = 'dashboard';
 let activePeriod    = 'daily';
 let monthlyType     = 'expense';
@@ -912,7 +916,22 @@ function listenTransactions() {
   );
   let firstLoad = true;
   window.onSnapshot(q, snap => {
-    transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // ── Track pending-write transitions for the sync pill ──
+    snap.docs.forEach(d => {
+      const isPending = d.metadata.hasPendingWrites;
+      if (_pendingTxIds.has(d.id) && !isPending) {
+        // Just confirmed by server → show "Synced" pill briefly
+        _justSyncedIds.add(d.id);
+        clearTimeout(_syncTimers[d.id]);
+        _syncTimers[d.id] = setTimeout(() => {
+          _justSyncedIds.delete(d.id);
+          delete _syncTimers[d.id];
+        }, 3500); // matches animation hold + fade-out
+      }
+      if (isPending) _pendingTxIds.add(d.id);
+      else           _pendingTxIds.delete(d.id);
+    });
+    transactions = snap.docs.map(d => ({ id: d.id, ...d.data(), hasPendingWrites: d.metadata.hasPendingWrites }));
 
     // Refresh month dropdown so all years with transactions are always reachable
     initMonthDropdown(new Date(), transactions);
@@ -967,67 +986,31 @@ function wireAddTxForm() {
     spinner.classList.remove('hidden');
     btn.disabled = true;
 
-    // Helper: race Firestore write against a timeout so the spinner always clears.
-    // If offline, Firestore queues the write locally (if persistence is on) — we
-    // treat a timeout as a successful queue and show "Saved" optimistically.
-    const _withTimeout = (promise, ms) => Promise.race([
-      promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), ms))
-    ]);
-
-    const offline = !navigator.onLine;
     try {
-      await _withTimeout(
-        window.addDoc(
-          window.collection(window.db, 'users', uid, 'transactions'),
-          { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), createdAt: window.serverTimestamp() }
-        ),
-        offline ? 3500 : 10000   // short wait offline (queued fast), longer online
+      await window.addDoc(
+        window.collection(window.db, 'users', uid, 'transactions'),
+        { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), createdAt: window.serverTimestamp() }
       );
       spinner.classList.add('hidden');
       done.classList.remove('hidden');
       btn.style.background = 'var(--green)';
       vibrate();
-      if (offline) {
-        label.textContent = '✓ Queued';
-      }
       document.getElementById('txAmount').value = '';
       document.getElementById('txNote').value   = '';
       document.getElementById('txCategory').value = '';
       document.getElementById('txDate').valueAsDate = new Date();
       setTimeout(() => {
         done.classList.add('hidden');
-        label.textContent = 'Add';
         label.classList.remove('hidden');
         btn.style.background = '';
         btn.disabled = false;
-      }, offline ? 2500 : 2000);
+      }, 2000);
     } catch (err) {
-      const timedOut = err.message === '__timeout__';
-      if (timedOut) {
-        // Timed out — Firestore has the write queued; treat as success
-        spinner.classList.add('hidden');
-        done.classList.remove('hidden');
-        btn.style.background = 'var(--green)';
-        vibrate();
-        document.getElementById('txAmount').value = '';
-        document.getElementById('txNote').value   = '';
-        document.getElementById('txCategory').value = '';
-        document.getElementById('txDate').valueAsDate = new Date();
-        setTimeout(() => {
-          done.classList.add('hidden');
-          label.textContent = 'Add';
-          label.classList.remove('hidden');
-          btn.style.background = '';
-          btn.disabled = false;
-        }, 2000);
-      } else {
-        console.error(err);
-        alert('Failed to save — check your connection.');
-        spinner.classList.add('hidden');
-        label.classList.remove('hidden');
-        btn.disabled = false;
-      }
+      console.error(err);
+      alert('Failed to save — check your connection.');
+      spinner.classList.add('hidden');
+      label.classList.remove('hidden');
+      btn.disabled = false;
     }
   });
 }
@@ -1051,6 +1034,44 @@ function txSorted(list) {
   });
 }
 
+
+// ── Sync-pill HTML builder + animator ────────────────────────────────────────
+function _txPillHtml(txId, hasPending) {
+  if (hasPending) {
+    return `<span class="tx-queue-wrap" id="tqw-${txId}"><span class="tx-queue-pill tqp-queued" id="tqp-${txId}"><span class="tqp-dot"></span><span class="tqp-text">Queued</span></span></span>`;
+  }
+  if (_justSyncedIds.has(txId)) {
+    return `<span class="tx-queue-wrap" id="tqw-${txId}"><span class="tx-queue-pill tqp-synced" id="tqp-${txId}"><span class="tqp-dot tqp-dot-synced"></span><span class="tqp-text">Synced</span></span></span>`;
+  }
+  return '';
+}
+// Triggers the GPU transitions on a pill that was just rendered.
+// Call once per tx after the div is appended to the DOM.
+function _animateTxPill(txId, hasPending) {
+  if (hasPending) {
+    // Fade in: snap wrapper open → next rAF → add show class
+    const w = document.getElementById(`tqw-${txId}`);
+    const p = document.getElementById(`tqp-${txId}`);
+    if (!w || !p) return;
+    w.classList.add('tqw-show');
+    requestAnimationFrame(() => requestAnimationFrame(() => p.classList.add('tqp-show')));
+  } else if (_justSyncedIds.has(txId)) {
+    // Already visible green — snap wrapper + show, then fade out after hold
+    const w = document.getElementById(`tqw-${txId}`);
+    const p = document.getElementById(`tqp-${txId}`);
+    if (!w || !p) return;
+    w.classList.add('tqw-show');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      p.classList.add('tqp-show');
+      // Hold 2s, then fade out
+      setTimeout(() => {
+        p.classList.remove('tqp-show');
+        setTimeout(() => w.classList.remove('tqw-show'), 650);
+      }, 2000);
+    }));
+  }
+}
+
 function buildTxDiv(tx) {
   const d     = toDate(tx.selectedDate);
   const dateLabel = d
@@ -1061,9 +1082,10 @@ function buildTxDiv(tx) {
   div.className = 'tx-item';
   div.setAttribute('data-tx-id', tx.id);
   div.style.cursor = 'pointer';
+  const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
   div.innerHTML = `
     <div class="tx-meta">
-      <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
+      <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span>${pillHtml}</div>
       ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
       <div class="tx-date">${dateLabel}</div>
     </div>
@@ -1085,6 +1107,7 @@ function buildTxDiv(tx) {
     if (e.target.closest('.tx-actions')) return;
     openTxDetail(tx.id);
   });
+  if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
   return div;
 }
 
@@ -1191,9 +1214,10 @@ function renderAllTxList() {
     div.className = 'tx-item';
     div.setAttribute('data-tx-id', tx.id);
     div.style.cursor = 'pointer';
+    const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
     div.innerHTML = `
       <div class="tx-meta">
-        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span></div>
+        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span>${pillHtml}</div>
         ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
         <div class="tx-date">${dateLabel}</div>
       </div>
@@ -1216,6 +1240,7 @@ function renderAllTxList() {
       openTxDetail(tx.id);
     });
     el.appendChild(div);
+    if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
   });
 }
 
@@ -1489,20 +1514,21 @@ window.saveEdit = async function() {
     saveBtn.innerHTML = '<span class="btn-spinner"></span> Saving…';
   }
 
-  const _editTimeout = (promise, ms) => Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('__timeout__')), ms))
-  ]);
-
-  const _editOffline = !navigator.onLine;
-  const _showEditSaved = () => {
+  try {
+    await window.setDoc(
+      window.doc(window.db, 'users', uid, 'transactions', editTxId),
+      { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), updatedAt: window.serverTimestamp() },
+      { merge: true }
+    );
     vibrate();
+    // Show green saved state
     if (saveBtn) {
-      saveBtn.innerHTML = _editOffline ? '✓ Queued' : '✓ Saved';
+      saveBtn.innerHTML = '✓ Saved';
       saveBtn.style.background = 'var(--green)';
       saveBtn.style.color = '#fff';
       saveBtn.style.borderColor = 'var(--green)';
     }
+    // Auto-close after brief confirmation
     setTimeout(() => {
       if (saveBtn) {
         saveBtn.style.background = '';
@@ -1513,29 +1539,12 @@ window.saveEdit = async function() {
       }
       closeEditModal();
     }, 900);
-  };
-
-  try {
-    await _editTimeout(
-      window.setDoc(
-        window.doc(window.db, 'users', uid, 'transactions', editTxId),
-        { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), updatedAt: window.serverTimestamp() },
-        { merge: true }
-      ),
-      _editOffline ? 3500 : 10000
-    );
-    _showEditSaved();
   } catch (e) {
-    if (e.message === '__timeout__') {
-      // Queued offline — treat as success
-      _showEditSaved();
-    } else {
-      if (saveBtn) {
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = origHtml || 'Save';
-      }
-      alert('Could not save: ' + e.message);
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = origHtml || 'Save';
     }
+    alert('Could not save: ' + e.message);
   }
 };
 

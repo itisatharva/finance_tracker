@@ -539,6 +539,69 @@ input[type="color"] {
 .tx-meta .tx-note { font-size: .88rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-meta .tx-date { font-size: .75rem; color: var(--text-3); margin-top: 2px; }
 
+
+/* ── Transaction pending-sync pill ─────────────────────────────────────────── */
+/* Sits inline beside .tx-badge — GPU-only opacity+transform, never layout props */
+.tx-queue-wrap {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  width: 0;                  /* clips pill to zero when hidden — no transition */
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.tx-queue-wrap.tqw-show {
+  width: auto;
+  margin-left: 5px;
+}
+.tx-queue-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: inherit;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 2px 7px 2px 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  will-change: opacity, transform;
+  /* Hidden: invisible + slightly right-shifted */
+  opacity: 0;
+  transform: scale(0.72) translateX(-6px);
+  transition:
+    opacity   0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tx-queue-pill.tqp-show {
+  opacity: 1;
+  transform: scale(1) translateX(0);
+}
+.tx-queue-pill.tqp-queued {
+  color: #92400e;
+  background: rgba(245,158,11,.13);
+  border: 1px solid rgba(245,158,11,.35);
+}
+.tx-queue-pill.tqp-synced {
+  color: #065f46;
+  background: rgba(15,169,116,.1);
+  border: 1px solid rgba(15,169,116,.3);
+}
+.tqp-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #f59e0b;
+  transition: background 0.5s ease;
+}
+.tqp-dot.tqp-dot-synced { background: #0FA974; }
+.tqp-text {
+  transition: opacity 0.35s ease;
+}
+.tqp-text-fade { opacity: 0; }
+
 .tx-amount {
   font-size: 1.1rem;
   font-weight: 700;
