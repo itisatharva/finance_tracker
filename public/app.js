@@ -24,6 +24,7 @@ window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) return;
     uid = user.uid;
+    isFirstLoad = true; // reset per session so animations fire correctly on re-login
     
     // Track what data needs to load before hiding loader
     window._dataLoaded = {
@@ -257,8 +258,6 @@ function wireSettingsDrawer() {
   }
 
   btnOpen.addEventListener('click', openDrawer);
-  btnClose.addEventListener('click', closeDrawer);
-  backdrop.addEventListener('click', closeDrawer);
 
   // Mobile bottom nav settings button
   const bnSettingsBtn = document.getElementById('bnSettings');
@@ -285,9 +284,7 @@ function wireSettingsDrawer() {
     const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
     if (activeEl) activeEl.classList.add('active');
   }
-  btnClose.removeEventListener('click', closeDrawer);
   btnClose.addEventListener('click', closeDrawerAndRestoreNav);
-  backdrop.removeEventListener('click', closeDrawer);
   backdrop.addEventListener('click', closeDrawerAndRestoreNav);
   const btnImportCSV = document.getElementById('btnImportCSV');
   if (btnImportCSV) {
@@ -382,6 +379,22 @@ function wireSettingsDrawer() {
     await window.fbSignOut(window.auth).catch(console.error);
     window.location.replace('login.html');
   });
+
+  const btnResetDeleteConfirm = document.getElementById('btnResetDeleteConfirm');
+  if (btnResetDeleteConfirm) {
+    // Keep button label in sync with current state
+    function syncResetBtn() {
+      const active = localStorage.getItem('skipDeleteConfirm') === '1';
+      btnResetDeleteConfirm.style.display = active ? '' : 'none';
+    }
+    syncResetBtn();
+    btnResetDeleteConfirm.addEventListener('click', () => {
+      localStorage.removeItem('skipDeleteConfirm');
+      syncResetBtn();
+      btnResetDeleteConfirm.textContent = '✓ Confirmation re-enabled';
+      setTimeout(() => { btnResetDeleteConfirm.innerHTML = '<span>Re-enable delete confirmation</span>'; }, 2000);
+    });
+  }
 
   btnCats.addEventListener('click', () => { closeDrawer(); openCatsModal(); });
 
@@ -718,20 +731,33 @@ window.closeCatsModal = function() {
     previewEl.style.display = 'block';
     previewList.innerHTML = `<div style="color:var(--text-2)">Starting import of ${rows.length} transactions…</div>`;
 
+    // Firestore batches are capped at 500 ops each.
+    // All docs in a batch commit atomically — if the tab closes mid-import
+    // only whole batches are lost, never individual rows from a batch.
+    const BATCH_SIZE = 500;
     let ok = 0, fail = 0, errs = [];
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-      try {
-        await window.addDoc(window.collection(window.db, 'users', uid, 'transactions'), {
+
+    for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
+      const chunk = rows.slice(batchStart, batchStart + BATCH_SIZE);
+      const batch = window.writeBatch(window.db);
+      chunk.forEach(r => {
+        const ref = window.doc(window.collection(window.db, 'users', uid, 'transactions'));
+        batch.set(ref, {
           type: r.type, category: r.category, amount: r.amount,
           description: r.description, selectedDate: r.dateObj,
           createdAt: window.serverTimestamp()
         });
-        ok++;
-        if (i % 5 === 0 || i === rows.length - 1)
-          previewList.innerHTML = `<div style="color:var(--green);font-weight:600">✓ Imported ${ok} of ${rows.length}</div>`;
-      } catch(e) { fail++; errs.push(`Row ${i+2}: ${e.message}`); }
-      if (i % 20 === 0 && i > 0) await new Promise(r => setTimeout(r, 200));
+      });
+      try {
+        await batch.commit();
+        ok += chunk.length;
+        previewList.innerHTML = `<div style="color:var(--green);font-weight:600">✓ Imported ${ok} of ${rows.length}</div>`;
+      } catch(e) {
+        fail += chunk.length;
+        errs.push(`Batch ${Math.floor(batchStart/BATCH_SIZE)+1}: ${e.message}`);
+      }
+      // Yield between batches to keep UI responsive
+      await new Promise(r => setTimeout(r, 100));
     }
 
     if (fail) {
@@ -798,13 +824,15 @@ window.addCat = async function(type) {
     if (budgetEl) budgetEl.value = '';
   }
 };
-window.removeCat = async function(type, idx) {
+window.removeCat = async function(type, name) {
+  const idx = categories[type].findIndex(c => catName(c) === name);
+  if (idx === -1) return;
   categories[type].splice(idx, 1);
   await saveCategories();
   renderCatLists();
 };
 
-window.showCatDeleteConfirm = function(btn, type, idx) {
+window.showCatDeleteConfirm = function(btn, type, name) {
   // Toggle off if already showing
   const existing = btn.parentNode.querySelector('.tx-confirm-row');
   if (existing) { existing.remove(); btn.style.display = ''; return; }
@@ -823,7 +851,7 @@ window.showCatDeleteConfirm = function(btn, type, idx) {
   const yesBtn = document.createElement('button');
   yesBtn.className = 'btn-sm del';
   yesBtn.textContent = 'Yes';
-  yesBtn.addEventListener('click', () => window.removeCat(type, idx));
+  yesBtn.addEventListener('click', () => window.removeCat(type, name));
   const noBtn = document.createElement('button');
   noBtn.className = 'btn-sm';
   noBtn.textContent = 'No';
@@ -836,16 +864,20 @@ window.showCatDeleteConfirm = function(btn, type, idx) {
 window.syncSwatch = function(inputId, swatchId) {
   document.getElementById(swatchId).style.background = document.getElementById(inputId).value;
 };
-window.updateCatColor = async function(type, idx, color) {
+window.updateCatColor = async function(type, name, color) {
+  const idx = categories[type].findIndex(c => catName(c) === name);
+  if (idx === -1) return;
   if (typeof categories[type][idx] === 'string') categories[type][idx] = { name: categories[type][idx], color };
   else categories[type][idx].color = color;
   const listEl = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
-  const swatch = listEl.querySelectorAll('.cat-color-swatch')[idx];
-  if (swatch) swatch.style.background = color;
+  const item = listEl.querySelector(`[data-cat-name="${CSS.escape(name)}"] .cat-color-swatch`);
+  if (item) item.style.background = color;
   await saveCategories();
 };
 
-window.updateCatBudget = async function(type, idx, budget) {
+window.updateCatBudget = async function(type, name, budget) {
+  const idx = categories[type].findIndex(c => catName(c) === name);
+  if (idx === -1) return;
   if (typeof categories[type][idx] === 'string') {
     categories[type][idx] = { name: categories[type][idx], color: '#666', budget: null };
   }
@@ -857,26 +889,29 @@ function renderCatLists() {
   ['income','expense'].forEach(type => {
     const el = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
     el.innerHTML = '';
-    categories[type].forEach((c, i) => {
+    categories[type].forEach((c) => {
       const color = catColor(c);
+      const name  = catName(c);
       const budget = typeof c === 'object' ? c.budget : null;
       const div = document.createElement('div');
       div.className = 'cat-item';
+      div.dataset.catName = name;
 
+      const safeName = name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       const budgetInput = type === 'expense'
-        ? `<input type="number" value="${budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" onchange="updateCatBudget('${type}',${i},this.value)">`
+        ? `<input type="number" value="${budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" onchange="updateCatBudget('${type}','${safeName}',this.value)">`
         : '';
 
       div.innerHTML = `
         <div class="cat-color-wrap" title="Click to change color">
-          <input type="color" value="${color}" onchange="updateCatColor('${type}',${i},this.value)">
+          <input type="color" value="${color}" onchange="updateCatColor('${type}','${safeName}',this.value)">
           <span class="cat-color-swatch" style="background:${color}"></span>
         </div>
         <div class="cat-info">
-          <span class="cat-name">${catName(c)}</span>
+          <span class="cat-name">${name}</span>
           ${budgetInput}
         </div>
-        <button class="btn-sm del" onclick="showCatDeleteConfirm(this,'${type}',${i})">Remove</button>
+        <button class="btn-sm del" onclick="showCatDeleteConfirm(this,'${type}','${safeName}')">Remove</button>
       `;
       el.appendChild(div);
     });
@@ -1476,9 +1511,12 @@ function renderStats() {
   const balanceEl = document.getElementById('sBalance');
   const pendingEl = document.getElementById('sPending');
   
-  const elements = [incomeEl, expenseEl, balanceEl, pendingEl];
-  const values = [fmt(income), fmt(expense), fmt(balance), fmt(pending)];
-  
+  const elements = [incomeEl, expenseEl, balanceEl, pendingEl].filter(Boolean);
+  const valueMap = new Map([
+    [incomeEl, fmt(income)], [expenseEl, fmt(expense)],
+    [balanceEl, fmt(balance)], [pendingEl, fmt(pending)]
+  ]);
+
   // Check if spinners are present (first load)
   const hasSpinners = incomeEl && incomeEl.querySelector('.loading-spinner') !== null;
   
@@ -1487,14 +1525,14 @@ function renderStats() {
     elements.forEach(el => el.style.opacity = '0');
     
     setTimeout(() => {
-      elements.forEach((el, i) => el.innerHTML = values[i]);
+      elements.forEach(el => el.innerHTML = valueMap.get(el));
       // Force reflow
-      void incomeEl.offsetWidth;
+      if (incomeEl) void incomeEl.offsetWidth;
       elements.forEach(el => el.style.opacity = '1');
     }, 300);
   } else {
     // No spinners: instant update
-    elements.forEach((el, i) => el.innerHTML = values[i]);
+    elements.forEach(el => el.innerHTML = valueMap.get(el));
   }
 
   // Update cash flow starting balance label

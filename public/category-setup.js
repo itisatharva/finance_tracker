@@ -89,8 +89,12 @@ window.addCat = function(type) {
 };
 
 window.saveAndContinue = async function() {
-  if (!cats.expense.length && !cats.income.length) {
-    alert('Please add at least one category.');
+  if (!cats.expense.length) {
+    alert('Please add at least one expense category.');
+    return;
+  }
+  if (!cats.income.length) {
+    alert('Please add at least one income category.');
     return;
   }
   await persist(cats.expense, cats.income);
