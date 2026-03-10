@@ -42,8 +42,9 @@ jobs:
             "  GoogleAuthProvider, signOut as fbSignOut, getAdditionalUserInfo\n"
             "} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';\n"
             "import {\n"
-            "  getFirestore, collection, doc, getDoc, setDoc, addDoc, deleteDoc,\n"
-            "  query, orderBy, onSnapshot, serverTimestamp\n"
+            "  initializeFirestore, persistentLocalCache, persistentMultipleTabManager,\n"
+            "  collection, doc, getDoc, setDoc, addDoc, deleteDoc,\n"
+            "  query, orderBy, onSnapshot, serverTimestamp, writeBatch\n"
             "} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';\n"
             "\n"
             "const firebaseConfig = {\n"
@@ -58,7 +59,15 @@ jobs:
             "\n"
             "const app  = initializeApp(firebaseConfig);\n"
             "const auth = getAuth(app);\n"
-            "const db   = getFirestore(app);\n"
+            "\n"
+            "// Firestore with offline persistence.\n"
+            "// Writes made while offline are queued in IndexedDB and\n"
+            "// auto-synced the moment the user comes back online.\n"
+            "const db = initializeFirestore(app, {\n"
+            "  localCache: persistentLocalCache({\n"
+            "    tabManager: persistentMultipleTabManager()\n"
+            "  })\n"
+            "});\n"
             "\n"
             "window.auth = auth;\n"
             "window.db   = db;\n"
@@ -77,6 +86,7 @@ jobs:
             "window.addDoc        = addDoc;       window.deleteDoc   = deleteDoc;\n"
             "window.query         = query;        window.orderBy     = orderBy;\n"
             "window.onSnapshot    = onSnapshot;   window.serverTimestamp = serverTimestamp;\n"
+            "window.writeBatch    = writeBatch;\n"
             "window.firebaseReady = Promise.resolve();\n"
             "window._authHandled  = false;\n"
             "\n"
@@ -85,11 +95,6 @@ jobs:
             "const onSetupPage = _path.includes('category-setup');\n"
             "const onAppPage   = !onLoginPage && !onSetupPage;\n"
             "\n"
-            "// auth.js handles all sign-in routing via signInWithPopup (desktop + mobile).\n"
-            "// firebase-config.js only needs to handle the passive auth state check:\n"
-            "// - Already-logged-in user lands on login page  → send to dashboard\n"
-            "// - Unauthenticated user lands on protected page → send to landing\n"
-            "// - Correct page for auth state                 → show it\n"
             "onAuthStateChanged(auth, (user) => {\n"
             "  if (window._authHandled) return;\n"
             "  window._authHandled = true;\n"
@@ -104,18 +109,15 @@ jobs:
             "  }\n"
             "\n"
             "  if (onLoginPage) {\n"
-            "    // Already logged in — send to dashboard\n"
             "    window.location.replace('index.html');\n"
             "    return;\n"
             "  }\n"
             "  if (onAppPage) {\n"
-            "    // app.js will hide the loader after data loads\n"
             "    return;\n"
             "  }\n"
             "  hideLoader();\n"
             "});\n"
             "\n"
-            "// Safety net: unblock the page if auth takes too long\n"
             "setTimeout(() => {\n"
             "  if (!window._authHandled) {\n"
             "    window._authHandled = true;\n"
@@ -139,6 +141,16 @@ jobs:
 
           print('firebase-config.js generated successfully')
           PYEOF
+
+      # ── Stamp the Service Worker cache version ────────────────────────────────
+      # sw.js contains the placeholder BUILD_TIMESTAMP. Replacing it with the
+      # actual deploy timestamp means every deploy gets a unique cache name
+      # (ft-shell-20250310143022) so browsers immediately pick up the new shell.
+      - name: Stamp Service Worker cache version
+        run: |
+          BUILD_TS=$(date -u +%Y%m%d%H%M%S)
+          sed -i "s/BUILD_TIMESTAMP/${BUILD_TS}/g" public/sw.js
+          echo "Stamped SW cache version: ft-shell-${BUILD_TS}"
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
