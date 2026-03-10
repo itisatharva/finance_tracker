@@ -1033,12 +1033,20 @@ function buildTxDiv(tx) {
     </div>
     <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
     <div class="tx-actions">
-      <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
-      <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm(this,'${tx.id}')">Delete</button>
+      <div class="txa-normal">
+        <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
+        <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
+      </div>
+      <div class="txa-confirm">
+        <span class="tx-confirm-label">Delete?</span>
+        <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
+        <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
+        <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
+      </div>
     </div>
   `;
   div.addEventListener('click', e => {
-    if (e.target.closest('.tx-actions') || e.target.closest('.tx-confirm-row')) return;
+    if (e.target.closest('.tx-actions')) return;
     openTxDetail(tx.id);
   });
   return div;
@@ -1155,12 +1163,20 @@ function renderAllTxList() {
       </div>
       <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
       <div class="tx-actions">
-        <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
-        <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm(this,'${tx.id}')">Delete</button>
+        <div class="txa-normal">
+          <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
+          <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
+        </div>
+        <div class="txa-confirm">
+          <span class="tx-confirm-label">Delete?</span>
+          <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
+          <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
+          <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
+        </div>
       </div>
     `;
     div.addEventListener('click', e => {
-      if (e.target.closest('.tx-actions') || e.target.closest('.tx-confirm-row')) return;
+      if (e.target.closest('.tx-actions')) return;
       openTxDetail(tx.id);
     });
     el.appendChild(div);
@@ -1168,65 +1184,37 @@ function renderAllTxList() {
 }
 
 // ─── Inline delete confirmation ───────────────────────────────────────────────
-window.showDeleteConfirm = function(btn, id) {
-  // If user previously chose "don't ask again" this session, delete immediately
+// Uses pre-rendered .txa-normal / .txa-confirm divs inside .tx-actions.
+// Toggle class .confirming on .tx-actions — pure CSS animation, zero DOM churn.
+
+window.showDeleteConfirm = function(id) {
   if (localStorage.getItem('skipDeleteConfirm') === '1') {
     window.confirmDeleteTx(id);
     return;
   }
+  const txEl   = document.querySelector('[data-tx-id="' + id + '"]');
+  const actions = txEl ? txEl.querySelector('.tx-actions') : null;
+  if (!actions) return;
 
-  // Toggle off if already showing for this button
-  const existing = btn.parentNode.querySelector('.tx-confirm-row');
-  if (existing) { existing.remove(); btn.style.display = ''; return; }
-
-  // Close any other open confirm rows
-  document.querySelectorAll('.tx-confirm-row').forEach(el => {
-    const ab = el.closest('.tx-actions');
-    el.remove();
-    if (ab) { const d = ab.querySelector('.btn-sm.del'); if (d) d.style.display = ''; }
+  // Close any other open confirms
+  document.querySelectorAll('.tx-actions.confirming').forEach(a => {
+    if (a !== actions) a.classList.remove('confirming');
   });
-
-  btn.style.display = 'none';
-
-  const row = document.createElement('div');
-  row.className = 'tx-confirm-row';
-
-  const label = document.createElement('span');
-  label.className = 'tx-confirm-label';
-  label.textContent = 'Delete?';
-
-  const yesBtn = document.createElement('button');
-  yesBtn.className = 'btn-sm del';
-  yesBtn.textContent = 'Yes';
-
-  const noBtn = document.createElement('button');
-  noBtn.className = 'btn-sm';
-  noBtn.textContent = 'No';
-
-  // "Don't ask again" — lives inline under the confirm buttons
-  const dontAskWrap = document.createElement('label');
-  dontAskWrap.className = 'tx-dont-ask';
-  dontAskWrap.innerHTML = `<input type="checkbox" id="__dontAskChk_${id}" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0;"> <span>Don't ask again</span>`;
-
-  yesBtn.addEventListener('click', () => {
-    const chk = document.getElementById(`__dontAskChk_${id}`);
-    if (chk && chk.checked) localStorage.setItem('skipDeleteConfirm', '1');
-    window.confirmDeleteTx(id);
-  });
-  noBtn.addEventListener('click', () => window.cancelDeleteTx(noBtn));
-
-  row.appendChild(label);
-  row.appendChild(yesBtn);
-  row.appendChild(noBtn);
-  row.appendChild(dontAskWrap);
-  btn.parentNode.appendChild(row);
+  // Toggle this one
+  actions.classList.toggle('confirming');
 };
 
 window.cancelDeleteTx = function(btn) {
-  const row = btn.closest('.tx-confirm-row');
-  const actions = row ? row.closest('.tx-actions') : null;
-  if (row) row.remove();
-  if (actions) { const d = actions.querySelector('.btn-sm.del'); if (d) d.style.display = ''; }
+  const actions = btn.closest('.tx-actions');
+  if (actions) actions.classList.remove('confirming');
+};
+
+// Called by the pre-rendered Yes button in .txa-confirm
+window.doConfirmDeleteTx = function(id, btn) {
+  const confirm = btn.closest('.txa-confirm');
+  const chk = confirm ? confirm.querySelector('.dont-ask-chk') : null;
+  if (chk && chk.checked) localStorage.setItem('skipDeleteConfirm', '1');
+  window.confirmDeleteTx(id);
 };
 
 window.confirmDeleteTx = async function(id) {
@@ -1515,15 +1503,34 @@ function wireAddPending() {
     const raw    = document.getElementById('pendingAmt').value.replace(/,/g,'').trim();
     const amount = parseFloat(raw);
     if (!name || !amount || amount <= 0) { alert('Enter a name and amount'); return; }
-    await window.addDoc(
-      window.collection(window.db, 'users', uid, 'pending'),
-      { name, amount, createdAt: window.serverTimestamp() }
-    );
-    document.getElementById('pendingName').value = '';
-    document.getElementById('pendingAmt').value  = '';
+
+    if (_editPendingId) {
+      // Save edit
+      await window.setDoc(
+        window.doc(window.db, 'users', uid, 'pending', _editPendingId),
+        { name, amount, updatedAt: window.serverTimestamp() },
+        { merge: true }
+      );
+      cancelEditPending();
+    } else {
+      // Add new
+      await window.addDoc(
+        window.collection(window.db, 'users', uid, 'pending'),
+        { name, amount, createdAt: window.serverTimestamp() }
+      );
+      document.getElementById('pendingName').value = '';
+      document.getElementById('pendingAmt').value  = '';
+    }
     vibrate();
   });
+
+  // ESC key cancels edit mode
+  document.getElementById('pendingName').addEventListener('keydown', e => {
+    if (e.key === 'Escape' && _editPendingId) cancelEditPending();
+  });
 }
+
+let _editPendingId = null;
 
 function renderPendingList() {
   const el = document.getElementById('pendingList');
@@ -1536,15 +1543,41 @@ function renderPendingList() {
       <input type="checkbox" title="Mark as cleared" onchange="clearPending('${p.id}')">
       <span class="p-name">${p.name}</span>
       <span class="p-amount">${fmt(p.amount)}</span>
+      <button class="p-edit-btn" onclick="openEditPending('${p.id}')">Edit</button>
     `;
     el.appendChild(div);
   });
 }
 
 window.clearPending = async function(id) {
+  // If currently editing this pending item, cancel the edit
+  if (_editPendingId === id) cancelEditPending();
   await window.deleteDoc(window.doc(window.db, 'users', uid, 'pending', id));
   vibrate();
 };
+
+window.openEditPending = function(id) {
+  const p = pendingAmounts.find(x => x.id === id);
+  if (!p) return;
+  _editPendingId = id;
+  document.getElementById('pendingName').value = p.name;
+  document.getElementById('pendingAmt').value  = p.amount;
+  const btn = document.getElementById('addPendingBtn');
+  btn.textContent = 'Save';
+  btn.classList.add('btn-primary');
+  // scroll form into view on mobile
+  document.getElementById('pendingName').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  document.getElementById('pendingName').focus();
+};
+
+function cancelEditPending() {
+  _editPendingId = null;
+  document.getElementById('pendingName').value = '';
+  document.getElementById('pendingAmt').value  = '';
+  const btn = document.getElementById('addPendingBtn');
+  btn.textContent = 'Add';
+  btn.classList.remove('btn-primary');
+}
 
 // ─── Analytics: Daily ─────────────────────────────────────────────────────────
 function renderDaily() {
