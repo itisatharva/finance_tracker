@@ -503,7 +503,7 @@
     </h1>
 
     <p class="hero-sub">
-      Track expenses, manage budgets, and understand your spending — all in one clean, private, real-time app.
+      Track expenses, manage budgets, and understand your spending — all in one clean, private app that works even when you're offline.
     </p>
 
     <div class="hero-actions">
@@ -518,6 +518,11 @@
       <div class="hero-stat">
         <div class="hero-stat-val">Real-time</div>
         <div class="hero-stat-lbl">Sync across devices</div>
+      </div>
+      <div class="hero-stat-divider"></div>
+      <div class="hero-stat">
+        <div class="hero-stat-val">Offline</div>
+        <div class="hero-stat-lbl">Works without internet</div>
       </div>
       <div class="hero-stat-divider"></div>
       <div class="hero-stat">
@@ -615,6 +620,47 @@
         <div class="feature-icon" style="background:rgba(139,92,246,.12);">☁️</div>
         <div class="feature-title">Real-time sync, everywhere</div>
         <div class="feature-desc">Your data lives in the cloud and syncs instantly. Open it on your phone, tablet, or laptop — always up to date.</div>
+      </div>
+
+      <!-- Offline mode -->
+      <div class="feature-card card-wide reveal">
+        <div class="feature-icon" style="background:rgba(245,158,11,.12);">📶</div>
+        <div class="feature-title">Works fully offline — transactions never get lost</div>
+        <div class="feature-desc">Add expenses mid-flight, on the subway, or anywhere without signal. Writes queue to your device instantly and sync to the cloud the moment you reconnect — automatically, silently, without any action from you.</div>
+        <div class="feature-mockup" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:6px;background:var(--bg-card);border:1.5px solid rgba(245,158,11,.4);border-radius:999px;padding:5px 12px 5px 8px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0;box-shadow:0 0 0 2px rgba(245,158,11,.25);"></div>
+            <span style="font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#92400e;">Queued offline</span>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <div style="font-size:.78rem;color:var(--text-3);">Back online</div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <div style="display:flex;align-items:center;gap:6px;background:var(--bg-card);border:1.5px solid rgba(15,169,116,.35);border-radius:999px;padding:5px 12px 5px 8px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:#0FA974;flex-shrink:0;box-shadow:0 0 0 2px rgba(15,169,116,.25);"></div>
+            <span style="font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#065f46;">Synced</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Install as app -->
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(59,130,246,.12);">📲</div>
+        <div class="feature-title">Install directly on your phone</div>
+        <div class="feature-desc">Finance Tracker is a Progressive Web App — add it to your home screen on Android or iOS. It opens like a native app: instant launch, full screen, no browser bar.</div>
+        <div class="feature-mockup" style="display:flex;gap:10px;align-items:center;margin-top:4px;">
+          <div style="width:40px;height:40px;background:var(--ink);color:var(--ink-fg);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:700;flex-shrink:0;">₹</div>
+          <div>
+            <div style="font-size:.84rem;font-weight:700;color:var(--text-1);">Finance Tracker</div>
+            <div style="font-size:.72rem;color:var(--text-3);margin-top:2px;">Home screen · Instant launch · Offline</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cashflow -->
+      <div class="feature-card reveal">
+        <div class="feature-icon" style="background:rgba(16,185,129,.12);">📋</div>
+        <div class="feature-title">Cashflow statement with opening balance</div>
+        <div class="feature-desc">See a true monthly cashflow view — income vs expenses — with your real opening balance carried forward from all prior history, not just the current month.</div>
       </div>
 
     </div>
