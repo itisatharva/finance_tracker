@@ -142,6 +142,14 @@ function fmt(n) {
   return n < 0 ? '-' + str : str;
 }
 function vibrate() { if (navigator.vibrate) navigator.vibrate(40); }
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 // ─── Drag-to-close for mobile bottom sheets ───────────────────────────────────
 // Injects a visual drag pill and wires touch events.
@@ -310,6 +318,7 @@ function wireSettingsDrawer() {
         const rows = [['Date','Type','Category','Amount','Description']];
         txSorted(transactions).slice().reverse().forEach(tx => {
           const d = toDate(tx.selectedDate);
+          if (!d) return; // skip transactions with no date rather than crashing
           const dateStr = [
             String(d.getMonth()+1).padStart(2,'0'),
             String(d.getDate()).padStart(2,'0'),
@@ -898,7 +907,7 @@ function renderCatLists() {
           <span class="cat-color-swatch" style="background:${color}"></span>
         </div>
         <div class="cat-info">
-          <span class="cat-name">${name}</span>
+          <span class="cat-name">${esc(name)}</span>
           ${budgetInput}
         </div>
         <button class="btn-sm del" onclick="showCatDeleteConfirm(this,'${type}','${safeName}')">Remove</button>
@@ -933,8 +942,15 @@ function listenTransactions() {
     });
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data(), hasPendingWrites: d.metadata.hasPendingWrites }));
 
-    // Refresh month dropdown so all years with transactions are always reachable
-    initMonthDropdown(new Date(), transactions);
+    // Rebuild month dropdown only when the set of transaction years/months changes,
+    // not on every snapshot tick (e.g. hasPendingWrites flip).
+    const _newMonthKey = transactions.map(t => {
+      const d = toDate(t.selectedDate); return d ? `${d.getFullYear()}-${d.getMonth()}` : '';
+    }).sort().join('|');
+    if (_newMonthKey !== (listenTransactions._lastMonthKey || '')) {
+      listenTransactions._lastMonthKey = _newMonthKey;
+      initMonthDropdown(new Date(), transactions);
+    }
 
     // Track new transactions for render functions
     const currentIds = new Set(transactions.map(t => t.id));
@@ -1104,8 +1120,8 @@ function buildTxDiv(tx) {
   const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
   div.innerHTML = `
     <div class="tx-meta">
-      <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span>${pillHtml}</div>
-      ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
+      <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
+      ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
       <div class="tx-date">${dateLabel}</div>
     </div>
     <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
@@ -1177,6 +1193,10 @@ function populateTxCategoryFilter() {
   const current = sel.value;
   // Gather all unique categories present in transactions
   const cats = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
+  // Skip rebuild if the option set hasn't changed
+  const newKey = cats.join('|');
+  if (newKey === (populateTxCategoryFilter._lastKey || '')) return;
+  populateTxCategoryFilter._lastKey = newKey;
   sel.innerHTML = '<option value="">All Categories</option>';
   cats.forEach(cat => {
     const o = document.createElement('option');
@@ -1236,8 +1256,8 @@ function renderAllTxList() {
     const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
     div.innerHTML = `
       <div class="tx-meta">
-        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${tx.category}</span>${pillHtml}</div>
-        ${tx.description ? `<div class="tx-note">${tx.description}</div>` : ''}
+        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
+        ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
         <div class="tx-date">${dateLabel}</div>
       </div>
       <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
@@ -1295,7 +1315,13 @@ window.showDeleteConfirm = function(id) {
     window.confirmDeleteTx(id);
     return;
   }
-  const txEl   = document.querySelector('[data-tx-id="' + id + '"]');
+  // Scope to the currently visible list to avoid matching the same tx-id
+  // in both #txList (dashboard) and #allTxList (transactions tab) simultaneously.
+  const activeList = activeView === 'transactions'
+    ? document.getElementById('allTxList')
+    : document.getElementById('txList');
+  const txEl   = activeList ? activeList.querySelector('[data-tx-id="' + id + '"]')
+                             : document.querySelector('[data-tx-id="' + id + '"]');
   const actions = txEl ? txEl.querySelector('.tx-actions') : null;
   if (!actions) return;
 
@@ -1326,7 +1352,12 @@ window.doConfirmDeleteTx = function(id, btn) {
 };
 
 window.confirmDeleteTx = async function(id) {
-  const txEl = document.querySelector('[data-tx-id="' + id + '"]');
+  // Scope to visible list so the remove animation plays on the right element
+  const activeList = activeView === 'transactions'
+    ? document.getElementById('allTxList')
+    : document.getElementById('txList');
+  const txEl = activeList ? activeList.querySelector('[data-tx-id="' + id + '"]')
+                          : document.querySelector('[data-tx-id="' + id + '"]');
   if (txEl) { txEl.classList.add('removing'); await new Promise(r => setTimeout(r, 350)); }
   await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
   vibrate();
@@ -1577,7 +1608,7 @@ function renderStats() {
   const curM = now.getMonth();
   const monthTx = transactions.filter(t => {
     const d = toDate(t.selectedDate || t.createdAt);
-    return d.getFullYear() === curY && d.getMonth() === curM;
+    return d && d.getFullYear() === curY && d.getMonth() === curM;
   });
   const income  = monthTx.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
   const expense = monthTx.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
@@ -1665,7 +1696,7 @@ function renderPendingList() {
     div.className = 'pending-item';
     div.innerHTML = `
       <input type="checkbox" title="Mark as cleared" onchange="clearPending('${p.id}')">
-      <span class="p-name">${p.name}</span>
+      <span class="p-name">${esc(p.name)}</span>
       <span class="p-amount">${fmt(p.amount)}</span>
     `;
     el.appendChild(div);
@@ -2054,7 +2085,12 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
 document.getElementById('monthlyDate').addEventListener('change', renderMonthly);
 
 // ─── Transaction search & filter listeners ────────────────────────────────────
-document.getElementById('txSearchInput').addEventListener('input', renderAllTxList);
+// Debounce the free-text search so we don't rebuild the full list on every keystroke.
+let _txSearchDebounceTimer = null;
+document.getElementById('txSearchInput').addEventListener('input', () => {
+  clearTimeout(_txSearchDebounceTimer);
+  _txSearchDebounceTimer = setTimeout(renderAllTxList, 200);
+});
 document.getElementById('txCategoryFilter').addEventListener('change', renderAllTxList);
 document.getElementById('txTypeFilter').addEventListener('change', renderAllTxList);
 
@@ -2102,7 +2138,9 @@ function renderCashflow() {
   const monthInc = Array(12).fill(0);
   const monthExp = Array(12).fill(0);
   yearTx.forEach(t => {
-    const mo = toDate(t.selectedDate).getMonth();
+    const d = toDate(t.selectedDate);
+    if (!d) return;
+    const mo = d.getMonth();
     if (t.type === 'income')  monthInc[mo] += t.amount;
     if (t.type === 'expense') monthExp[mo] += t.amount;
   });
@@ -2190,7 +2228,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
 
   txList.forEach(t => {
     const d = toDate(t.selectedDate);
-    if (d.getFullYear() === year && d.getMonth() === month - 1) {
+    if (d && d.getFullYear() === year && d.getMonth() === month - 1) {
       dailyTotals[d.getDate() - 1] += t.amount;
     }
   });
@@ -2283,7 +2321,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
     showTips: false,
   };
 
-  Plotly.newPlot(container, trace, layout, config);
+  Plotly.react(container, trace, layout, config);
 
   // Register theme-sync callback in the shared observer (replaces any previous entry for this container)
   registerChartThemeCallback(container, () => {
@@ -2401,7 +2439,7 @@ function renderPieChart(wrapId, txList, type) {
     displayModeBar: false
   };
 
-  Plotly.newPlot(container, data, layout, config);
+  Plotly.react(container, data, layout, config);
 
   // Register theme-sync callback in the shared observer (replaces any previous entry for this container)
   registerChartThemeCallback(container, () => {
