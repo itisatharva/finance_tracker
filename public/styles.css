@@ -383,6 +383,24 @@ body {
 .stat-card.pending .val {
   transition: opacity 0.5s ease-in-out; color: var(--orange); }
 
+/* ── Stat card sparklines ──────────────────────────────────────────────────── */
+/* No border, no background — just the SVG line sitting flush at the bottom.  */
+.stat-sparkline {
+  display: block;
+  width: calc(100% + 44px);   /* bleed past the card padding on both sides */
+  margin-left: -22px;
+  margin-right: -22px;
+  height: 42px;
+  margin-top: 14px;
+  margin-bottom: -20px;       /* pull up into the card's bottom padding */
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity .4s ease;
+}
+.stat-sparkline.loaded {
+  opacity: 1;
+}
+
 /* ---------- SECTION CARD ---------- */
 
 .card {
