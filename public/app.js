@@ -1748,8 +1748,8 @@ function drawSparkline(id, data, color, isDark) {
   const gradId   = `sg_${id}`;
 
   // Fill opacity: soft in light mode, slightly stronger in dark
-  const fillOpacity0 = isDark ? '0.22' : '0.15';
-  const lineOpacity  = isDark ? '0.6'  : '0.5';
+  const fillOpacity0 = isDark ? '0.26' : '0.18';
+  const lineOpacity  = isDark ? '0.75' : '0.65';
 
   svg.innerHTML = `
     <defs>
@@ -1760,7 +1760,7 @@ function drawSparkline(id, data, color, isDark) {
     </defs>
     <path d="${fillPath}" fill="url(#${gradId})"/>
     <path d="${linePath}" fill="none" stroke="${resolvedColor}"
-          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+          stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"
           opacity="${lineOpacity}"/>
   `;
 
