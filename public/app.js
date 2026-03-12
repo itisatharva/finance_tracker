@@ -1650,12 +1650,16 @@ function renderStats() {
   const cfEl = document.getElementById('cfStartBal');
   if (cfEl) cfEl.textContent = fmt(startingBalance);
 
-  // Highest pending item sub-line
+  // Top-2 pending items sub-lines
   const topEl = document.getElementById('sPendingTop');
   if (topEl) {
     if (pendingAmounts.length) {
-      const top = pendingAmounts.reduce((a, b) => b.amount > a.amount ? b : a);
-      topEl.innerHTML = `<span class="pending-dot"></span><span class="pending-top-name">${esc(top.name)}</span><span class="pending-top-amt">${fmt(top.amount)}</span>`;
+      const sorted = [...pendingAmounts].sort((a, b) => b.amount - a.amount);
+      const top  = sorted[0];
+      const top2 = sorted[1] || null;
+      topEl.innerHTML =
+        `<span class="pending-dot"></span><span class="pending-top-name">${esc(top.name)}</span><span class="pending-top-amt">${fmt(top.amount)}</span>` +
+        (top2 ? `<span class="pending-dot pending-dot-2"></span><span class="pending-top-name pending-top-name-2">${esc(top2.name)}</span><span class="pending-top-amt pending-top-amt-2">${fmt(top2.amount)}</span>` : '');
     } else {
       topEl.innerHTML = '';
     }
@@ -1748,8 +1752,8 @@ function drawSparkline(id, data, color, isDark) {
   const gradId   = `sg_${id}`;
 
   // Fill opacity: soft in light mode, slightly stronger in dark
-  const fillOpacity0 = isDark ? '0.26' : '0.18';
-  const lineOpacity  = isDark ? '0.75' : '0.65';
+  const fillOpacity0 = isDark ? '0.32' : '0.24';
+  const lineOpacity  = isDark ? '1.0'  : '0.92';
 
   svg.innerHTML = `
     <defs>
@@ -1760,7 +1764,7 @@ function drawSparkline(id, data, color, isDark) {
     </defs>
     <path d="${fillPath}" fill="url(#${gradId})"/>
     <path d="${linePath}" fill="none" stroke="${resolvedColor}"
-          stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"
+          stroke-width="4" stroke-linecap="round" stroke-linejoin="round"
           opacity="${lineOpacity}"/>
   `;
 
