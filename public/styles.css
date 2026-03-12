@@ -396,6 +396,40 @@ body {
 .stat-card.pending .val {
   transition: opacity 0.5s ease-in-out; color: var(--orange); }
 
+/* Highest pending item sub-line */
+.pending-top-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 18px;
+}
+.pending-top-item:empty { display: none; }
+.pending-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(245,158,11,.2);
+}
+.pending-top-name {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+.pending-top-amt {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--orange);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 /* ── Stat card sparklines ──────────────────────────────────────────────────── */
 .stat-sparkline {
   display: block;

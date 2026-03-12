@@ -1650,6 +1650,17 @@ function renderStats() {
   const cfEl = document.getElementById('cfStartBal');
   if (cfEl) cfEl.textContent = fmt(startingBalance);
 
+  // Highest pending item sub-line
+  const topEl = document.getElementById('sPendingTop');
+  if (topEl) {
+    if (pendingAmounts.length) {
+      const top = pendingAmounts.reduce((a, b) => b.amount > a.amount ? b : a);
+      topEl.innerHTML = `<span class="pending-dot"></span><span class="pending-top-name">${esc(top.name)}</span><span class="pending-top-amt">${fmt(top.amount)}</span>`;
+    } else {
+      topEl.innerHTML = '';
+    }
+  }
+
   renderSparklines();
 }
 
