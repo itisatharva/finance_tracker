@@ -1,149 +1,212 @@
 # Finance Tracker
 
-A personal finance web application for tracking income, expenses, pending amounts, and spending patterns over time. Built with vanilla JavaScript and Firebase.
+A personal finance web app for tracking income, expenses, cash flow, and spending patterns — with full offline support and real-time sync.
 
-Live: [https://itisatharva-ft.web.app]
+**Live:** [https://itisatharva-ft.web.app](https://itisatharva-ft.web.app)
 
 ---
 
-## Overview
+## Features
 
-Finance Tracker is a real-time, single-user web app that syncs data instantly to Firebase Firestore. It works in any modern browser on both desktop and mobile.
+- **Real-time sync** via Firebase Firestore — changes appear instantly across devices
+- **Offline-first PWA** — add transactions with no internet connection; they queue locally and sync automatically when you reconnect
+- **Installable** — add to your home screen and launch like a native app, with no browser chrome
+- **Analytics** — daily, monthly, yearly, and cash flow views with interactive Plotly charts
+- **Monthly insights** — automatic analysis of spending trends, savings rate, top categories, and budget utilisation
+- **Per-category budgets** — set monthly budget limits and track progress with visual bars and alerts
+- **CSV import / export** — bulk import transactions from a spreadsheet or export your full history
+- **Dark mode** — system-aware theme that persists across sessions
 
-All data is private — Firestore security rules ensure each user can only access their own transactions, categories, and settings.
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Vanilla JavaScript, HTML, CSS |
+| Auth | Firebase Authentication (email + Google) |
+| Database | Firebase Firestore (offline persistence enabled) |
+| Hosting | Firebase Hosting |
+| Charts | Plotly.js |
+| Offline / PWA | Service Worker, Web App Manifest |
 
 ---
 
 ## Getting Started
 
-### Creating an Account
+### Sign Up
 
-Navigate to the app URL and you will land on the login page. You can sign up using:
+Visit the app URL and create an account with either:
 
-- **Email and password** — enter your email, choose a password of at least 6 characters, and click Join.
-- **Google** — click "Join with Google" and complete the Google sign-in flow.
+- **Email and password** — minimum 6 characters
+- **Google** — one-click sign-in via popup
 
-After signing up, you will be taken to the category setup screen. This is a one-time step where you can review the default categories or customise them before continuing to the dashboard. You can always edit categories later from Settings.
+New users are taken to a one-time **category setup screen** to review and customise default income and expense categories. This can be edited at any time from Settings.
 
-### Signing In
+### Sign In
 
-On the login screen, enter your credentials or use Google Sign-In. Returning users are taken directly to the dashboard.
+Returning users land directly on the dashboard after authenticating.
 
 ---
 
 ## Dashboard
 
-The dashboard is the main screen of the app. It is divided into four sections.
+The main screen, divided into four sections.
 
 ### Stats Row
 
-At the top of the dashboard, four cards display:
-
-- **Income** — total income added in the current calendar month.
-- **Expenses** — total expenses added in the current calendar month. Resets to zero at the start of each month.
-- **Balance** — your all-time balance: starting balance plus all income minus all expenses minus pending amounts. This is designed to match your actual bank account.
-- **Pending** — the sum of all currently uncleared pending amounts.
+| Card | What it shows |
+|---|---|
+| **Income** | Total income for the current calendar month |
+| **Expenses** | Total expenses for the current calendar month |
+| **Balance** | Starting balance + all-time income − all-time expenses − pending amounts |
+| **Pending** | Sum of all uncleared pending amounts |
 
 ### Add Transaction
 
-To add a transaction:
+1. Pick a date (defaults to today)
+2. Select a category — the app infers income vs. expense automatically
+3. Enter the amount (decimals supported)
+4. Optionally add a note — the field suggests previous descriptions for the same category as you type
+5. Click **Add Transaction**
 
-1. Select the date using the date picker. It defaults to today.
-2. Select a category from the dropdown. The app automatically determines whether the transaction is income or expense based on the category type.
-3. Enter the amount. Decimals are supported.
-4. Optionally add a note to describe the transaction.
-5. Click Add Transaction. The button will confirm with a green tick once saved.
-
-Transactions are saved in real time to Firestore and appear immediately in the Recent Transactions list.
+When offline, the button shows an amber **"Saved offline — will sync"** state. Once reconnected, the transaction syncs automatically and the pill updates to **Synced**.
 
 ### Pending Amounts
 
-Pending amounts represent money owed to or from someone that has not yet been settled. They are deducted from your balance so that your balance always reflects what is actually available.
-
-To add a pending amount, enter a name or description and an amount, then click Add. To clear a pending amount once it has been settled, check the checkbox next to it. It will be removed and the balance will update automatically.
+Pending amounts represent unsettled money (e.g. a loan or split bill). They are deducted from your balance so it always reflects what is actually available. Check the checkbox next to a pending item to clear it once settled.
 
 ### Recent Transactions
 
-The 20 most recent transactions are shown here, sorted by transaction date. Each entry shows the category, optional note, date, and amount. Income is shown in green and expenses in red.
+The 5 most recent transactions, sorted by date. Each item shows category, optional note, date, and amount. Tap any row to open the **Transaction Detail panel** with full metadata. Edit and delete are available inline or from the detail panel.
 
-Each transaction has two actions:
-
-- **Edit** — opens a modal where you can change the date, category, amount, and note. Save to update.
-- **Delete** — shows a confirmation dialog before deleting. You can check "Don't ask again" to skip the confirmation for future deletes in the same session.
+**Deleting** shows an inline confirmation row. Check *"Don't ask again"* to skip confirmations for the rest of the session — this preference resets on sign-out.
 
 ---
 
-## Transactions
+## Transactions Tab
 
-The Transactions tab shows every transaction ever recorded, sorted by date descending. The total count is displayed at the top. Edit and delete work the same as on the dashboard.
+Every transaction ever recorded, sorted newest first. Supports:
+
+- **Search** — filters by description or category (debounced for performance)
+- **Category filter** — dropdown of all categories present in your data
+- **Type filter** — income or expense only
+
+The header shows a live count of results vs. total.
 
 ---
 
 ## Analytics
 
-The Analytics tab has four views selectable from the tab bar at the top.
+Four views, selectable from the tab bar.
 
 ### Daily
 
-Select any date to see the total expenses for that day compared to the previous day. An arrow indicates whether spending went up or down. A doughnut chart breaks down expenses by category for the selected day.
+Pick any date to compare that day's expenses against the previous day. Includes a category breakdown pie chart.
 
 ### Monthly
 
-Select a month and year to see:
+Pick a month to see:
 
-- A summary showing total income and total expenses for that month.
-- A doughnut chart breaking down expenses by category.
-- A category breakdown list sorted from highest to lowest spend.
+- Total income and expense summary with month-over-month comparison
+- Category breakdown list sorted by spend, with optional budget progress bars
+- Daily spending line chart for the selected month
+- **Monthly Insights panel** — automatic cards covering total spending, net savings, income change, top category, biggest category jump, budget utilisation, daily average, and transaction count
+
+Toggle between **Expense** and **Income** views.
 
 ### Yearly
 
-Enter a year to see a table of expense categories versus months. Each cell shows the total spent in that category for that month. The rightmost columns show the annual total and monthly average for each category.
+Enter a year to see a table of all categories × months with totals and monthly averages per row. Toggle between expense and income.
 
 ### Cash Flow
 
-Enter a year to see a month-by-month cash flow table showing income, expenses, net (income minus expenses), and a running balance that carries forward from your starting balance. The starting balance is set in Settings.
+Enter a year to see a month-by-month table: income, expenses, net, and a running balance carried forward from your starting balance. The opening balance for the selected year accounts for all prior transactions automatically.
 
 ---
 
 ## Settings
 
-The settings panel is accessible via the gear icon in the top right corner.
+Accessible via the ⚙ icon (top right) or the bottom nav on mobile.
 
-### Starting Balance
-
-Enter your bank account balance as it was before you started tracking in this app. This is used as the base for the Balance stat and the Cash Flow running balance. It does not affect income or expense totals.
-
-### Categories
-
-Opens the category manager where you can:
-
-- Add new income or expense categories with a custom name and colour.
-- Change the colour of existing categories by clicking the colour swatch.
-- Remove categories you no longer need.
-
-Category changes take effect immediately for all future transactions. Existing transactions retain the category name they were saved with.
-
-### Dark Mode
-
-Toggles between light and dark theme. The preference is saved to the browser and applied on every subsequent visit.
-
-### Sign Out
-
-Signs you out of the current session and returns you to the login page.
+| Setting | Description |
+|---|---|
+| **Starting Balance** | Your account balance before you started tracking. Used as the base for Balance and Cash Flow. |
+| **Categories** | Add, recolour, or remove income and expense categories. Set optional monthly budgets on expense categories. |
+| **Profile Name** | Display name shown in the greeting header. Stored locally. |
+| **Import CSV** | Bulk-import transactions. Expected format: `Date (MM/DD/YYYY), Type, Category, Amount, Description`. A preview step shows the first 10 rows before committing. Imports run in batches of 500 for reliability. |
+| **Export CSV** | Downloads all transactions as a CSV file. |
+| **Dark Mode** | Toggle light/dark theme. Saved to localStorage. |
+| **Sign Out** | Ends the session and returns to the login page. |
 
 ---
 
-## Data and Privacy
+## Offline Behaviour
 
-All data is stored in your Firebase Firestore database under your user account. No data is shared with any third party. Firestore security rules prevent any user from reading or writing another user's data. Deleting your account from Firebase will permanently remove all associated data.
+Finance Tracker is a Progressive Web App with a service worker that:
+
+- Caches all app shell assets on first load
+- Serves the full app from cache when offline
+- Queues Firestore writes locally (via Firestore's offline persistence)
+- Syncs queued transactions automatically on reconnect
+- Shows an offline indicator badge and per-transaction sync status pills
+
+A versioned cache (stamped at build time by CI) ensures users always get the latest assets after a deploy, with an in-app update toast prompting a reload.
 
 ---
 
-## Technology
+## CSV Import Format
 
-- Vanilla JavaScript, HTML, CSS — no frontend framework
-- Firebase Authentication — email/password and Google sign-in
-- Firebase Firestore — real-time database
-- Firebase Hosting — deployment
-- Chart.js — analytics charts
+```
+Date,Type,Category,Amount,Description
+03/15/2025,expense,Food & Dining,450,Lunch at Smoke House
+03/16/2025,income,Salary,85000,March salary
+```
 
+- **Date** — MM/DD/YYYY
+- **Type** — `income` or `expense` (case-insensitive)
+- **Category** — must match an existing category name
+- **Amount** — positive number
+- **Description** — optional; wrap in quotes if it contains commas
+
+---
+
+## Privacy & Data
+
+All data lives in your own Firebase Firestore project, partitioned by user ID. Firestore security rules prevent any user from reading or writing another user's data. No analytics, no ads, no third-party data sharing.
+
+---
+
+## Development & Deployment
+
+The project is plain HTML/CSS/JS with no build step required.
+
+```bash
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Login and deploy
+firebase login
+firebase deploy
+```
+
+A GitHub Actions workflow automatically deploys on push to `main`. It also stamps the service worker cache version with the build timestamp so users always receive the latest assets.
+
+### Folder structure
+
+```
+public/
+├── index.html          # Main app shell
+├── landing.html        # Marketing / landing page
+├── login.html          # Auth page
+├── category-setup.html # First-run category setup
+├── 404.html
+├── app.js              # Core application logic
+├── auth.js             # Authentication handlers
+├── category-setup.js   # Category setup logic
+├── theme.js            # Theme initialisation
+├── pwa.js              # Service worker registration, offline pill, install banner
+├── sw.js               # Service worker (cache strategy)
+├── styles.css          # All styles
+├── manifest.json       # PWA manifest
+└── icons/              # App icons (all sizes + maskable variants)
