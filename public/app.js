@@ -1724,7 +1724,7 @@ function drawSparkline(id, data, color, isDark) {
   const W = Math.round(svg.getBoundingClientRect().width) || 300;
   const H = 56;
   const PAD_T = 8;   // gap above the peak so the line isn't clipped
-  const PAD_B = 0;   // line base sits right at the bottom edge
+  const PAD_B = 4;   // enough room for stroke-width/2 so zero values aren't clipped
   const range = (max - min) || 1;
 
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
