@@ -367,12 +367,25 @@ body {
   box-shadow: var(--shadow-sm);
   transition: border-color .18s, box-shadow .18s, transform .18s;
   cursor: default;
+  /* clip sparkline SVG to rounded corners */
+  overflow: hidden;
 }
 .stat-card:hover {
   border-color: var(--ink);
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
+
+/* Cards with sparklines: remove bottom padding so SVG sits flush */
+.stat-card.has-spark {
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+.stat-card .stat-top {
+  padding-bottom: 12px;
+}
+
 .stat-card .lbl { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 6px; }
 .stat-card .val {
   transition: opacity 0.5s ease-in-out; font-size: 1.6rem; font-weight: 700; color: var(--text-1); }
@@ -384,18 +397,13 @@ body {
   transition: opacity 0.5s ease-in-out; color: var(--orange); }
 
 /* ── Stat card sparklines ──────────────────────────────────────────────────── */
-/* No border, no background — just the SVG line sitting flush at the bottom.  */
 .stat-sparkline {
   display: block;
-  width: calc(100% + 44px);   /* bleed past the card padding on both sides */
-  margin-left: -22px;
-  margin-right: -22px;
-  height: 42px;
-  margin-top: 14px;
-  margin-bottom: -20px;       /* pull up into the card's bottom padding */
-  overflow: hidden;
+  width: 100%;
+  height: 56px;
+  flex-shrink: 0;
   opacity: 0;
-  transition: opacity .4s ease;
+  transition: opacity .5s ease;
 }
 .stat-sparkline.loaded {
   opacity: 1;

@@ -1654,40 +1654,33 @@ function renderStats() {
 }
 
 // ─── Stat Card Sparklines ─────────────────────────────────────────────────────
-// Draws borderless inline SVG sparklines for Income, Expense, Balance cards.
-// Each sparkline shows 30 days of daily data, bleeding edge-to-edge across the
-// card's bottom — no axes, no labels, seamlessly part of the card surface.
+// Pure SVG area charts, fully contained inside each card via overflow:hidden.
+// No axes, no labels — just the shape of the data over the last 30 days.
 
 function renderSparklines() {
   if (!transactions) return;
   const DAYS = 30;
   const now  = new Date();
 
-  // ── Build daily income/expense totals for last N days ─────────────────────
+  // Daily totals for income or expense over last N days
   function dailyTotals(type, n) {
     const buckets = new Array(n).fill(0);
     transactions.forEach(t => {
       if (t.type !== type) return;
       const d = toDate(t.selectedDate);
       if (!d) return;
-      // diff in whole days: 0 = today, 1 = yesterday …
       const diff = Math.floor((now - d) / 86_400_000);
       if (diff >= 0 && diff < n) buckets[n - 1 - diff] += t.amount;
     });
     return buckets;
   }
 
-  // ── Build rolling daily balance for last N days ───────────────────────────
-  // For each day slot compute startingBalance + all prior transactions up to
-  // end of that day. O(n × |tx|) — fine for typical dataset sizes.
+  // Rolling daily balance for last N days
   function dailyBalance(n) {
-    const slots = Array.from({ length: n }, (_, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (n - 1 - i));
-      d.setHours(23, 59, 59, 999);
-      return d;
-    });
-    return slots.map(dayEnd => {
+    return Array.from({ length: n }, (_, i) => {
+      const dayEnd = new Date(now);
+      dayEnd.setDate(dayEnd.getDate() - (n - 1 - i));
+      dayEnd.setHours(23, 59, 59, 999);
       let bal = startingBalance;
       transactions.forEach(t => {
         const d = toDate(t.selectedDate);
@@ -1701,71 +1694,69 @@ function renderSparklines() {
 
   drawSparkline('sparkIncome',  dailyTotals('income',  DAYS), '#0FA974', isDark);
   drawSparkline('sparkExpense', dailyTotals('expense', DAYS), '#E84545', isDark);
-  drawSparkline('sparkBalance', dailyBalance(DAYS),           null,      isDark);
+  drawSparkline('sparkBalance', dailyBalance(DAYS),            null,     isDark);
 }
 
 function drawSparkline(id, data, color, isDark) {
   const svg = document.getElementById(id);
   if (!svg) return;
 
-  // Resolve theme-dependent color (balance card has no fixed accent)
-  const resolvedColor = color || (isDark ? '#F0EDE8' : '#1C1C1C');
+  const resolvedColor = color || (isDark ? '#a0a0a0' : '#6b7280');
 
-  // If all zeroes draw a flat baseline — shows an empty-state line rather than nothing
+  const n   = data.length;
   const max = Math.max(...data);
   const min = Math.min(...data);
 
-  const W = 100;  // SVG user-units; scales to any CSS width via preserveAspectRatio="none"
-  const H = 42;
-  const PAD_TOP = 6;    // breathing room above peak
-  const PAD_BOT = 0;    // line sits right at card bottom edge
-  const range   = (max - min) || 1;
+  // viewBox matches the rendered pixel size for pixel-perfect paths
+  const W = 300;
+  const H = 56;
+  const PAD_T = 8;   // gap above the peak so the line isn't clipped
+  const PAD_B = 0;   // line base sits right at the bottom edge
+  const range = (max - min) || 1;
 
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
-  // Map each data point to SVG coordinates
-  const n   = data.length;
-  const pts = data.map((v, i) => {
-    const x = (i / (n - 1)) * W;
-    const y = PAD_TOP + (1 - (v - min) / range) * (H - PAD_TOP - PAD_BOT);
-    return [x, y];
-  });
+  // Map each data point → SVG coordinate
+  const pts = data.map((v, i) => [
+    (i / (n - 1)) * W,
+    PAD_T + (1 - (v - min) / range) * (H - PAD_T - PAD_B)
+  ]);
 
-  // Smooth cubic-bezier path through all points
-  function smoothPath(points) {
-    if (points.length < 2) return '';
-    let d = `M ${points[0][0].toFixed(2)},${points[0][1].toFixed(2)}`;
+  // Smooth cubic-bezier path
+  function makePath(points) {
+    let d = `M ${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
     for (let i = 1; i < points.length; i++) {
-      const px = points[i - 1][0], py = points[i - 1][1];
-      const cx = points[i][0],     cy = points[i][1];
-      const cpX = (px + cx) / 2;
-      d += ` C ${cpX.toFixed(2)},${py.toFixed(2)} ${cpX.toFixed(2)},${cy.toFixed(2)} ${cx.toFixed(2)},${cy.toFixed(2)}`;
+      const cpX = ((points[i - 1][0] + points[i][0]) / 2).toFixed(1);
+      d += ` C ${cpX},${points[i-1][1].toFixed(1)} ${cpX},${points[i][1].toFixed(1)} ${points[i][0].toFixed(1)},${points[i][1].toFixed(1)}`;
     }
     return d;
   }
 
-  const linePath = smoothPath(pts);
-  // Fill path: close below the line back along the bottom edge
+  const linePath = makePath(pts);
   const fillPath = `${linePath} L ${W},${H} L 0,${H} Z`;
+  const gradId   = `sg_${id}`;
 
-  const gradId = `sg_${id}`;
+  // Fill opacity: soft in light mode, slightly stronger in dark
+  const fillOpacity0 = isDark ? '0.22' : '0.15';
+  const lineOpacity  = isDark ? '0.6'  : '0.5';
 
   svg.innerHTML = `
     <defs>
       <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"   stop-color="${resolvedColor}" stop-opacity="${isDark ? '0.18' : '0.12'}"/>
+        <stop offset="0%"   stop-color="${resolvedColor}" stop-opacity="${fillOpacity0}"/>
         <stop offset="100%" stop-color="${resolvedColor}" stop-opacity="0"/>
       </linearGradient>
     </defs>
     <path d="${fillPath}" fill="url(#${gradId})"/>
-    <path d="${linePath}" fill="none" stroke="${resolvedColor}" stroke-width="1.5"
-          stroke-linecap="round" stroke-linejoin="round" opacity="${isDark ? '0.55' : '0.4'}"/>
+    <path d="${linePath}" fill="none" stroke="${resolvedColor}"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+          opacity="${lineOpacity}"/>
   `;
 
-  // Fade in
   svg.classList.add('loaded');
 }
 
+// ─── Pending Amounts ──────────────────────────────────────────────────────────
 function listenPending() {
   const q = window.query(
     window.collection(window.db, 'users', uid, 'pending'),
@@ -2573,6 +2564,5 @@ function renderPieChart(wrapId, txList, type) {
   });
 }
 
-// Re-render sparklines on theme toggle so balance line color updates correctly.
-// Must be registered after registerChartThemeCallback is defined (above).
+// Re-render sparklines on theme toggle (balance line color is theme-dependent)
 registerChartThemeCallback('sparklines', () => renderSparklines());
