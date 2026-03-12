@@ -8,6 +8,10 @@ on:
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -143,9 +147,6 @@ jobs:
           PYEOF
 
       # ── Stamp the Service Worker cache version ────────────────────────────────
-      # sw.js contains the placeholder BUILD_TIMESTAMP. Replacing it with the
-      # actual deploy timestamp means every deploy gets a unique cache name
-      # (ft-shell-20250310143022) so browsers immediately pick up the new shell.
       - name: Stamp Service Worker cache version
         run: |
           BUILD_TS=$(date -u +%Y%m%d%H%M%S)
@@ -153,7 +154,7 @@ jobs:
           echo "Stamped SW cache version: ft-shell-${BUILD_TS}"
 
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
+        uses: FirebaseExtended/action-hosting-deploy@v0.8.0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
