@@ -1650,16 +1650,12 @@ function renderStats() {
   const cfEl = document.getElementById('cfStartBal');
   if (cfEl) cfEl.textContent = fmt(startingBalance);
 
-  // Top-2 pending items sub-lines
+  // Highest pending item sub-line
   const topEl = document.getElementById('sPendingTop');
   if (topEl) {
     if (pendingAmounts.length) {
-      const sorted = [...pendingAmounts].sort((a, b) => b.amount - a.amount);
-      const top  = sorted[0];
-      const top2 = sorted[1] || null;
-      topEl.innerHTML =
-        `<span class="pending-dot"></span><span class="pending-top-name">${esc(top.name)}</span><span class="pending-top-amt">${fmt(top.amount)}</span>` +
-        (top2 ? `<span class="pending-dot pending-dot-2"></span><span class="pending-top-name pending-top-name-2">${esc(top2.name)}</span><span class="pending-top-amt pending-top-amt-2">${fmt(top2.amount)}</span>` : '');
+      const top = pendingAmounts.reduce((a, b) => b.amount > a.amount ? b : a);
+      topEl.innerHTML = `<span class="pending-dot"></span><span class="pending-top-name">${esc(top.name)}</span><span class="pending-top-amt">${fmt(top.amount)}</span>`;
     } else {
       topEl.innerHTML = '';
     }
@@ -1722,14 +1718,17 @@ function drawSparkline(id, data, color, isDark) {
   const max = Math.max(...data);
   const min = Math.min(...data);
 
-  // viewBox matches the rendered pixel size for pixel-perfect paths
-  const W = 300;
+  // Use the actual rendered pixel width so viewBox === element size.
+  // This means no SVG scaling occurs and stroke-width is always exactly
+  // the specified number of CSS pixels — no thinning/thickening on mobile.
+  const W = Math.round(svg.getBoundingClientRect().width) || 300;
   const H = 56;
   const PAD_T = 8;   // gap above the peak so the line isn't clipped
   const PAD_B = 0;   // line base sits right at the bottom edge
   const range = (max - min) || 1;
 
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
 
   // Map each data point → SVG coordinate
   const pts = data.map((v, i) => [
@@ -1752,8 +1751,8 @@ function drawSparkline(id, data, color, isDark) {
   const gradId   = `sg_${id}`;
 
   // Fill opacity: soft in light mode, slightly stronger in dark
-  const fillOpacity0 = isDark ? '0.32' : '0.24';
-  const lineOpacity  = isDark ? '1.0'  : '0.92';
+  const fillOpacity0 = isDark ? '0.30' : '0.20';
+  const lineOpacity  = isDark ? '0.90' : '0.80';
 
   svg.innerHTML = `
     <defs>
@@ -1764,7 +1763,7 @@ function drawSparkline(id, data, color, isDark) {
     </defs>
     <path d="${fillPath}" fill="url(#${gradId})"/>
     <path d="${linePath}" fill="none" stroke="${resolvedColor}"
-          stroke-width="4" stroke-linecap="round" stroke-linejoin="round"
+          stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
           opacity="${lineOpacity}"/>
   `;
 
