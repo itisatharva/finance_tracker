@@ -398,12 +398,11 @@ body {
 
 /* Highest pending item sub-line */
 .pending-top-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: 4px 6px;
+  gap: 6px;
   margin-top: 8px;
-  min-height: 18px;
+  min-height: 20px;
 }
 .pending-top-item:empty { display: none; }
 .pending-dot {
@@ -414,31 +413,23 @@ body {
   flex-shrink: 0;
   box-shadow: 0 0 0 2px rgba(245,158,11,.2);
 }
-.pending-dot-2 {
-  opacity: .45;
-}
 .pending-top-name {
-  font-size: .78rem;
+  font-size: .88rem;
   font-weight: 600;
   color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
   min-width: 0;
 }
-.pending-top-name-2 {
-  font-weight: 500;
-  color: var(--text-3);
-}
 .pending-top-amt {
-  font-size: .78rem;
+  font-size: .88rem;
   font-weight: 700;
   color: var(--orange);
   flex-shrink: 0;
+  margin-left: auto;
   text-align: right;
-}
-.pending-top-amt-2 {
-  opacity: .6;
 }
 
 /* ── Stat card sparklines ──────────────────────────────────────────────────── */
