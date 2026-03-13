@@ -639,6 +639,7 @@ function populateCategoryDropdowns() {
 function renderQuickCats() {
   const el = document.getElementById('quickCats');
   if (!el) return;
+  el.style.cursor = 'pointer';
 
   // Count usage per expense category from all transactions
   const counts = {};
@@ -660,16 +661,29 @@ function renderQuickCats() {
       ${esc(cat.name)}
     </button>`).join('');
 
-  // Wire clicks — open sheet with category pre-selected
+  // Clicking the pills area itself (but not a pill) → open sheet with no pre-selection
+  el.addEventListener('click', e => {
+    if (!e.target.closest('.quick-cat-pill')) {
+      e.stopPropagation();
+      window.openAddTxSheet && window.openAddTxSheet();
+    }
+  });
+
+  // Wire pill clicks — open sheet with that category pre-selected
   el.querySelectorAll('.quick-cat-pill').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const selectedCat = btn.dataset.cat;
-      window.openAddTxSheet();
-      // Pre-select after sheet opens (dropdown must be visible first)
+      window.openAddTxSheet && window.openAddTxSheet();
+      // Pre-select category after sheet opens (DOM must be visible first)
       requestAnimationFrame(() => {
-        const sel = document.getElementById('txCategory');
-        if (sel) { sel.value = selectedCat; }
+        requestAnimationFrame(() => {
+          const sel = document.getElementById('txCategory');
+          if (sel) sel.value = selectedCat;
+          // Focus the amount field so the user can type immediately
+          const amt = document.getElementById('txAmount');
+          if (amt) amt.focus();
+        });
       });
     });
   });
@@ -1114,6 +1128,17 @@ function wireAddTxForm() {
     }
   });
   if (desktopTrigger) desktopTrigger.addEventListener('click', openAddTxSheet);
+  // Also wire the quickCats container's parent card if it sits outside btnOpenAddTx
+  // so the entire card area (header, empty space, pills zone) is always clickable.
+  const addTxCard = desktopTrigger ? desktopTrigger.closest('.add-tx-card, .stat-card, [data-card], .card') || desktopTrigger.parentElement : null;
+  if (addTxCard && addTxCard !== desktopTrigger) {
+    addTxCard.style.cursor = 'pointer';
+    addTxCard.addEventListener('click', e => {
+      // Don't double-fire if the desktopTrigger itself or a pill already handled it
+      if (e.target.closest('.quick-cat-pill')) return;
+      if (!document.getElementById('addTxSheetBg')?.classList.contains('open')) openAddTxSheet();
+    });
+  }
   if (closeBtn) closeBtn.addEventListener('click', closeAddTxSheet);
   // Close on any click that lands outside the panel (works on desktop & mobile)
   bg.addEventListener('click', e => {
