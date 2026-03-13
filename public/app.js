@@ -1020,7 +1020,22 @@ function wireAddTxForm() {
   window.closeAddTxSheet = closeAddTxSheet;
 
   if (fab) fab.addEventListener('click', () => {
-    // If pending sheet is open, FAB acts as its close button
+    // Priority 1: close settings drawer if it's open
+    const settingsDrawer = document.getElementById('settingsDrawer');
+    if (settingsDrawer && settingsDrawer.classList.contains('open')) {
+      settingsDrawer.classList.remove('open');
+      const settingsBackdrop = document.getElementById('settingsBackdrop');
+      if (settingsBackdrop) settingsBackdrop.classList.remove('open');
+      document.body.style.overflow = '';
+      const bnMap2 = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
+      ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.classList.remove('active');
+      });
+      const activeEl = document.getElementById(bnMap2[activeView] || 'bnDash');
+      if (activeEl) activeEl.classList.add('active');
+      return;
+    }
+    // Priority 2: close pending sheet if open
     if (window.closePendingSheet && document.getElementById('pendingSheetBg')?.classList.contains('open')) {
       window.closePendingSheet();
     } else if (bg.classList.contains('open')) {
