@@ -298,6 +298,9 @@ function wireSettingsDrawer() {
   }
   btnClose.addEventListener('click', closeDrawerAndRestoreNav);
   backdrop.addEventListener('click', closeDrawerAndRestoreNav);
+
+  // Drag-to-close on mobile (pill + swipe-down, same as other bottom sheets)
+  wireBottomSheetDrag(drawer, closeDrawerAndRestoreNav);
   const btnImportCSV = document.getElementById('btnImportCSV');
   if (btnImportCSV) {
     btnImportCSV.addEventListener('click', () => {
