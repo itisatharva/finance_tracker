@@ -161,12 +161,12 @@
         </div>
 
         <!-- Pending Amounts -->
-        <div class="card">
-          <h2>Pending Amounts</h2>
-          <div class="pending-form">
-            <input type="text"   id="pendingName" placeholder="Person / description" />
-            <input type="text"   id="pendingAmt"  placeholder="Amount (₹)" inputmode="decimal" />
-            <button class="btn btn-secondary" id="addPendingBtn">Add</button>
+        <div class="card pending-card">
+          <div class="pending-card-head">
+            <h2>Pending Amounts</h2>
+            <button class="pending-add-btn" id="btnOpenPending" aria-label="Add pending amount">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
           </div>
           <div class="pending-list" id="pendingList"><div class="empty">No pending amounts</div></div>
         </div>
@@ -578,6 +578,27 @@
           <span id="addTxDone" class="hidden">✓ Added!</span>
         </button>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PENDING SHEET -->
+<div id="pendingSheetBg" class="addtx-backdrop">
+  <div class="addtx-panel" id="pendingSheet">
+    <div class="addtx-head">
+      <span class="addtx-title">Add Pending Amount</span>
+      <button class="import-close-btn" id="pendingSheetCloseBtn" aria-label="Close">×</button>
+    </div>
+    <div class="addtx-body">
+      <div class="field">
+        <label>Person / Description</label>
+        <input type="text" id="pendingName" placeholder="e.g. John, Rent" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>Amount (₹)</label>
+        <input type="text" id="pendingAmt" placeholder="0.00" inputmode="decimal" />
+      </div>
+      <button class="btn btn-primary w-full" id="addPendingBtn" style="margin-top:4px;">Add Pending</button>
     </div>
   </div>
 </div>

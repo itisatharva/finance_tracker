@@ -435,6 +435,9 @@ window.showView = function(v) {
   // Close add tx sheet if open
   if (window.closeAddTxSheet) window.closeAddTxSheet();
 
+  // Close pending sheet if open
+  if (window.closePendingSheet) window.closePendingSheet();
+
   // Close categories modal if open
   const _catsBg = document.getElementById('catsModalBg');
   if (_catsBg && _catsBg.classList.contains('open')) {
@@ -995,12 +998,21 @@ function wireAddTxForm() {
     bg.classList.add('open');
     if (fab) fab.classList.add('open');
     document.body.style.overflow = 'hidden';
+    // Deactivate all nav tabs while sheet is open
+    ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    });
   }
 
   function closeAddTxSheet() {
     bg.classList.remove('open');
     if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
+    // Restore nav tab for active view
+    const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
+    const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
+    if (activeEl) activeEl.classList.add('active');
   }
 
   // Expose so post-submit can close it
@@ -1013,7 +1025,11 @@ function wireAddTxForm() {
   });
   if (desktopTrigger) desktopTrigger.addEventListener('click', openAddTxSheet);
   if (closeBtn) closeBtn.addEventListener('click', closeAddTxSheet);
-  bg.addEventListener('click', e => { if (e.target === bg) closeAddTxSheet(); });
+  // Close on any click that lands outside the panel (works on desktop & mobile)
+  bg.addEventListener('click', e => {
+    const panel = document.getElementById('addTxSheet');
+    if (panel && !panel.contains(e.target)) closeAddTxSheet();
+  });
 
   // Drag-to-close on mobile
   wireBottomSheetDrag(document.getElementById('addTxSheet'), closeAddTxSheet);
@@ -1828,18 +1844,67 @@ function listenPending() {
 }
 
 function wireAddPending() {
+  const bg       = document.getElementById('pendingSheetBg');
+  const closeBtn = document.getElementById('pendingSheetCloseBtn');
+  const openBtn  = document.getElementById('btnOpenPending');
+
+  function openPendingSheet() {
+    bg.classList.add('open');
+    if (openBtn) openBtn.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
+    });
+  }
+
+  function closePendingSheet() {
+    bg.classList.remove('open');
+    if (openBtn) openBtn.classList.remove('open');
+    document.body.style.overflow = '';
+    const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
+    const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
+    if (activeEl) activeEl.classList.add('active');
+  }
+
+  window.openPendingSheet  = openPendingSheet;
+  window.closePendingSheet = closePendingSheet;
+
+  if (openBtn) openBtn.addEventListener('click', () => {
+    if (bg.classList.contains('open')) closePendingSheet();
+    else openPendingSheet();
+  });
+  if (closeBtn) closeBtn.addEventListener('click', closePendingSheet);
+  bg.addEventListener('click', e => {
+    const panel = document.getElementById('pendingSheet');
+    if (panel && !panel.contains(e.target)) closePendingSheet();
+  });
+
+  wireBottomSheetDrag(document.getElementById('pendingSheet'), closePendingSheet);
+
   document.getElementById('addPendingBtn').addEventListener('click', async () => {
     const name   = document.getElementById('pendingName').value.trim();
     const raw    = document.getElementById('pendingAmt').value.replace(/,/g,'').trim();
     const amount = parseFloat(raw);
     if (!name || !amount || amount <= 0) { alert('Enter a name and amount'); return; }
+    const btn = document.getElementById('addPendingBtn');
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
     await window.addDoc(
       window.collection(window.db, 'users', uid, 'pending'),
       { name, amount, createdAt: window.serverTimestamp() }
     );
     document.getElementById('pendingName').value = '';
     document.getElementById('pendingAmt').value  = '';
+    btn.textContent = '✓ Added!';
+    btn.style.background = 'var(--green)';
     vibrate();
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = 'Add Pending';
+      btn.style.background = '';
+      closePendingSheet();
+    }, 1000);
   });
 }
 

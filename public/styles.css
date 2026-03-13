@@ -709,6 +709,39 @@ input[type="color"] {
   margin-bottom: 16px;
 }
 
+/* Pending card header row: title left, + button right */
+.pending-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.pending-card-head h2 {
+  margin-bottom: 0;
+}
+.pending-add-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform .18s cubic-bezier(.34,1.56,.64,1), background .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pending-add-btn svg { stroke: var(--ink-fg); display: block; }
+.pending-add-btn:active { transform: scale(.88); }
+.pending-add-btn.open {
+  background: #111;
+  transform: rotate(45deg);
+}
+[data-theme="dark"] .pending-add-btn.open { background: #fff; }
+[data-theme="dark"] .pending-add-btn.open svg { stroke: #111; }
+
 .pending-list { display: flex; flex-direction: column; gap: 8px; }
 
 .pending-item {
@@ -2387,8 +2420,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
   /* Rotate + to × when sheet is open */
   .bn-fab.open {
-    background: var(--text-2);
+    background: #111;
     transform: rotate(45deg);
+  }
+  [data-theme="dark"] .bn-fab.open {
+    background: #fff;
+  }
+  [data-theme="dark"] .bn-fab.open svg {
+    stroke: #111;
   }
   .bn-fab.open:active {
     transform: rotate(45deg) scale(.88);
