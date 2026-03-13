@@ -298,9 +298,6 @@ function wireSettingsDrawer() {
   }
   btnClose.addEventListener('click', closeDrawerAndRestoreNav);
   backdrop.addEventListener('click', closeDrawerAndRestoreNav);
-
-  // Drag-to-close on mobile (same pill + swipe pattern as other bottom sheets)
-  wireBottomSheetDrag(drawer, closeDrawerAndRestoreNav);
   const btnImportCSV = document.getElementById('btnImportCSV');
   if (btnImportCSV) {
     btnImportCSV.addEventListener('click', () => {
@@ -431,6 +428,9 @@ window.showView = function(v) {
     _backdrop.classList.remove('open');
     document.body.style.overflow = '';
   }
+
+  // Close add tx sheet if open
+  if (window.closeAddTxSheet) window.closeAddTxSheet();
 
   // Close categories modal if open
   const _catsBg = document.getElementById('catsModalBg');
@@ -983,6 +983,43 @@ function listenTransactions() {
 }
 
 function wireAddTxForm() {
+  const bg       = document.getElementById('addTxSheetBg');
+  const closeBtn = document.getElementById('addTxCloseBtn');
+  const fab      = document.getElementById('bnAddTx');
+  const desktopTrigger = document.getElementById('btnOpenAddTx');
+
+  function openAddTxSheet() {
+    bg.classList.add('open');
+    if (fab) fab.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    // Focus amount field after animation
+    setTimeout(() => {
+      const amt = document.getElementById('txAmount');
+      if (amt) amt.focus();
+    }, 340);
+  }
+
+  function closeAddTxSheet() {
+    bg.classList.remove('open');
+    if (fab) fab.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // Expose so post-submit can close it
+  window.openAddTxSheet  = openAddTxSheet;
+  window.closeAddTxSheet = closeAddTxSheet;
+
+  if (fab) fab.addEventListener('click', () => {
+    if (bg.classList.contains('open')) closeAddTxSheet();
+    else openAddTxSheet();
+  });
+  if (desktopTrigger) desktopTrigger.addEventListener('click', openAddTxSheet);
+  if (closeBtn) closeBtn.addEventListener('click', closeAddTxSheet);
+  bg.addEventListener('click', e => { if (e.target === bg) closeAddTxSheet(); });
+
+  // Drag-to-close on mobile
+  wireBottomSheetDrag(document.getElementById('addTxSheet'), closeAddTxSheet);
+
   document.getElementById('addTxForm').addEventListener('submit', async e => {
     e.preventDefault();
     const category = document.getElementById('txCategory').value;
@@ -1006,10 +1043,7 @@ function wireAddTxForm() {
     btn.disabled = true;
 
     try {
-      // When offline, Firestore queues the write locally but the addDoc promise
-      // never resolves until connectivity returns. Race it against a short
-      // timeout — if it hasn't resolved and we're offline, treat as "Queued".
-      const QUEUE_TIMEOUT = 800; // ms
+      const QUEUE_TIMEOUT = 800;
       const addDocPromise = window.addDoc(
         window.collection(window.db, 'users', uid, 'transactions'),
         { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), createdAt: window.serverTimestamp() }
@@ -1025,7 +1059,7 @@ function wireAddTxForm() {
       if (wasQueued) {
         done.textContent = '↑ Saved offline — will sync';
         btn.style.background = '#f59e0b';
-        btn.style.color = '#1a1200';  // dark amber text — readable in both light & dark mode
+        btn.style.color = '#1a1200';
       } else {
         done.textContent = '✓ Added!';
         btn.style.background = 'var(--green)';
@@ -1042,7 +1076,9 @@ function wireAddTxForm() {
         btn.style.background = '';
         btn.style.color = '';
         btn.disabled = false;
-      }, 2000);
+        // Auto-close sheet after success
+        closeAddTxSheet();
+      }, 1200);
     } catch (err) {
       console.error(err);
       alert('Failed to save — check your connection.');

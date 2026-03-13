@@ -150,33 +150,14 @@
 
     <div class="dash-main">
       <div class="dash-left">
-        <!-- Add Transaction -->
-        <div class="card">
-          <h2>Add Transaction</h2>
-          <form id="addTxForm">
-            <div class="form-grid">
-              <div class="field"><label>Date</label><div class="date-wrap"><input type="date" id="txDate" required /></div></div>
-              <div class="field">
-                <label>Category</label>
-                <select id="txCategory" required><option value="">Select category</option></select>
-              </div>
+        <!-- Add Transaction — desktop trigger card (hidden on mobile, FAB used instead) -->
+        <div class="card add-tx-desktop-card">
+          <div class="add-tx-desktop-trigger" id="btnOpenAddTx">
+            <div class="add-tx-desktop-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </div>
-            <div class="form-grid">
-              <div class="field">
-                <label>Amount (₹)</label>
-                <input type="text" id="txAmount" placeholder="0.00" inputmode="decimal" required />
-              </div>
-              <div class="field">
-                <label>Note <span style="text-transform:none;letter-spacing:0;color:var(--text-3)">(optional)</span></label>
-                <div style="position:relative;"><input type="text" id="txNote" placeholder="e.g. Grocery run" autocomplete="off" style="width:100%;" /></div>
-              </div>
-            </div>
-            <button type="submit" class="btn btn-primary w-full" id="addTxBtn" style="margin-top:4px;">
-              <span id="addTxLabel">Add Transaction</span>
-              <span id="addTxSpinner" class="btn-spinner hidden"></span>
-              <span id="addTxDone" class="hidden">✓ Added!</span>
-            </button>
-          </form>
+            <span>Add Transaction</span>
+          </div>
         </div>
 
         <!-- Pending Amounts -->
@@ -527,6 +508,14 @@
     <span class="bn-label">Analytics</span>
   </button>
 
+  <!-- FAB: Add Transaction -->
+  <button class="bn-fab" id="bnAddTx" aria-label="Add Transaction">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+
   <!-- Transactions -->
   <button class="bn-tab" id="bnTransactions" onclick="showView('transactions')" aria-label="Transactions">
     <div class="bn-icon">
@@ -556,6 +545,42 @@
 <script type="module" src="theme.js"></script>
 <script type="module" src="firebase-config.js"></script>
 <script type="module" src="app.js"></script>
+
+<!-- ADD TRANSACTION SHEET -->
+<div id="addTxSheetBg" class="addtx-backdrop">
+  <div class="addtx-panel" id="addTxSheet">
+    <div class="addtx-head">
+      <span class="addtx-title">Add Transaction</span>
+      <button class="import-close-btn" id="addTxCloseBtn" aria-label="Close">×</button>
+    </div>
+    <div class="addtx-body">
+      <form id="addTxForm">
+        <div class="form-grid">
+          <div class="field"><label>Date</label><div class="date-wrap"><input type="date" id="txDate" required /></div></div>
+          <div class="field">
+            <label>Category</label>
+            <select id="txCategory" required><option value="">Select category</option></select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Amount (₹)</label>
+            <input type="text" id="txAmount" placeholder="0.00" inputmode="decimal" required />
+          </div>
+          <div class="field">
+            <label>Note <span style="text-transform:none;letter-spacing:0;color:var(--text-3)">(optional)</span></label>
+            <div style="position:relative;"><input type="text" id="txNote" placeholder="e.g. Grocery run" autocomplete="off" style="width:100%;" /></div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary w-full" id="addTxBtn" style="margin-top:4px;">
+          <span id="addTxLabel">Add Transaction</span>
+          <span id="addTxSpinner" class="btn-spinner hidden"></span>
+          <span id="addTxDone" class="hidden">✓ Added!</span>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- IMPORT CSV MODAL -->
 <!-- ── Import Transactions Panel ── -->
