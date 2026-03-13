@@ -2443,25 +2443,33 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 } /* end @media max-width 768px */
 
 /* ─── Add Transaction Sheet ───────────────────────────────────────────────── */
+
+/*
+ * Backdrop: opacity-only transition — never animate backdrop-filter,
+ * it forces a new compositing layer on every frame and causes jank.
+ * The blur is applied instantly on open; only the dim fades in.
+ */
 .addtx-backdrop {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0);
-  backdrop-filter: blur(0px);
-  -webkit-backdrop-filter: blur(0px);
   z-index: 900;
   display: flex;
   align-items: flex-end;
   justify-content: center;
   pointer-events: none;
-  transition: background .32s cubic-bezier(0.22, 1, 0.36, 1),
-              backdrop-filter .32s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background .28s ease;
 }
 .addtx-backdrop.open {
-  background: rgba(0,0,0,.45);
+  background: rgba(0,0,0,.48);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   pointer-events: all;
 }
+
+/*
+ * Panel: GPU-composited translateY only — never mix transform + opacity
+ * on the same element unless both are needed, to keep on the compositor thread.
+ */
 .addtx-panel {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
@@ -2470,14 +2478,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   max-width: 620px;
   box-shadow: 0 -4px 40px rgba(0,0,0,.18);
   transform: translateY(100%);
-  opacity: 1;
   will-change: transform;
-  transition: transform .46s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform .44s cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
+  /* keyboard-lift offset, set by JS via visualViewport */
+  margin-bottom: 0;
 }
 .addtx-backdrop.open .addtx-panel {
   transform: translateY(0);
 }
+
 /* Desktop: centred modal */
 @media (min-width: 600px) {
   .addtx-backdrop {
@@ -2486,25 +2496,30 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
   .addtx-panel {
     border-radius: var(--r-xl);
-    transform: scale(.96) translateY(16px);
+    transform: scale(.96) translateY(20px);
     opacity: 0;
     max-height: 88vh;
     overflow-y: auto;
     box-shadow: 0 8px 48px rgba(0,0,0,.28);
-    transition: transform .38s cubic-bezier(0.22, 1, 0.36, 1),
-                opacity .26s cubic-bezier(0.22, 1, 0.36, 1);
+    /* safe to use both on desktop — no keyboard interference */
+    transition: transform .36s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity .24s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .addtx-backdrop.open .addtx-panel {
     transform: scale(1) translateY(0);
     opacity: 1;
   }
 }
-/* Mobile: sit above navbar */
+
+/* Mobile: sit above navbar, keyboard-aware bottom padding */
 @media (max-width: 599px) {
   .addtx-panel {
     max-height: 92dvh;
     overflow-y: auto;
+    /* base padding keeps content above nav; JS overrides when keyboard opens */
     padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    transition: transform .44s cubic-bezier(0.22, 1, 0.36, 1),
+                padding-bottom .18s ease;
   }
 }
 .addtx-head {

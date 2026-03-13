@@ -1019,6 +1019,38 @@ function wireAddTxForm() {
   window.openAddTxSheet  = openAddTxSheet;
   window.closeAddTxSheet = closeAddTxSheet;
 
+  // ── Keyboard-lift: push panel up when software keyboard appears ────────────
+  // Uses visualViewport API (supported on all modern iOS/Android browsers).
+  // When the keyboard opens, the viewport shrinks; we pad the panel bottom
+  // so the submit button stays visible above the keyboard.
+  if (window.visualViewport && window.innerWidth < 600) {
+    const panel = document.getElementById('addTxSheet');
+    const BASE_PAD = 90 + (parseInt(
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--sab') || '0'
+    ) || 0);
+
+    function onViewportResize() {
+      if (!bg.classList.contains('open')) return;
+      const kbHeight = window.innerHeight - window.visualViewport.height;
+      if (kbHeight > 60) {
+        // Keyboard is open — lift by keyboard height, drop base nav padding
+        panel.style.paddingBottom = (kbHeight + 16) + 'px';
+        // Scroll the focused input into view inside the panel
+        const active = document.activeElement;
+        if (active && panel.contains(active)) {
+          setTimeout(() => active.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 80);
+        }
+      } else {
+        // Keyboard dismissed — restore base padding
+        panel.style.paddingBottom = '';
+      }
+    }
+
+    window.visualViewport.addEventListener('resize', onViewportResize);
+    window.visualViewport.addEventListener('scroll', onViewportResize);
+  }
+
   if (fab) fab.addEventListener('click', () => {
     // Priority 1: close settings drawer if it's open
     const settingsDrawer = document.getElementById('settingsDrawer');
@@ -1111,9 +1143,9 @@ function wireAddTxForm() {
         btn.style.background = '';
         btn.style.color = '';
         btn.disabled = false;
-        // Auto-close sheet after success
+        // Auto-close after 3s — gives user time to add another transaction
         closeAddTxSheet();
-      }, 1200);
+      }, 3000);
     } catch (err) {
       console.error(err);
       alert('Failed to save — check your connection.');
