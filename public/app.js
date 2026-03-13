@@ -1020,8 +1020,14 @@ function wireAddTxForm() {
   window.closeAddTxSheet = closeAddTxSheet;
 
   if (fab) fab.addEventListener('click', () => {
-    if (bg.classList.contains('open')) closeAddTxSheet();
-    else openAddTxSheet();
+    // If pending sheet is open, FAB acts as its close button
+    if (window.closePendingSheet && document.getElementById('pendingSheetBg')?.classList.contains('open')) {
+      window.closePendingSheet();
+    } else if (bg.classList.contains('open')) {
+      closeAddTxSheet();
+    } else {
+      openAddTxSheet();
+    }
   });
   if (desktopTrigger) desktopTrigger.addEventListener('click', openAddTxSheet);
   if (closeBtn) closeBtn.addEventListener('click', closeAddTxSheet);
@@ -1851,6 +1857,8 @@ function wireAddPending() {
   function openPendingSheet() {
     bg.classList.add('open');
     if (openBtn) openBtn.classList.add('open');
+    const fab = document.getElementById('bnAddTx');
+    if (fab) fab.classList.add('open');
     document.body.style.overflow = 'hidden';
     ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
       const el = document.getElementById(id);
@@ -1861,6 +1869,8 @@ function wireAddPending() {
   function closePendingSheet() {
     bg.classList.remove('open');
     if (openBtn) openBtn.classList.remove('open');
+    const fab = document.getElementById('bnAddTx');
+    if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
     const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
     const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
