@@ -2258,7 +2258,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   /* Tighten top bar padding on mobile */
   .settings-drawer .settings-top {
-    padding: 18px 20px 16px;
+    padding: 4px 20px 16px;
+  }
+
+  /* Hide the × button — drag-to-dismiss replaces it on mobile */
+  .settings-drawer .btn-close-settings {
+    display: none;
   }
 
   /* Compact body padding on mobile */
