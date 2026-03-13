@@ -1882,19 +1882,16 @@ function renderTopSpending() {
     const pct     = Math.min(100, Math.round((spent / maxAmt) * 100));
     const budgetPct = budget ? Math.min(100, Math.round((spent / budget) * 100)) : null;
     const overBudget = budget && spent > budget;
-
-    const barFill = budget
-      ? (overBudget ? 'var(--red)' : color)
-      : color;
-
-    const barMax = budget ? budget : maxAmt;
-    const barPct = budget
-      ? Math.min(100, Math.round((spent / barMax) * 100))
-      : pct;
+    const barPct  = budget ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
+    const barFill = overBudget ? 'var(--red)' : color;
 
     const budgetLine = budget
       ? `<span class="tsc-budget ${overBudget ? 'over' : ''}">${overBudget ? '⚠ ' : ''}${fmt(spent)} / ${fmt(budget)}</span>`
       : `<span class="tsc-budget">${fmt(spent)}</span>`;
+
+    const barHtml = budget
+      ? `<div class="tsc-bar-wrap"><div class="tsc-bar-fill" style="width:${barPct}%;background:${barFill}"></div></div>`
+      : '';
 
     return `
       <div class="tsc-row">
@@ -1903,9 +1900,7 @@ function renderTopSpending() {
           <span class="tsc-name">${esc(name)}</span>
           ${budgetLine}
         </div>
-        <div class="tsc-bar-wrap">
-          <div class="tsc-bar-fill" style="width:${barPct}%;background:${barFill}"></div>
-        </div>
+        ${barHtml}
       </div>`;
   }).join('');
 }
