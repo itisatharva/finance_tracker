@@ -2511,15 +2511,15 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
-/* Mobile: sit above navbar, keyboard-aware bottom padding */
+/* Mobile: sit above navbar, keyboard-aware via margin-bottom */
 @media (max-width: 599px) {
   .addtx-panel {
     max-height: 92dvh;
     overflow-y: auto;
-    /* base padding keeps content above nav; JS overrides when keyboard opens */
     padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    /* margin-bottom lifts the panel above keyboard without bloating panel height */
     transition: transform .44s cubic-bezier(0.22, 1, 0.36, 1),
-                padding-bottom .18s ease;
+                margin-bottom .2s ease;
   }
 }
 .addtx-head {

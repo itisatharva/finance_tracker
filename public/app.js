@@ -1009,6 +1009,9 @@ function wireAddTxForm() {
     bg.classList.remove('open');
     if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
+    // Clear keyboard lift
+    const panel = document.getElementById('addTxSheet');
+    if (panel) panel.style.marginBottom = '';
     // Restore nav tab for active view
     const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
     const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
@@ -1019,31 +1022,23 @@ function wireAddTxForm() {
   window.openAddTxSheet  = openAddTxSheet;
   window.closeAddTxSheet = closeAddTxSheet;
 
-  // ── Keyboard-lift: push panel up when software keyboard appears ────────────
-  // Uses visualViewport API (supported on all modern iOS/Android browsers).
-  // When the keyboard opens, the viewport shrinks; we pad the panel bottom
-  // so the submit button stays visible above the keyboard.
+  // ── Keyboard-lift: nudge panel up so the Add button stays visible ────────────
+  // margin-bottom physically raises the panel without changing its height.
+  // paddingBottom (the old approach) bloated the scroll area and shot the panel
+  // way off-screen. This only activates on mobile (< 600px).
   if (window.visualViewport && window.innerWidth < 600) {
     const panel = document.getElementById('addTxSheet');
-    const BASE_PAD = 90 + (parseInt(
-      getComputedStyle(document.documentElement)
-        .getPropertyValue('--sab') || '0'
-    ) || 0);
 
     function onViewportResize() {
       if (!bg.classList.contains('open')) return;
       const kbHeight = window.innerHeight - window.visualViewport.height;
       if (kbHeight > 60) {
-        // Keyboard is open — lift by keyboard height, drop base nav padding
-        panel.style.paddingBottom = (kbHeight + 16) + 'px';
-        // Scroll the focused input into view inside the panel
-        const active = document.activeElement;
-        if (active && panel.contains(active)) {
-          setTimeout(() => active.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 80);
-        }
+        // Lift panel by keyboard height so its bottom edge clears the keyboard.
+        // The panel already has 90px padding-bottom for the navbar, so subtract
+        // that to avoid double-counting.
+        panel.style.marginBottom = Math.max(0, kbHeight - 90) + 'px';
       } else {
-        // Keyboard dismissed — restore base padding
-        panel.style.paddingBottom = '';
+        panel.style.marginBottom = '';
       }
     }
 
