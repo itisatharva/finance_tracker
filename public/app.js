@@ -1026,16 +1026,21 @@ function wireAddTxForm() {
   if (window.visualViewport && window.innerWidth < 600) {
     const panel = document.getElementById('addTxSheet');
 
-    function onViewportResize() {
+    function scrollPanelToBottom() {
       if (!bg.classList.contains('open')) return;
+      setTimeout(() => { panel.scrollTop = panel.scrollHeight; }, 60);
+    }
+
+    function onViewportResize() {
       const kbHeight = window.screen.height - window.visualViewport.height - window.visualViewport.offsetTop;
-      if (kbHeight > 80) {
-        // Keyboard is open — scroll the panel so the submit button is visible
-        setTimeout(() => { panel.scrollTop = panel.scrollHeight; }, 60);
-      }
+      if (kbHeight > 80) scrollPanelToBottom();
     }
 
     window.visualViewport.addEventListener('resize', onViewportResize);
+
+    // Also scroll when focus moves to the note field while keyboard is already open
+    const noteField = document.getElementById('txNote');
+    if (noteField) noteField.addEventListener('focus', scrollPanelToBottom);
   }
 
   if (fab) fab.addEventListener('click', () => {
