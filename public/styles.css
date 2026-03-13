@@ -2198,8 +2198,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
-    width: calc(100% - 32px);
-    max-width: 420px;
+    width: auto;
     z-index: 950;
 
     /* frosted glass */
@@ -2209,7 +2208,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
     border: 1px solid rgba(255, 255, 255, 0.45);
     border-radius: 999px;
-    padding: 6px 8px;
+    padding: 6px 10px;
     gap: 2px;
     align-items: center;
     box-shadow:
@@ -2274,7 +2273,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   /* ── Each tab button ── */
   .bn-tab {
-    flex: 1;
+    width: 68px;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2352,8 +2352,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   /* ── FAB: Add Transaction ── */
   .bn-fab {
-    width: 54px;
-    height: 54px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
     background: var(--ink);
     border: none;
@@ -2363,13 +2363,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     justify-content: center;
     flex-shrink: 0;
     position: relative;
-    /* Pop above the pill bar */
-    margin-top: -22px;
+    /* Lift just enough to peek above the pill bar */
+    margin-top: -14px;
+    margin-bottom: -2px;
+    margin-left: 4px;
+    margin-right: 4px;
     box-shadow:
       0 4px 16px rgba(0,0,0,0.28),
       0 1px 4px  rgba(0,0,0,0.18),
       inset 0 1px 0 rgba(255,255,255,0.12);
-    transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease;
+    transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, background .2s ease;
     -webkit-tap-highlight-color: transparent;
     z-index: 2;
   }
@@ -2409,7 +2412,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   align-items: flex-end;
   justify-content: center;
   pointer-events: none;
-  transition: background .28s ease, backdrop-filter .28s ease;
+  transition: background .38s ease, backdrop-filter .38s ease;
 }
 .addtx-backdrop.open {
   background: rgba(0,0,0,.45);
@@ -2425,13 +2428,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   max-width: 620px;
   box-shadow: 0 -4px 40px rgba(0,0,0,.18);
   transform: translateY(100%);
-  opacity: 0;
-  transition: transform .32s cubic-bezier(0.22,1,0.36,1), opacity .22s ease;
+  opacity: 1;
+  will-change: transform;
+  transition: transform .42s cubic-bezier(0.32, 0.72, 0, 1);
   overflow: hidden;
 }
 .addtx-backdrop.open .addtx-panel {
   transform: translateY(0);
-  opacity: 1;
 }
 /* Desktop: centred modal */
 @media (min-width: 600px) {
@@ -2441,10 +2444,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
   .addtx-panel {
     border-radius: var(--r-xl);
-    transform: scale(.95) translateY(8px);
+    transform: scale(.96) translateY(12px);
     max-height: 88vh;
     overflow-y: auto;
     box-shadow: 0 8px 48px rgba(0,0,0,.28);
+    transition: transform .38s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .addtx-backdrop.open .addtx-panel {
     transform: scale(1) translateY(0);

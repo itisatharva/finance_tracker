@@ -995,11 +995,6 @@ function wireAddTxForm() {
     bg.classList.add('open');
     if (fab) fab.classList.add('open');
     document.body.style.overflow = 'hidden';
-    // Focus amount field after animation
-    setTimeout(() => {
-      const amt = document.getElementById('txAmount');
-      if (amt) amt.focus();
-    }, 340);
   }
 
   function closeAddTxSheet() {
