@@ -1009,9 +1009,6 @@ function wireAddTxForm() {
     bg.classList.remove('open');
     if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
-    // Clear keyboard lift
-    const panel = document.getElementById('addTxSheet');
-    if (panel) panel.style.marginBottom = '';
     // Restore nav tab for active view
     const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
     const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
@@ -1022,28 +1019,23 @@ function wireAddTxForm() {
   window.openAddTxSheet  = openAddTxSheet;
   window.closeAddTxSheet = closeAddTxSheet;
 
-  // ── Keyboard-lift: nudge panel up so the Add button stays visible ────────────
-  // margin-bottom physically raises the panel without changing its height.
-  // paddingBottom (the old approach) bloated the scroll area and shot the panel
-  // way off-screen. This only activates on mobile (< 600px).
+  // ── Keyboard-lift: scroll panel so Add button stays visible ─────────────────
+  // Scrolling to the panel bottom is the only reliable cross-device approach.
+  // margin-bottom / translateY math breaks on Android because window.innerHeight
+  // already shrinks when the keyboard opens, making kbHeight always near zero.
   if (window.visualViewport && window.innerWidth < 600) {
     const panel = document.getElementById('addTxSheet');
 
     function onViewportResize() {
       if (!bg.classList.contains('open')) return;
-      const kbHeight = window.innerHeight - window.visualViewport.height;
-      if (kbHeight > 60) {
-        // Lift panel by keyboard height so its bottom edge clears the keyboard.
-        // The panel already has 90px padding-bottom for the navbar, so subtract
-        // that to avoid double-counting.
-        panel.style.marginBottom = Math.max(0, kbHeight - 90) + 'px';
-      } else {
-        panel.style.marginBottom = '';
+      const kbHeight = window.screen.height - window.visualViewport.height - window.visualViewport.offsetTop;
+      if (kbHeight > 80) {
+        // Keyboard is open — scroll the panel so the submit button is visible
+        setTimeout(() => { panel.scrollTop = panel.scrollHeight; }, 60);
       }
     }
 
     window.visualViewport.addEventListener('resize', onViewportResize);
-    window.visualViewport.addEventListener('scroll', onViewportResize);
   }
 
   if (fab) fab.addEventListener('click', () => {
