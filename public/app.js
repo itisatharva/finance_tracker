@@ -1905,7 +1905,6 @@ function renderTopSpending() {
         </div>
         <div class="tsc-bar-wrap">
           <div class="tsc-bar-fill" style="width:${barPct}%;background:${barFill}"></div>
-          ${budget ? `<div class="tsc-budget-marker" style="left:${Math.min(100, Math.round((budget/barMax)*100))}%"></div>` : ''}
         </div>
       </div>`;
   }).join('');
