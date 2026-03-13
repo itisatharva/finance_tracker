@@ -1830,11 +1830,86 @@ function renderStats() {
   }
 
   renderSparklines();
+  renderTopSpending();
 }
 
 // ─── Stat Card Sparklines ─────────────────────────────────────────────────────
 // Pure SVG area charts, fully contained inside each card via overflow:hidden.
 // No axes, no labels — just the shape of the data over the last 30 days.
+
+// ─── Top Spending Categories ──────────────────────────────────────────────────
+function renderTopSpending() {
+  const el = document.getElementById('topSpendingList');
+  const monthEl = document.getElementById('topSpendingMonth');
+  if (!el) return;
+
+  const now  = new Date();
+  const curY = now.getFullYear();
+  const curM = now.getMonth();
+
+  if (monthEl) {
+    monthEl.textContent = now.toLocaleString('default', { month: 'long', year: 'numeric' });
+  }
+
+  const monthExpenses = transactions.filter(t => {
+    const d = toDate(t.selectedDate || t.createdAt);
+    return t.type === 'expense' && d && d.getFullYear() === curY && d.getMonth() === curM;
+  });
+
+  if (!monthExpenses.length) {
+    el.innerHTML = '<div class="empty">No expenses this month</div>';
+    return;
+  }
+
+  // Sum per category
+  const totals = {};
+  monthExpenses.forEach(t => {
+    const cat = t.category || 'Other';
+    totals[cat] = (totals[cat] || 0) + t.amount;
+  });
+
+  // Sort descending, take top 5
+  const sorted = Object.entries(totals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const maxAmt = sorted[0][1];
+
+  el.innerHTML = sorted.map(([name, spent]) => {
+    const catObj  = (categories.expense || []).find(c => catName(c) === name);
+    const color   = catObj?.color || '#6b7280';
+    const budget  = catObj?.budget || null;
+    const pct     = Math.min(100, Math.round((spent / maxAmt) * 100));
+    const budgetPct = budget ? Math.min(100, Math.round((spent / budget) * 100)) : null;
+    const overBudget = budget && spent > budget;
+
+    const barFill = budget
+      ? (overBudget ? 'var(--red)' : color)
+      : color;
+
+    const barMax = budget ? budget : maxAmt;
+    const barPct = budget
+      ? Math.min(100, Math.round((spent / barMax) * 100))
+      : pct;
+
+    const budgetLine = budget
+      ? `<span class="tsc-budget ${overBudget ? 'over' : ''}">${overBudget ? '⚠ ' : ''}${fmt(spent)} / ${fmt(budget)}</span>`
+      : `<span class="tsc-budget">${fmt(spent)}</span>`;
+
+    return `
+      <div class="tsc-row">
+        <div class="tsc-meta">
+          <span class="tsc-dot" style="background:${color}"></span>
+          <span class="tsc-name">${esc(name)}</span>
+          ${budgetLine}
+        </div>
+        <div class="tsc-bar-wrap">
+          <div class="tsc-bar-fill" style="width:${barPct}%;background:${barFill}"></div>
+          ${budget ? `<div class="tsc-budget-marker" style="left:${Math.min(100, Math.round((budget/barMax)*100))}%"></div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
 
 function renderSparklines() {
   if (!transactions) return;
@@ -2031,11 +2106,25 @@ function renderPendingList() {
   const el = document.getElementById('pendingList');
   if (!pendingAmounts.length) { el.innerHTML = '<div class="empty">No pending amounts</div>'; return; }
   el.innerHTML = '';
+
+  // Hint message
+  const hint = document.createElement('p');
+  hint.className = 'pending-hint';
+  hint.textContent = 'Tap the circle when money is credited.';
+  el.appendChild(hint);
+
   pendingAmounts.forEach(p => {
     const div = document.createElement('div');
     div.className = 'pending-item';
     div.innerHTML = `
-      <input type="checkbox" title="Mark as cleared" onchange="clearPending('${p.id}')">
+      <label class="p-check-wrap" title="Mark as cleared">
+        <input type="checkbox" class="p-check-input" onchange="clearPending('${p.id}')">
+        <span class="p-check-circle">
+          <svg class="p-check-icon" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <polyline points="2,6 5,9 10,3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </label>
       <span class="p-name">${esc(p.name)}</span>
       <span class="p-amount">${fmt(p.amount)}</span>
     `;

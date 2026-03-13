@@ -753,15 +753,137 @@ input[type="color"] {
   border: 1.5px solid var(--border);
   border-radius: var(--r-md);
 }
-.pending-item input[type="checkbox"] {
-  width: 18px; height: 18px;
-  flex-shrink: 0;
-  padding: 0;
-  cursor: pointer;
-  accent-color: var(--ink);
+.pending-hint {
+  font-size: .76rem;
+  color: var(--text-3);
+  margin: 0 0 10px;
+  letter-spacing: .01em;
 }
+
+/* Hide native checkbox, show custom circle */
+.p-check-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.p-check-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.p-check-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color .18s ease, background .18s ease;
+  flex-shrink: 0;
+}
+.p-check-icon {
+  width: 12px; height: 12px;
+  color: transparent;
+  transition: color .15s ease;
+}
+.p-check-wrap:hover .p-check-circle {
+  border-color: var(--green);
+}
+.p-check-input:checked + .p-check-circle {
+  background: var(--green);
+  border-color: var(--green);
+}
+.p-check-input:checked + .p-check-circle .p-check-icon {
+  color: #fff;
+}
+
 .pending-item .p-name  { flex: 1; font-weight: 600; font-size: .9rem; color: var(--text-1); }
 .pending-item .p-amount { font-weight: 700; color: var(--orange); font-size: .95rem; white-space: nowrap; }
+
+/* ── Top Spending Card ─────────────────────────────────────────────────────── */
+.top-spending-card { display: none; } /* mobile: hidden */
+
+.top-spending-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.top-spending-head h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 0;
+}
+.top-spending-month {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: .02em;
+}
+.top-spending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.tsc-row { display: flex; flex-direction: column; gap: 5px; }
+.tsc-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.tsc-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tsc-name {
+  flex: 1;
+  font-size: .875rem;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tsc-budget {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tsc-budget.over {
+  color: var(--red);
+}
+.tsc-bar-wrap {
+  position: relative;
+  height: 5px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: visible;
+}
+.tsc-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width .4s cubic-bezier(0.22,1,0.36,1);
+  min-width: 4px;
+}
+.tsc-budget-marker {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 11px;
+  background: var(--text-3);
+  border-radius: 1px;
+  opacity: .5;
+  transform: translateX(-50%);
+}
 
 
 /* ---------- ANALYTICS ---------- */
@@ -1436,6 +1558,7 @@ select:focus option { animation: fadeIn .1s ease; }
   }
   .dash-left  { display: flex; flex-direction: column; gap: 20px; }
   .dash-right { display: flex; flex-direction: column; gap: 20px; }
+  .top-spending-card { display: block; }
   /* Remove bottom margin from cards inside grid */
   .dash-left  .card,
   .dash-right .card { margin-bottom: 0; }
