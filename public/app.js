@@ -543,7 +543,8 @@ async function loadCategories() {
   }
   populateCategoryDropdowns();
   if (window._dataLoaded) { 
-    window._dataLoaded.categories = true; 
+    window._dataLoaded.categories = true;
+    renderQuickCats();
     window._checkAllDataLoaded(); 
   }
 }
@@ -630,6 +631,49 @@ function populateCategoryDropdowns() {
   });
 }
 
+
+// ─── Quick Category Pills ─────────────────────────────────────────────────────
+// Shows the 3 most-used expense categories as fast-tap pills on the desktop
+// Add Transaction card. Falls back to the first 3 expense categories if there
+// are not enough transactions yet.
+function renderQuickCats() {
+  const el = document.getElementById('quickCats');
+  if (!el) return;
+
+  // Count usage per expense category from all transactions
+  const counts = {};
+  transactions.forEach(tx => {
+    if (tx.type === 'expense') counts[tx.category] = (counts[tx.category] || 0) + 1;
+  });
+
+  // Rank expense categories; fall back to first 3 if not enough data
+  let top = categories.expense
+    .map(c => ({ name: catName(c), color: catColor(c), count: counts[catName(c)] || 0 }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  if (!top.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = top.map(cat => `
+    <button class="quick-cat-pill" data-cat="${esc(cat.name)}" title="Add ${esc(cat.name)} transaction">
+      <span class="quick-cat-dot" style="background:${cat.color}"></span>
+      ${esc(cat.name)}
+    </button>`).join('');
+
+  // Wire clicks — open sheet with category pre-selected
+  el.querySelectorAll('.quick-cat-pill').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const selectedCat = btn.dataset.cat;
+      window.openAddTxSheet();
+      // Pre-select after sheet opens (dropdown must be visible first)
+      requestAnimationFrame(() => {
+        const sel = document.getElementById('txCategory');
+        if (sel) { sel.value = selectedCat; }
+      });
+    });
+  });
+}
 // ─── Categories Modal ────────────────────────────────────────────────────────
 window.openCatsModal = function() {
   renderCatLists();
@@ -974,6 +1018,7 @@ function listenTransactions() {
     }
     renderTxList();
     renderStats();
+    renderQuickCats();
     setTimeout(() => { window._newTxIds = new Set(); }, 600);
     if (activeView === 'analytics') refreshCurrentPeriod();
     
