@@ -853,8 +853,8 @@ input[type="color"] {
 }
 .tsc-budget {
   font-size: .78rem;
-  font-weight: 600;
-  color: var(--text-3);
+  font-weight: 700;
+  color: var(--text-1);
   white-space: nowrap;
   flex-shrink: 0;
 }
