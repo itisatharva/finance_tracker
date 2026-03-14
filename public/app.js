@@ -1404,7 +1404,21 @@ function wireAddTxForm() {
   });
 
   // Drag-to-close on mobile
-  wireBottomSheetDrag(document.getElementById('addTxSheet'), closeAddTxSheet);
+  wireBottomSheetDrag(document.getElementById('addTxSheet'), function() {
+    if (_txSuccessMode) {
+      resetToAddForm();
+    } else {
+      closeAddTxSheet();
+    }
+  });
+
+  // Cancel auto-close the moment the user touches/clicks anywhere inside the
+  // panel during the 3-second success window. Without this, tapping a form
+  // field to start the next entry wouldn't clear the timer (only the FAB,
+  // backdrop, and submit button did), so the sheet would still close 3s later.
+  document.getElementById('addTxSheet').addEventListener('pointerdown', () => {
+    if (_txSuccessMode) resetToAddForm();
+  });
 
   document.getElementById('addTxForm').addEventListener('submit', async e => {
     e.preventDefault();
