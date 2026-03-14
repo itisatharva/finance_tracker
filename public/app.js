@@ -1243,10 +1243,19 @@ function wireAddTxForm() {
   let _autoCloseTimer = null;
   let _txSuccessMode  = false;
 
+  let _openOverflowTimer = null; // tracks the deferred overflow=hidden
+
   function openAddTxSheet() {
     bg.classList.add('open');
     if (fab) fab.classList.add('open');
-    document.body.style.overflow = 'hidden';
+    // Defer overflow=hidden until after the slide-up animation (≈400ms).
+    // Setting it synchronously forces a layout recalculation on frame 1
+    // of the translateY transition, stealing compositor budget and causing
+    // the visible chop on mobile.
+    clearTimeout(_openOverflowTimer);
+    _openOverflowTimer = setTimeout(() => {
+      document.body.style.overflow = 'hidden';
+    }, 420);
     // Deactivate all nav tabs while sheet is open
     ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
       const el = document.getElementById(id);
@@ -1255,8 +1264,9 @@ function wireAddTxForm() {
   }
 
   function closeAddTxSheet() {
-    // Always cancel any pending auto-close when sheet is explicitly closed
+    // Cancel any pending auto-close and the deferred overflow timer
     clearTimeout(_autoCloseTimer);
+    clearTimeout(_openOverflowTimer);
     _autoCloseTimer = null;
     _txSuccessMode  = false;
     bg.classList.remove('open');

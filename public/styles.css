@@ -2837,19 +2837,22 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   align-items: flex-end;
   justify-content: center;
   pointer-events: none;
-  transition: background .28s ease;
+  /* Animate background only — NO backdrop-filter on mobile.
+     blur() forces a full-screen GPU repaint on the same frame the
+     translateY animation starts, stealing compositor budget and causing
+     the visible chop. A simple dim is visually identical and costs nothing. */
+  transition: background .3s ease;
 }
 .addtx-backdrop.open {
-  background: rgba(0,0,0,.48);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0,0,0,.52);
   pointer-events: all;
 }
 
-/*
- * Panel: GPU-composited translateY only — never mix transform + opacity
- * on the same element unless both are needed, to keep on the compositor thread.
- */
+/* Panel: single GPU-composited property (translateY) on its own layer.
+   overflow is intentionally NOT set here — setting overflow:hidden on the
+   base rule then overriding with overflow-y:auto on mobile creates a
+   mid-animation stacking-context change that forces an extra repaint.
+   Each breakpoint sets the overflow it actually needs.              */
 .addtx-panel {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
@@ -2857,10 +2860,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   width: 100%;
   max-width: 620px;
   box-shadow: 0 -4px 40px rgba(0,0,0,.18);
-  transform: translateY(100%);
-  will-change: transform;
-  transition: transform .44s cubic-bezier(0.22, 1, 0.36, 1);
-  overflow: hidden;
+  transform: translateY(102%); /* 102% = panel + shadow fully offscreen */
+  will-change: transform;      /* promote to compositor layer before open */
+  transition: transform .4s cubic-bezier(0.22, 1, 0.36, 1);
   /* keyboard-lift offset, set by JS via visualViewport */
   margin-bottom: 0;
 }
@@ -2868,14 +2870,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   transform: translateY(0);
 }
 
-/* Desktop: centred modal — animate identical to txd-panel */
+/* Desktop: centred modal — blur is fine here, desktop GPU handles it easily */
 @media (min-width: 600px) {
   .addtx-backdrop {
     align-items: center;
-    backdrop-filter: blur(0px);
-    -webkit-backdrop-filter: blur(0px);
     padding: 20px;
     transition: background .28s ease, backdrop-filter .28s ease;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
   }
   .addtx-backdrop.open {
     backdrop-filter: blur(6px);
@@ -2890,6 +2892,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     box-shadow: 0 8px 48px rgba(0,0,0,.28);
     transition: transform .32s cubic-bezier(0.22, 1, 0.36, 1),
                 opacity .22s ease;
+    will-change: transform, opacity;
   }
   .addtx-backdrop.open .addtx-panel {
     transform: scale(1) translateY(0);
@@ -2897,13 +2900,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
-/* Mobile: sit above navbar */
+/* Mobile: sit above navbar, scroll inside the panel (not the page) */
 @media (max-width: 599px) {
   .addtx-panel {
     max-height: 92dvh;
-    overflow-y: auto;
+    overflow-y: auto;          /* only set here — no conflict with base rule */
+    overscroll-behavior: contain; /* prevents pull-to-refresh hijacking scroll */
     padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
-    transition: transform .44s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 .addtx-head {
