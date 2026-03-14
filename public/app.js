@@ -18,6 +18,10 @@ let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
 
+// Set to true only when all four data sources are confirmed loaded.
+// renderStats() is gated on this so stat cards never flash ₹0.
+window._allDataLoaded = false;
+
 // ── Undo-delete state ─────────────────────────────────────────────────────────
 let _undoPendingId   = null;   // ID currently held back from Firestore delete
 let _undoTimer       = null;   // 4s countdown before hard-delete fires
@@ -67,6 +71,7 @@ window.firebaseReady.then(() => {
     if (!user) return;
     uid = user.uid;
     isFirstLoad = true; // reset per session so animations fire correctly on re-login
+    window._allDataLoaded = false; // reset so stat cards show skeleton on re-login
     
     // Track what data needs to load before hiding loader
     window._dataLoaded = {
@@ -80,7 +85,15 @@ window.firebaseReady.then(() => {
       const d = window._dataLoaded;
       if (d.categories && d.settings && d.transactions && d.pending) {
         console.log('[App] All data loaded, hiding loader');
-        hideLoader();
+        // Unlock renderStats so it can now write real values
+        window._allDataLoaded = true;
+        // Trigger the skeleton → value fade-in on stat cards with correct data
+        renderStats();
+        // Ensure tx list also reflects the final server data
+        renderTxList();
+        // Delay loader hide slightly so the fade-in animation has started
+        // before the loader clears, giving a seamless hand-off
+        setTimeout(hideLoader, 300);
       }
     };
 
@@ -2147,6 +2160,10 @@ window.saveEdit = async function() {
 
 // ─── Stats (all-time) ─────────────────────────────────────────────────────────
 function renderStats() {
+  // Don't render until all data sources are confirmed ready.
+  // This prevents stat cards from flashing ₹0 on the first (possibly cached/empty) snapshot.
+  if (!window._allDataLoaded) return;
+
   // Update profile tx count
   const tcEl = document.getElementById('profileTxCount');
   if (tcEl) tcEl.textContent = transactions.length;
@@ -2175,21 +2192,28 @@ function renderStats() {
     [balanceEl, fmt(balance)], [pendingEl, fmt(pending)]
   ]);
 
-  // Check if spinners are present (first load)
+  // Check if skeleton spinners are still present (first reveal)
   const hasSpinners = incomeEl && incomeEl.querySelector('.loading-spinner') !== null;
   
   if (hasSpinners) {
-    // First load: fade out spinners, then fade in values
-    elements.forEach(el => el.style.opacity = '0');
-    
+    // Fade out spinners, swap in correct values, then fade back in
+    elements.forEach(el => {
+      el.style.transition = 'opacity 0.2s ease';
+      el.style.opacity = '0';
+    });
     setTimeout(() => {
-      elements.forEach(el => el.innerHTML = valueMap.get(el));
-      // Force reflow
-      if (incomeEl) void incomeEl.offsetWidth;
-      elements.forEach(el => el.style.opacity = '1');
-    }, 300);
+      elements.forEach(el => {
+        el.innerHTML = valueMap.get(el);
+        el.style.opacity = '0'; // ensure we start from invisible
+      });
+      // Double rAF guarantees the browser has committed the new DOM
+      // before starting the opacity transition (avoids instant-snap)
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        elements.forEach(el => { el.style.opacity = '1'; });
+      }));
+    }, 200);
   } else {
-    // No spinners: instant update
+    // Subsequent updates (edit/delete/etc.): instant update, no flash
     elements.forEach(el => el.innerHTML = valueMap.get(el));
   }
 

@@ -388,13 +388,10 @@ body {
 
 .stat-card .lbl { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); margin-bottom: 6px; }
 .stat-card .val {
-  transition: opacity 0.5s ease-in-out; font-size: 1.6rem; font-weight: 700; color: var(--text-1); }
-.stat-card.income  .val {
-  transition: opacity 0.5s ease-in-out; color: var(--green); }
-.stat-card.expense .val {
-  transition: opacity 0.5s ease-in-out; color: var(--red); }
-.stat-card.pending .val {
-  transition: opacity 0.5s ease-in-out; color: var(--orange); }
+  transition: opacity 0.25s ease; font-size: 1.6rem; font-weight: 700; color: var(--text-1); }
+.stat-card.income  .val { color: var(--green); }
+.stat-card.expense .val { color: var(--red); }
+.stat-card.pending .val { color: var(--orange); }
 
 /* Highest pending item sub-line */
 .pending-top-item {
@@ -1985,7 +1982,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   margin-bottom: 20px;
 }
 
-/* Loading spinner */
+/* Loading spinner — generic fallback (used outside stat cards) */
 .loading-spinner {
   display: inline-block;
   width: 16px;
@@ -1999,6 +1996,33 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ── Stat card skeleton: override spinner inside .val to be a shimmer bar ── */
+/* This means the stat cards show a shimmer placeholder (matching tx-skel)  */
+/* rather than a tiny spinner while data loads.                              */
+.stat-card .val .loading-spinner {
+  /* Cancel spinner appearance */
+  display: block;
+  width: 110px;
+  height: 28px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg-subtle) 50%, var(--border) 75%);
+  background-size: 800px 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+  margin: 4px 0 2px;
+}
+/* Pending card value is a bit smaller */
+.stat-card.pending .val .loading-spinner {
+  width: 80px;
+  height: 24px;
+}
+
+/* Stagger shimmer delays per card so they don't pulse in lockstep */
+.stat-card.expense  .val .loading-spinner { animation-delay: .12s; }
+.stat-card.pending  .val .loading-spinner { animation-delay: .24s; }
+/* balance card has no extra class — use nth-of-type via sibling trick */
+.stats-row .stat-card:nth-child(3) .val .loading-spinner { animation-delay: .08s; }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
