@@ -400,6 +400,153 @@ function wireSettingsDrawer() {
 
   btnCats.addEventListener('click', () => { closeDrawer(); openCatsModal(); });
 
+  // ── Change Password ──────────────────────────────────────────────────────────
+  const btnChangePwd    = document.getElementById('btnChangePassword');
+  const cpBackdrop      = document.getElementById('changePwdBackdrop');
+  const btnClosePwd     = document.getElementById('btnClosePwdModal');
+  const btnCancelPwd    = document.getElementById('btnCancelPwdModal');
+  const btnSubmitPwd    = document.getElementById('btnSubmitPwdChange');
+  const cpFormState     = document.getElementById('cpFormState');
+  const cpGoogleState   = document.getElementById('cpGoogleState');
+  const cpSuccessState  = document.getElementById('cpSuccessState');
+  const cpErrEl         = document.getElementById('cpErr');
+
+  const CP_ERR = {
+    'auth/wrong-password':          'Current password is incorrect.',
+    'auth/weak-password':           'New password must be at least 6 characters.',
+    'auth/too-many-requests':       'Too many attempts — please wait a moment.',
+    'auth/network-request-failed':  'Network error — check your connection.',
+    'auth/requires-recent-login':   'For security, please sign out and sign back in before changing your password.',
+    'auth/invalid-credential':      'Current password is incorrect.',
+  };
+
+  function showCpErr(msg) {
+    cpErrEl.textContent = msg;
+    cpErrEl.classList.toggle('show', !!msg);
+  }
+
+  function openChangePwdModal() {
+    // Reset all states
+    cpFormState.style.display    = '';
+    cpGoogleState.style.display  = 'none';
+    cpSuccessState.style.display = 'none';
+    showCpErr('');
+    document.getElementById('cpCurrentPwd').value  = '';
+    document.getElementById('cpNewPwd').value      = '';
+    document.getElementById('cpConfirmPwd').value  = '';
+    document.getElementById('pwdStrengthWrap').style.display = 'none';
+    btnSubmitPwd.disabled  = false;
+    btnSubmitPwd.innerHTML = 'Update Password';
+    btnSubmitPwd.style.background = '';
+    btnSubmitPwd.style.color      = '';
+
+    // Detect Google-only user
+    const user = window.auth && window.auth.currentUser;
+    const isEmailUser = user && user.providerData.some(p => p.providerId === 'password');
+    if (!isEmailUser) {
+      cpFormState.style.display   = 'none';
+      cpGoogleState.style.display = '';
+    }
+
+    cpBackdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (isEmailUser) setTimeout(() => document.getElementById('cpCurrentPwd').focus(), 340);
+  }
+
+  function closeChangePwdModal() {
+    cpBackdrop.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  if (btnChangePwd)  btnChangePwd.addEventListener('click', () => { closeDrawer(); openChangePwdModal(); });
+  if (btnClosePwd)   btnClosePwd.addEventListener('click', closeChangePwdModal);
+  if (btnCancelPwd)  btnCancelPwd.addEventListener('click', closeChangePwdModal);
+  if (cpBackdrop)    cpBackdrop.addEventListener('click', e => { if (e.target === cpBackdrop) closeChangePwdModal(); });
+
+  // Show/hide password toggle buttons
+  document.querySelectorAll('.pwd-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inp = document.getElementById(btn.dataset.target);
+      if (!inp) return;
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      btn.classList.toggle('active', inp.type === 'text');
+    });
+  });
+
+  // Password strength meter
+  window.updatePwdStrength = function(val) {
+    const wrap  = document.getElementById('pwdStrengthWrap');
+    const fill  = document.getElementById('pwdStrengthFill');
+    const label = document.getElementById('pwdStrengthLabel');
+    if (!val) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'flex';
+    let score = 0;
+    if (val.length >= 8)           score++;
+    if (val.length >= 12)          score++;
+    if (/[A-Z]/.test(val))         score++;
+    if (/[0-9]/.test(val))         score++;
+    if (/[^A-Za-z0-9]/.test(val))  score++;
+    const levels = [
+      { w: '20%',  color: 'var(--red)',    text: 'Too weak'  },
+      { w: '40%',  color: 'var(--red)',    text: 'Weak'      },
+      { w: '60%',  color: 'var(--orange)', text: 'Fair'      },
+      { w: '80%',  color: 'var(--orange)', text: 'Good'      },
+      { w: '100%', color: 'var(--green)',  text: 'Strong'    },
+    ];
+    const lvl = levels[Math.min(score, 4)];
+    fill.style.width      = lvl.w;
+    fill.style.background = lvl.color;
+    label.textContent     = lvl.text;
+    label.style.color     = lvl.color;
+  };
+
+  // Submit change password
+  if (btnSubmitPwd) {
+    btnSubmitPwd.addEventListener('click', async () => {
+      showCpErr('');
+      const currentPwd = document.getElementById('cpCurrentPwd').value;
+      const newPwd     = document.getElementById('cpNewPwd').value;
+      const confirmPwd = document.getElementById('cpConfirmPwd').value;
+
+      if (!currentPwd) { showCpErr('Please enter your current password.'); document.getElementById('cpCurrentPwd').focus(); return; }
+      if (!newPwd)     { showCpErr('Please enter a new password.');         document.getElementById('cpNewPwd').focus();     return; }
+      if (newPwd.length < 6) { showCpErr('New password must be at least 6 characters.'); document.getElementById('cpNewPwd').focus(); return; }
+      if (newPwd !== confirmPwd) { showCpErr('Passwords do not match.'); document.getElementById('cpConfirmPwd').focus(); return; }
+      if (newPwd === currentPwd) { showCpErr('New password must be different from current password.'); document.getElementById('cpNewPwd').focus(); return; }
+
+      btnSubmitPwd.disabled  = true;
+      btnSubmitPwd.innerHTML = '<span class="btn-spinner"></span> Updating…';
+
+      try {
+        const user       = window.auth.currentUser;
+        const credential = window.EmailAuthProvider.credential(user.email, currentPwd);
+        await window.reauthenticateWithCredential(user, credential);
+        await window.updatePassword(user, newPwd);
+
+        // Success
+        cpFormState.style.display    = 'none';
+        cpSuccessState.style.display = '';
+        cpSuccessState.style.opacity = '0';
+        cpSuccessState.style.transform = 'scale(.96)';
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          cpSuccessState.style.transition = 'opacity .3s ease, transform .3s ease';
+          cpSuccessState.style.opacity    = '1';
+          cpSuccessState.style.transform  = 'scale(1)';
+        }));
+        setTimeout(closeChangePwdModal, 2600);
+      } catch (err) {
+        showCpErr(CP_ERR[err.code] || 'Something went wrong. Please try again.');
+        btnSubmitPwd.disabled  = false;
+        btnSubmitPwd.innerHTML = 'Update Password';
+      }
+    });
+
+    // Allow Enter key in confirm field to submit
+    document.getElementById('cpConfirmPwd').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); btnSubmitPwd.click(); }
+    });
+  }
+
   btnSaveBal.addEventListener('click', async () => {
     const raw = balInput.value.replace(/,/g,'').trim();
     const val = parseFloat(raw);

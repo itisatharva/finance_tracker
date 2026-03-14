@@ -39,6 +39,72 @@
   </svg>
 </button>
 
+<!-- Change Password Modal -->
+<div class="modal-backdrop" id="changePwdBackdrop">
+  <div class="modal" id="changePwdModal" role="dialog" aria-modal="true" aria-labelledby="changePwdTitle">
+    <div class="modal-head">
+      <h2 id="changePwdTitle">Change Password</h2>
+      <button class="btn-close-settings" id="btnClosePwdModal" aria-label="Close">×</button>
+    </div>
+
+    <!-- Google-user state -->
+    <div class="modal-body" id="cpGoogleState" style="display:none;text-align:center;padding:36px 24px;">
+      <div style="font-size:2.4rem;margin-bottom:12px;">🔑</div>
+      <p style="font-weight:600;color:var(--text-1);margin-bottom:8px;">No password on this account</p>
+      <p style="font-size:.88rem;color:var(--text-3);line-height:1.55;">Your account uses Google Sign-In. Password management is handled directly through Google.</p>
+    </div>
+
+    <!-- Change-password form state -->
+    <div id="cpFormState">
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;">
+        <div id="cpErr" class="auth-err" style="margin-bottom:0;"></div>
+        <div class="field">
+          <label>Current Password</label>
+          <div class="pwd-input-wrap">
+            <input type="password" id="cpCurrentPwd" placeholder="Your current password" autocomplete="current-password" />
+            <button type="button" class="pwd-toggle-btn" data-target="cpCurrentPwd" aria-label="Show/hide password" tabindex="-1">
+              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="field">
+          <label>New Password</label>
+          <div class="pwd-input-wrap">
+            <input type="password" id="cpNewPwd" placeholder="Min. 6 characters" autocomplete="new-password" oninput="updatePwdStrength(this.value)" />
+            <button type="button" class="pwd-toggle-btn" data-target="cpNewPwd" aria-label="Show/hide password" tabindex="-1">
+              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="pwd-strength-wrap" id="pwdStrengthWrap" style="display:none;">
+            <div class="pwd-strength-bar"><div class="pwd-strength-fill" id="pwdStrengthFill"></div></div>
+            <span class="pwd-strength-label" id="pwdStrengthLabel"></span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Confirm New Password</label>
+          <div class="pwd-input-wrap">
+            <input type="password" id="cpConfirmPwd" placeholder="Repeat new password" autocomplete="new-password" />
+            <button type="button" class="pwd-toggle-btn" data-target="cpConfirmPwd" aria-label="Show/hide password" tabindex="-1">
+              <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" id="btnCancelPwdModal">Cancel</button>
+        <button class="btn btn-primary" id="btnSubmitPwdChange">Update Password</button>
+      </div>
+    </div>
+
+    <!-- Success state -->
+    <div class="modal-body" id="cpSuccessState" style="display:none;text-align:center;padding:40px 24px;">
+      <div class="cp-success-icon">✓</div>
+      <p style="font-weight:700;font-size:1.05rem;color:var(--text-1);margin-bottom:8px;">Password updated!</p>
+      <p style="font-size:.88rem;color:var(--text-3);line-height:1.55;">Your new password is active. Closing in a moment…</p>
+    </div>
+  </div>
+</div>
+
 <!-- Settings drawer backdrop -->
 <div class="settings-backdrop" id="settingsBackdrop"></div>
 <aside class="settings-drawer" id="settingsDrawer">
@@ -76,6 +142,9 @@
         <div class="acct-meta">Member since: <span id="acctJoined">—</span></div>
         <div class="acct-meta">Total transactions: <span id="profileTxCount">—</span></div>
       </div>
+      <button class="settings-row" id="btnChangePassword" style="margin-top:10px;">
+        <span>Change Password</span><span class="row-icon" style="font-size:16px;">🔑</span>
+      </button>
     </div>
 
     <div class="settings-group">

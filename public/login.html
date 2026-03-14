@@ -47,13 +47,44 @@
         <input type="email" id="siEmail" placeholder="you@email.com" autocomplete="email" />
       </div>
       <div class="field">
-        <label>Password</label>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:0;">
+          <label>Password</label>
+          <a href="#" id="goToForgot" class="auth-forgot-link">Forgot password?</a>
+        </div>
         <input type="password" id="siPass" placeholder="••••••••" autocomplete="current-password" />
       </div>
       <button type="submit" class="btn btn-primary w-full auth-btn" id="signinBtn">Sign In</button>
     </form>
 
     <p class="auth-toggle">Don't have an account? <a href="#" id="goToSignup">Join for free →</a></p>
+  </div>
+
+  <!-- FORGOT PASSWORD CARD -->
+  <div class="auth-card auth-slide-out" id="cardForgot">
+    <div class="auth-brand">₹</div>
+    <h1>Reset password</h1>
+    <p class="auth-sub" id="forgotSubLine">We'll send a reset link to your inbox</p>
+
+    <div class="auth-err" id="forgotErr"></div>
+
+    <div id="forgotFormWrap" style="transition:opacity .2s ease, transform .2s ease;">
+      <form class="auth-form" id="forgotForm" novalidate>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="fpEmail" placeholder="you@email.com" autocomplete="email" />
+        </div>
+        <button type="submit" class="btn btn-primary w-full auth-btn" id="forgotBtn">Send Reset Link</button>
+      </form>
+    </div>
+
+    <div id="forgotSuccess" style="display:none;text-align:center;padding:8px 0 16px;opacity:0;transform:translateY(8px);transition:opacity .32s ease,transform .32s ease;">
+      <div class="forgot-success-icon">✓</div>
+      <p class="forgot-success-title">Check your inbox!</p>
+      <p class="forgot-success-msg">A reset link was sent to<br><strong id="forgotSentEmail"></strong></p>
+      <p class="forgot-success-hint">Didn't get it? Check your spam folder or <a href="#" id="resendReset">resend</a>.</p>
+    </div>
+
+    <p class="auth-toggle" style="margin-top:20px;"><a href="#" id="goToSigninFromForgot">← Back to Sign In</a></p>
   </div>
 
   <!-- JOIN CARD -->

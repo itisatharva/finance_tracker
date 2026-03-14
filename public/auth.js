@@ -13,6 +13,7 @@ const ERR = {
   'auth/unauthorized-domain':     'Domain not authorised — add it in Firebase Console → Authentication → Settings → Authorised domains.',
   'auth/cancelled-popup-request': null,
   'auth/popup-blocked':           'Popup blocked — please allow popups for this site.',
+  'auth/missing-email':           'Please enter your email address.',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -139,4 +140,103 @@ document.getElementById('signupGoogleBtn').addEventListener('click', async e => 
     }
     resetGoogleBtn(btn, 'Join with Google');
   }
+});
+
+// ── Forgot password card navigation ───────────────────────────────────────────
+document.getElementById('goToForgot').addEventListener('click', e => {
+  e.preventDefault();
+  showErr('signinErr', '');
+  // Pre-fill with whatever email is already typed — saves the user a step
+  const email = document.getElementById('siEmail').value.trim();
+  if (email) document.getElementById('fpEmail').value = email;
+  document.getElementById('cardSignin').classList.add('auth-slide-out');
+  document.getElementById('cardForgot').classList.remove('auth-slide-out');
+  setTimeout(() => document.getElementById('fpEmail').focus(), 340);
+});
+
+document.getElementById('goToSigninFromForgot').addEventListener('click', e => {
+  e.preventDefault();
+  _resetForgotCard();
+  document.getElementById('cardForgot').classList.add('auth-slide-out');
+  document.getElementById('cardSignin').classList.remove('auth-slide-out');
+  setTimeout(() => document.getElementById('siEmail').focus(), 340);
+});
+
+function _resetForgotCard() {
+  const wrap = document.getElementById('forgotFormWrap');
+  const succ = document.getElementById('forgotSuccess');
+  wrap.style.display  = '';
+  wrap.style.opacity  = '';
+  wrap.style.transform = '';
+  succ.style.display  = 'none';
+  succ.style.opacity  = '0';
+  succ.style.transform = 'translateY(8px)';
+  document.getElementById('forgotBtn').disabled = false;
+  document.getElementById('forgotBtn').innerHTML = 'Send Reset Link';
+  showErr('forgotErr', '');
+}
+
+// ── Forgot password — send email ──────────────────────────────────────────────
+async function _sendResetEmail(email) {
+  const btn = document.getElementById('forgotBtn');
+  showErr('forgotErr', '');
+  setLoading(btn, 'Sending…');
+  try {
+    await window.sendPasswordResetEmail(window.auth, email);
+    // Animate form out, success state in
+    const wrap = document.getElementById('forgotFormWrap');
+    wrap.style.transition = 'opacity .2s ease, transform .2s ease';
+    wrap.style.opacity    = '0';
+    wrap.style.transform  = 'translateY(-8px)';
+    document.getElementById('forgotSentEmail').textContent = email;
+    setTimeout(() => {
+      wrap.style.display = 'none';
+      const succ = document.getElementById('forgotSuccess');
+      succ.style.display = '';
+      // Trigger transition on next frame
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        succ.style.opacity   = '1';
+        succ.style.transform = 'translateY(0)';
+      }));
+    }, 220);
+  } catch (err) {
+    showErr('forgotErr', ERR[err.code] || 'Could not send reset email. Please try again.');
+    resetBtn(btn);
+  }
+}
+
+document.getElementById('forgotForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = document.getElementById('fpEmail').value.trim();
+  if (!email) { showErr('forgotErr', 'Please enter your email address.'); document.getElementById('fpEmail').focus(); return; }
+  await _sendResetEmail(email);
+});
+
+document.getElementById('resendReset').addEventListener('click', async e => {
+  e.preventDefault();
+  const email = document.getElementById('fpEmail').value.trim();
+  if (!email) {
+    // Edge case: email field somehow empty — go back to form
+    _resetForgotCard();
+    setTimeout(() => document.getElementById('fpEmail').focus(), 50);
+    return;
+  }
+  // Animate success out, form back in, then resend
+  const succ = document.getElementById('forgotSuccess');
+  succ.style.opacity   = '0';
+  succ.style.transform = 'translateY(-8px)';
+  setTimeout(() => {
+    succ.style.display = 'none';
+    const wrap = document.getElementById('forgotFormWrap');
+    wrap.style.display   = '';
+    wrap.style.opacity   = '0';
+    wrap.style.transform = 'translateY(8px)';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      wrap.style.transition = 'opacity .25s ease, transform .25s ease';
+      wrap.style.opacity    = '1';
+      wrap.style.transform  = 'translateY(0)';
+      // Small delay then fire
+      setTimeout(() => _sendResetEmail(email), 200);
+    }));
+  }, 200);
 });
