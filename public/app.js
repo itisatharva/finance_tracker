@@ -1238,6 +1238,11 @@ function wireAddTxForm() {
   const fab      = document.getElementById('bnAddTx');
   const desktopTrigger = document.getElementById('btnOpenAddTx');
 
+  // Auto-close timer handle + success-mode flag — used to intercept taps
+  // during the 3-second success window and reset to add-another instead of closing
+  let _autoCloseTimer = null;
+  let _txSuccessMode  = false;
+
   function openAddTxSheet() {
     bg.classList.add('open');
     if (fab) fab.classList.add('open');
@@ -1250,6 +1255,10 @@ function wireAddTxForm() {
   }
 
   function closeAddTxSheet() {
+    // Always cancel any pending auto-close when sheet is explicitly closed
+    clearTimeout(_autoCloseTimer);
+    _autoCloseTimer = null;
+    _txSuccessMode  = false;
     bg.classList.remove('open');
     if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
@@ -1257,6 +1266,23 @@ function wireAddTxForm() {
     const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
     const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
     if (activeEl) activeEl.classList.add('active');
+  }
+
+  // Resets button/done state so the user can immediately add another transaction.
+  // Called when the user taps during the 3-second success window instead of waiting.
+  function resetToAddForm() {
+    clearTimeout(_autoCloseTimer);
+    _autoCloseTimer = null;
+    _txSuccessMode  = false;
+    const btn     = document.getElementById('addTxBtn');
+    const label   = document.getElementById('addTxLabel');
+    const done    = document.getElementById('addTxDone');
+    if (done)  done.classList.add('hidden');
+    if (label) label.classList.remove('hidden');
+    if (btn)   { btn.disabled = false; btn.style.background = ''; btn.style.color = ''; }
+    // Focus amount for fastest re-entry
+    const amtField = document.getElementById('txAmount');
+    if (amtField) setTimeout(() => amtField.focus(), 60);
   }
 
   // Expose so post-submit can close it
@@ -1336,7 +1362,12 @@ function wireAddTxForm() {
     if (window.closePendingSheet && document.getElementById('pendingSheetBg')?.classList.contains('open')) {
       window.closePendingSheet();
     } else if (bg.classList.contains('open')) {
-      closeAddTxSheet();
+      // If we're in the success window, tap = "add another" not "close"
+      if (_txSuccessMode) {
+        resetToAddForm();
+      } else {
+        closeAddTxSheet();
+      }
     } else {
       openAddTxSheet();
     }
@@ -1357,7 +1388,13 @@ function wireAddTxForm() {
   // Close on any click that lands outside the panel (works on desktop & mobile)
   bg.addEventListener('click', e => {
     const panel = document.getElementById('addTxSheet');
-    if (panel && !panel.contains(e.target)) closeAddTxSheet();
+    if (panel && !panel.contains(e.target)) {
+      if (_txSuccessMode) {
+        resetToAddForm();
+      } else {
+        closeAddTxSheet();
+      }
+    }
   });
 
   // Drag-to-close on mobile
@@ -1413,7 +1450,10 @@ function wireAddTxForm() {
       document.getElementById('txNote').value   = '';
       document.getElementById('txCategory').value = '';
       document.getElementById('txDate').valueAsDate = new Date();
-      setTimeout(() => {
+      _txSuccessMode = true;
+      _autoCloseTimer = setTimeout(() => {
+        _autoCloseTimer = null;
+        _txSuccessMode  = false;
         done.classList.add('hidden');
         label.classList.remove('hidden');
         btn.style.background = '';
