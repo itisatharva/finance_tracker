@@ -18,11 +18,49 @@ let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
 
+// ── Undo-delete state ─────────────────────────────────────────────────────────
+let _undoPendingId   = null;   // ID currently held back from Firestore delete
+let _undoTimer       = null;   // 4s countdown before hard-delete fires
+let _undoTxSnapshot  = null;   // snapshot of deleted tx data (for re-adds if needed)
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 function hideLoader() {
   const l = document.getElementById('pageLoader');
   if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
 }
+
+// ── Undo snackbar engine ──────────────────────────────────────────────────────
+const _snack = {
+  _el:   null,
+  _msg:  null,
+  _btn:  null,
+  _prog: null,
+
+  _init() {
+    if (this._el) return;
+    this._el   = document.getElementById('undoSnackbar');
+    this._msg  = document.getElementById('undoSnackMsg');
+    this._btn  = document.getElementById('undoSnackBtn');
+    this._prog = document.getElementById('undoSnackProgress');
+    if (this._btn) this._btn.addEventListener('click', () => _undoDelete());
+  },
+
+  show(msg) {
+    this._init();
+    if (!this._el) return;
+    // Reset progress animation by toggling class
+    this._el.classList.remove('show');
+    void this._el.offsetWidth; // reflow to restart animation
+    this._msg.textContent = msg;
+    this._el.classList.add('show');
+  },
+
+  hide() {
+    this._init();
+    if (!this._el) return;
+    this._el.classList.remove('show');
+  }
+};
 
 window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
@@ -1433,44 +1471,131 @@ function buildTxDiv(tx) {
   div.setAttribute('data-tx-id', tx.id);
   div.style.cursor = 'pointer';
   const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
+
+  // Delete reveal layer (behind content)
   div.innerHTML = `
-    <div class="tx-meta">
-      <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
-      ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
-      <div class="tx-date">${dateLabel}</div>
+    <div class="tx-swipe-delete-layer" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Delete
     </div>
-    <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-    <div class="tx-actions">
-      <div class="txa-normal">
-        <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
-        <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
+    <div class="tx-swipe-content-wrap">
+      <div class="tx-meta">
+        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
+        ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
+        <div class="tx-date">${dateLabel}</div>
       </div>
-      <div class="txa-confirm" style="display:none">
-        <span class="tx-confirm-label">Delete?</span>
-        <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
-        <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
-        <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
+      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+      <div class="tx-actions">
+        <div class="txa-normal">
+          <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
+          <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
+        </div>
+        <div class="txa-confirm" style="display:none">
+          <span class="tx-confirm-label">Delete?</span>
+          <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
+          <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
+          <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
+        </div>
       </div>
     </div>
   `;
+
   div.addEventListener('click', e => {
     if (e.target.closest('.tx-actions')) return;
     openTxDetail(tx.id);
   });
   if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
+
+  // ── Swipe-left-to-delete (mobile only) ──────────────────────────────────────
+  _wireSwipeDelete(div, tx.id);
+
   return div;
+}
+
+function _wireSwipeDelete(div, txId) {
+  const wrap     = div.querySelector('.tx-swipe-content-wrap');
+  if (!wrap) return;
+  const TRIGGER  = 88;   // px of swipe needed to trigger delete
+  const MAX_DRAG = 120;  // px cap so it never flies off screen
+  let startX = 0, startY = 0, dx = 0, dragging = false, locked = false;
+
+  div.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    startX   = e.touches[0].clientX;
+    startY   = e.touches[0].clientY;
+    dx       = 0;
+    dragging = false;
+    locked   = false;
+    wrap.style.transition = 'none';
+  }, { passive: true });
+
+  div.addEventListener('touchmove', e => {
+    if (locked) return;
+    const curX = e.touches[0].clientX;
+    const curY = e.touches[0].clientY;
+    const dxRaw = startX - curX;   // positive = swiping left
+    const dyRaw = Math.abs(startY - curY);
+
+    // Lock to horizontal once intent is clear; abort if vertical
+    if (!dragging) {
+      if (dyRaw > 10 && dyRaw > Math.abs(dxRaw)) { locked = true; return; }
+      if (Math.abs(dxRaw) > 8) dragging = true;
+    }
+    if (!dragging) return;
+
+    dx = Math.max(0, Math.min(dxRaw, MAX_DRAG));  // left-only, capped
+    wrap.style.transform = `translateX(-${dx}px)`;
+    div.classList.toggle('swiping', dx > 16);
+  }, { passive: true });
+
+  function onEnd() {
+    if (!dragging) return;
+    dragging = false;
+    if (dx >= TRIGGER) {
+      // Commit delete: animate content further left then collapse row
+      wrap.style.transition = 'transform .22s ease';
+      wrap.style.transform  = `translateX(-${MAX_DRAG + 40}px)`;
+      vibrate();
+      setTimeout(() => {
+        div.classList.remove('swiping');
+        window.confirmDeleteTx(txId);
+      }, 180);
+    } else {
+      // Snap back
+      div.classList.add('swipe-snap');
+      wrap.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1)';
+      wrap.style.transform  = 'translateX(0)';
+      div.classList.remove('swiping');
+      setTimeout(() => { div.classList.remove('swipe-snap'); wrap.style.transition = ''; }, 320);
+    }
+    dx = 0;
+  }
+
+  div.addEventListener('touchend',    onEnd);
+  div.addEventListener('touchcancel', () => {
+    if (!dragging) return;
+    dragging = false;
+    dx = 0;
+    div.classList.add('swipe-snap');
+    wrap.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1)';
+    wrap.style.transform  = 'translateX(0)';
+    div.classList.remove('swiping');
+    setTimeout(() => { div.classList.remove('swipe-snap'); wrap.style.transition = ''; }, 320);
+  });
 }
 
 function renderTxList() {
   const el = document.getElementById('txList');
-  const sorted = txSorted(transactions).slice(0, 5);
+  let sorted = txSorted(transactions).slice(0, 5);
+  // Hide the undo-pending row during the 4-second grace window
+  if (_undoPendingId) sorted = sorted.filter(t => t.id !== _undoPendingId);
 
   if (!sorted.length) {
     el.innerHTML = '<div class="empty">No transactions yet</div>';
     return;
   }
 
-  const isFirstRender = el.children.length === 0 || el.querySelector('.empty') !== null;
+  const isFirstRender = el.children.length === 0 || el.querySelector('.empty') !== null || el.querySelector('.tx-skel') !== null;
   const newIds = window._newTxIds || new Set();
 
   if (isFirstRender) {
@@ -1538,6 +1663,8 @@ function renderAllTxList() {
   const typeFilter = document.getElementById('txTypeFilter')?.value || '';
 
   let sorted = txSorted(transactions);
+  // Hide undo-pending row during grace window
+  if (_undoPendingId) sorted = sorted.filter(t => t.id !== _undoPendingId);
 
   if (catFilter)  sorted = sorted.filter(t => t.category === catFilter);
   if (typeFilter) sorted = sorted.filter(t => t.type === typeFilter);
@@ -1570,22 +1697,28 @@ function renderAllTxList() {
     div.style.cursor = 'pointer';
     const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
     div.innerHTML = `
-      <div class="tx-meta">
-        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
-        ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
-        <div class="tx-date">${dateLabel}</div>
+      <div class="tx-swipe-delete-layer" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        Delete
       </div>
-      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-      <div class="tx-actions">
-        <div class="txa-normal">
-          <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
-          <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
+      <div class="tx-swipe-content-wrap">
+        <div class="tx-meta">
+          <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
+          ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
+          <div class="tx-date">${dateLabel}</div>
         </div>
-        <div class="txa-confirm" style="display:none">
-          <span class="tx-confirm-label">Delete?</span>
-          <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
-          <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
-          <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
+        <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+        <div class="tx-actions">
+          <div class="txa-normal">
+            <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
+            <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
+          </div>
+          <div class="txa-confirm" style="display:none">
+            <span class="tx-confirm-label">Delete?</span>
+            <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
+            <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
+            <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
+          </div>
         </div>
       </div>
     `;
@@ -1593,6 +1726,7 @@ function renderAllTxList() {
       if (e.target.closest('.tx-actions')) return;
       openTxDetail(tx.id);
     });
+    _wireSwipeDelete(div, tx.id);
     el.appendChild(div);
     if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
   });
@@ -1667,16 +1801,61 @@ window.doConfirmDeleteTx = function(id, btn) {
 };
 
 window.confirmDeleteTx = async function(id) {
-  // Scope to visible list so the remove animation plays on the right element
+  // If there's already an undo pending for a different tx, hard-delete it now
+  if (_undoPendingId && _undoPendingId !== id) {
+    clearTimeout(_undoTimer);
+    _undoTimer = null;
+    const staleId = _undoPendingId;
+    _undoPendingId = null;
+    _undoTxSnapshot = null;
+    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', staleId)).catch(console.error);
+  }
+
+  // Snapshot the tx data before we "delete" it (for undo re-add)
+  const tx = transactions.find(t => t.id === id);
+  _undoTxSnapshot = tx ? { ...tx } : null;
+  _undoPendingId  = id;
+
+  // Animate out in the DOM
   const activeList = activeView === 'transactions'
     ? document.getElementById('allTxList')
     : document.getElementById('txList');
   const txEl = activeList ? activeList.querySelector('[data-tx-id="' + id + '"]')
                           : document.querySelector('[data-tx-id="' + id + '"]');
-  if (txEl) { txEl.classList.add('removing'); await new Promise(r => setTimeout(r, 350)); }
-  await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
+  if (txEl) { txEl.classList.add('removing'); }
   vibrate();
+
+  // Show snackbar — description first, then category as fallback
+  const label = (tx && (tx.description || tx.category)) || 'Transaction';
+  _snack.show(`"${label}" deleted`);
+
+  // Start 4-second countdown
+  clearTimeout(_undoTimer);
+  _undoTimer = setTimeout(async () => {
+    _undoTimer = null;
+    if (_undoPendingId !== id) return; // already undone or superseded
+    _undoPendingId  = null;
+    _undoTxSnapshot = null;
+    _snack.hide();
+    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id)).catch(console.error);
+  }, 4000);
 };
+
+// Called by the Undo button in the snackbar
+async function _undoDelete() {
+  if (!_undoPendingId) return;
+  clearTimeout(_undoTimer);
+  _undoTimer      = null;
+  const id        = _undoPendingId;
+  _undoPendingId  = null;
+  _undoTxSnapshot = null;
+  _snack.hide();
+  // The doc still exists in Firestore (we haven't deleted it yet) — 
+  // the onSnapshot listener will fire and re-render it automatically.
+  // We just need to trigger a re-render to un-hide the animating row.
+  renderTxList();
+  if (activeView === 'transactions') renderAllTxList();
+}
 
 // ── Transaction Detail Panel ──────────────────────────────────────────────────
 let _txDetailId = null;
@@ -1830,13 +2009,12 @@ window.txDetailDelete = function() {
   yes.className = 'btn-sm del'; yes.textContent = 'Yes, delete';
   yes.addEventListener('click', async () => {
     const id = _txDetailId;
+    // Close the detail panel first
     document.getElementById('txDetailBg').classList.remove('open');
     document.body.style.overflow = '';
     _txDetailId = null;
-    const el = document.querySelector('[data-tx-id="' + id + '"]');
-    if (el) { el.classList.add('removing'); await new Promise(r => setTimeout(r, 350)); }
-    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id));
-    vibrate();
+    // Route through undo-aware delete
+    await window.confirmDeleteTx(id);
   });
   const no = document.createElement('button');
   no.className = 'btn-sm'; no.textContent = 'Cancel';

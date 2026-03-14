@@ -259,7 +259,11 @@
         <!-- Recent Transactions -->
         <div class="card">
           <h2>Recent Transactions</h2>
-          <div class="tx-list" id="txList"><div class="empty">Loading…</div></div>
+          <div class="tx-list" id="txList">
+            <div class="tx-skel"><div class="tx-skel-badge"></div><div class="tx-skel-lines"><div class="tx-skel-line w60"></div><div class="tx-skel-line w35"></div></div><div class="tx-skel-amt"></div></div>
+            <div class="tx-skel"><div class="tx-skel-badge"></div><div class="tx-skel-lines"><div class="tx-skel-line w75"></div><div class="tx-skel-line w40"></div></div><div class="tx-skel-amt"></div></div>
+            <div class="tx-skel"><div class="tx-skel-badge"></div><div class="tx-skel-lines"><div class="tx-skel-line w50"></div><div class="tx-skel-line w30"></div></div><div class="tx-skel-amt"></div></div>
+          </div>
         </div>
       </div>
     </div>
@@ -715,6 +719,13 @@
       <button class="btn btn-primary" id="importDoBtn">Import</button>
     </div>
   </div>
+</div>
+
+<!-- Undo snackbar -->
+<div id="undoSnackbar" class="undo-snackbar" role="status" aria-live="polite">
+  <span id="undoSnackMsg" class="undo-snack-msg">Transaction deleted</span>
+  <button id="undoSnackBtn" class="undo-snack-btn">Undo</button>
+  <div id="undoSnackProgress" class="undo-snack-progress"></div>
 </div>
 
 </body>

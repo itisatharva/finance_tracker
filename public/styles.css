@@ -2260,6 +2260,175 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   overflow: hidden;
   pointer-events: none;
 }
+
+/* ── Transaction skeleton loader ─────────────────────────────────────────── */
+@keyframes skel-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+.tx-skel {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.tx-skel + .tx-skel { margin-top: 10px; }
+.tx-skel-badge {
+  width: 72px; height: 24px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg-card) 50%, var(--border) 75%);
+  background-size: 800px 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.tx-skel-lines { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.tx-skel-line {
+  height: 11px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg-card) 50%, var(--border) 75%);
+  background-size: 800px 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+.tx-skel-line.w60 { width: 60%; animation-delay: .05s; }
+.tx-skel-line.w75 { width: 75%; animation-delay: .1s; }
+.tx-skel-line.w50 { width: 50%; animation-delay: .05s; }
+.tx-skel-line.w35 { width: 35%; animation-delay: .15s; }
+.tx-skel-line.w40 { width: 40%; animation-delay: .2s; }
+.tx-skel-line.w30 { width: 30%; animation-delay: .1s; }
+.tx-skel-amt {
+  width: 52px; height: 18px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg-card) 50%, var(--border) 75%);
+  background-size: 800px 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+  animation-delay: .08s;
+  flex-shrink: 0;
+}
+
+/* ── Undo snackbar ────────────────────────────────────────────────────────── */
+.undo-snackbar {
+  position: fixed;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--ink);
+  color: var(--ink-fg);
+  border-radius: var(--r-pill);
+  padding: 13px 18px 13px 20px;
+  box-shadow: var(--shadow-lg);
+  min-width: 220px;
+  max-width: calc(100vw - 40px);
+  overflow: hidden;
+  transition: opacity .25s ease, transform .28s cubic-bezier(.22,1,.36,1);
+  white-space: nowrap;
+}
+.undo-snackbar.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: all;
+}
+/* On desktop (no bottom nav), sit closer to bottom edge */
+@media (min-width: 600px) {
+  .undo-snackbar {
+    bottom: 24px;
+  }
+}
+.undo-snack-msg {
+  font-size: .88rem;
+  font-weight: 500;
+  flex: 1;
+}
+.undo-snack-btn {
+  background: none;
+  border: 1.5px solid rgba(255,255,255,.35);
+  color: var(--ink-fg);
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.undo-snack-btn:hover {
+  background: rgba(255,255,255,.15);
+  border-color: rgba(255,255,255,.65);
+}
+/* Auto-dismiss progress bar that runs along the bottom */
+.undo-snack-progress {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 3px;
+  border-radius: 0 0 var(--r-pill) var(--r-pill);
+  background: rgba(255,255,255,.45);
+  width: 100%;
+  transform-origin: left;
+  transform: scaleX(1);
+}
+.undo-snackbar.show .undo-snack-progress {
+  animation: snack-countdown 4s linear forwards;
+}
+@keyframes snack-countdown {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* ── Swipe-to-delete reveal layer ────────────────────────────────────────── */
+/* tx-item is the swipe container. The delete layer sits behind the content. */
+.tx-item {
+  position: relative;   /* already has other rules — this ensures stacking */
+}
+.tx-swipe-delete-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 24px;
+  gap: 6px;
+  color: #fff;
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease;
+  z-index: 0;
+}
+.tx-swipe-delete-layer svg { flex-shrink: 0; }
+.tx-swipe-content {
+  position: relative;
+  z-index: 1;
+  display: contents; /* children layout as if wrapper doesn't exist */
+}
+/* When actively swiping, show the delete hint */
+.tx-item.swiping .tx-swipe-delete-layer { opacity: 1; }
+/* Smooth snap-back */
+.tx-item.swipe-snap .tx-swipe-content-wrap {
+  transition: transform .3s cubic-bezier(.22,1,.36,1);
+}
+.tx-swipe-content-wrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  will-change: transform;
+}
 /* ── Monthly Spending Insights ─────────────────────────────────────────────── */
 .insights-header {
   display: flex;
