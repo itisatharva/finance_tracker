@@ -1305,18 +1305,24 @@ function wireAddTxForm() {
       if (!bg.classList.contains('open')) return;
       // Wait for Android to finish its own focus-scroll attempt before we measure
       setTimeout(() => {
-        // Pass 1: let the browser scroll the panel so the field is in its
-        // scroll viewport (doesn't account for on-screen keyboard yet)
-        field.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+        // For the note field, scroll to the submit button (below note) so both
+        // the field AND the button are visible above the keyboard in one scroll.
+        const scrollTarget = (field.id === 'txNote')
+          ? (document.getElementById('addTxBtn') || field)
+          : field;
 
-        // Pass 2: after pass 1 settles, check if field is still behind the
+        // Pass 1: let the browser scroll the panel so the target is in its
+        // scroll viewport (doesn't account for on-screen keyboard yet)
+        scrollTarget.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+
+        // Pass 2: after pass 1 settles, check if target is still behind the
         // keyboard and push panel scroll by the exact remaining gap
         requestAnimationFrame(() => {
-          const vvHeight  = window.visualViewport.height;
-          const fieldRect = field.getBoundingClientRect();
-          const PADDING   = 28; // breathing room above keyboard edge
-          if (fieldRect.bottom > vvHeight - PADDING) {
-            panel.scrollTop += fieldRect.bottom - (vvHeight - PADDING);
+          const vvHeight   = window.visualViewport.height;
+          const targetRect = scrollTarget.getBoundingClientRect();
+          const PADDING    = 28; // breathing room above keyboard edge
+          if (targetRect.bottom > vvHeight - PADDING) {
+            panel.scrollTop += targetRect.bottom - (vvHeight - PADDING);
           }
         });
       }, 150); // 150ms lets keyboard + focus animation fully settle on Android
@@ -1402,6 +1408,10 @@ function wireAddTxForm() {
 
   document.getElementById('addTxForm').addEventListener('submit', async e => {
     e.preventDefault();
+
+    // If in success window, tapping the button = "add another" — reset the form
+    if (_txSuccessMode) { resetToAddForm(); return; }
+
     const category = document.getElementById('txCategory').value;
     const raw      = document.getElementById('txAmount').value.replace(/,/g,'').trim();
     const amount   = parseFloat(raw);
@@ -1443,9 +1453,11 @@ function wireAddTxForm() {
       } else {
         done.textContent = '✓ Added!';
         btn.style.background = 'var(--green)';
-        btn.style.color = '#fff';
+        btn.style.color = '#ffffff';
         vibrate();
       }
+      // Re-enable so the button is full opacity and tappable (tapping resets to add-another)
+      btn.disabled = false;
       document.getElementById('txAmount').value = '';
       document.getElementById('txNote').value   = '';
       document.getElementById('txCategory').value = '';
