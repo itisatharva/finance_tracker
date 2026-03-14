@@ -2384,51 +2384,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   to   { transform: scaleX(0); }
 }
 
-/* ── Swipe-to-delete reveal layer ────────────────────────────────────────── */
-/* tx-item is the swipe container. The delete layer sits behind the content. */
-.tx-item {
-  position: relative;   /* already has other rules — this ensures stacking */
-}
-.tx-swipe-delete-layer {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--red);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 24px;
-  gap: 6px;
-  color: #fff;
-  font-size: .82rem;
-  font-weight: 700;
-  letter-spacing: .03em;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .12s ease;
-  z-index: 0;
-}
-.tx-swipe-delete-layer svg { flex-shrink: 0; }
-.tx-swipe-content {
-  position: relative;
-  z-index: 1;
-  display: contents; /* children layout as if wrapper doesn't exist */
-}
-/* When actively swiping, show the delete hint */
-.tx-item.swiping .tx-swipe-delete-layer { opacity: 1; }
-/* Smooth snap-back */
-.tx-item.swipe-snap .tx-swipe-content-wrap {
-  transition: transform .3s cubic-bezier(.22,1,.36,1);
-}
-.tx-swipe-content-wrap {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  will-change: transform;
-}
 /* ── Monthly Spending Insights ─────────────────────────────────────────────── */
 .insights-header {
   display: flex;

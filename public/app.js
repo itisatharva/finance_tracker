@@ -1472,116 +1472,32 @@ function buildTxDiv(tx) {
   div.style.cursor = 'pointer';
   const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
 
-  // Delete reveal layer (behind content)
   div.innerHTML = `
-    <div class="tx-swipe-delete-layer" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-      Delete
+    <div class="tx-meta">
+      <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
+      ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
+      <div class="tx-date">${dateLabel}</div>
     </div>
-    <div class="tx-swipe-content-wrap">
-      <div class="tx-meta">
-        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
-        ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
-        <div class="tx-date">${dateLabel}</div>
+    <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+    <div class="tx-actions">
+      <div class="txa-normal">
+        <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
+        <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
       </div>
-      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-      <div class="tx-actions">
-        <div class="txa-normal">
-          <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
-          <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
-        </div>
-        <div class="txa-confirm" style="display:none">
-          <span class="tx-confirm-label">Delete?</span>
-          <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
-          <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
-          <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
-        </div>
+      <div class="txa-confirm" style="display:none">
+        <span class="tx-confirm-label">Delete?</span>
+        <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
+        <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
+        <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
       </div>
     </div>
   `;
-
   div.addEventListener('click', e => {
     if (e.target.closest('.tx-actions')) return;
     openTxDetail(tx.id);
   });
   if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
-
-  // ── Swipe-left-to-delete (mobile only) ──────────────────────────────────────
-  _wireSwipeDelete(div, tx.id);
-
   return div;
-}
-
-function _wireSwipeDelete(div, txId) {
-  const wrap     = div.querySelector('.tx-swipe-content-wrap');
-  if (!wrap) return;
-  const TRIGGER  = 88;   // px of swipe needed to trigger delete
-  const MAX_DRAG = 120;  // px cap so it never flies off screen
-  let startX = 0, startY = 0, dx = 0, dragging = false, locked = false;
-
-  div.addEventListener('touchstart', e => {
-    if (e.touches.length !== 1) return;
-    startX   = e.touches[0].clientX;
-    startY   = e.touches[0].clientY;
-    dx       = 0;
-    dragging = false;
-    locked   = false;
-    wrap.style.transition = 'none';
-  }, { passive: true });
-
-  div.addEventListener('touchmove', e => {
-    if (locked) return;
-    const curX = e.touches[0].clientX;
-    const curY = e.touches[0].clientY;
-    const dxRaw = startX - curX;   // positive = swiping left
-    const dyRaw = Math.abs(startY - curY);
-
-    // Lock to horizontal once intent is clear; abort if vertical
-    if (!dragging) {
-      if (dyRaw > 10 && dyRaw > Math.abs(dxRaw)) { locked = true; return; }
-      if (Math.abs(dxRaw) > 8) dragging = true;
-    }
-    if (!dragging) return;
-
-    dx = Math.max(0, Math.min(dxRaw, MAX_DRAG));  // left-only, capped
-    wrap.style.transform = `translateX(-${dx}px)`;
-    div.classList.toggle('swiping', dx > 16);
-  }, { passive: true });
-
-  function onEnd() {
-    if (!dragging) return;
-    dragging = false;
-    if (dx >= TRIGGER) {
-      // Commit delete: animate content further left then collapse row
-      wrap.style.transition = 'transform .22s ease';
-      wrap.style.transform  = `translateX(-${MAX_DRAG + 40}px)`;
-      vibrate();
-      setTimeout(() => {
-        div.classList.remove('swiping');
-        window.confirmDeleteTx(txId);
-      }, 180);
-    } else {
-      // Snap back
-      div.classList.add('swipe-snap');
-      wrap.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1)';
-      wrap.style.transform  = 'translateX(0)';
-      div.classList.remove('swiping');
-      setTimeout(() => { div.classList.remove('swipe-snap'); wrap.style.transition = ''; }, 320);
-    }
-    dx = 0;
-  }
-
-  div.addEventListener('touchend',    onEnd);
-  div.addEventListener('touchcancel', () => {
-    if (!dragging) return;
-    dragging = false;
-    dx = 0;
-    div.classList.add('swipe-snap');
-    wrap.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1)';
-    wrap.style.transform  = 'translateX(0)';
-    div.classList.remove('swiping');
-    setTimeout(() => { div.classList.remove('swipe-snap'); wrap.style.transition = ''; }, 320);
-  });
 }
 
 function renderTxList() {
@@ -1697,28 +1613,22 @@ function renderAllTxList() {
     div.style.cursor = 'pointer';
     const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
     div.innerHTML = `
-      <div class="tx-swipe-delete-layer" aria-hidden="true">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-        Delete
+      <div class="tx-meta">
+        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
+        ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
+        <div class="tx-date">${dateLabel}</div>
       </div>
-      <div class="tx-swipe-content-wrap">
-        <div class="tx-meta">
-          <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
-          ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
-          <div class="tx-date">${dateLabel}</div>
+      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+      <div class="tx-actions">
+        <div class="txa-normal">
+          <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
+          <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
         </div>
-        <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-        <div class="tx-actions">
-          <div class="txa-normal">
-            <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
-            <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
-          </div>
-          <div class="txa-confirm" style="display:none">
-            <span class="tx-confirm-label">Delete?</span>
-            <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
-            <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
-            <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
-          </div>
+        <div class="txa-confirm" style="display:none">
+          <span class="tx-confirm-label">Delete?</span>
+          <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
+          <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
+          <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
         </div>
       </div>
     `;
@@ -1726,7 +1636,6 @@ function renderAllTxList() {
       if (e.target.closest('.tx-actions')) return;
       openTxDetail(tx.id);
     });
-    _wireSwipeDelete(div, tx.id);
     el.appendChild(div);
     if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
   });
