@@ -1263,12 +1263,26 @@ function wireAddTxForm() {
   window.openAddTxSheet  = openAddTxSheet;
   window.closeAddTxSheet = closeAddTxSheet;
 
-  // ── Keyboard-lift: scroll panel so Add button stays visible ─────────────────
-  // Scrolling to the panel bottom is the only reliable cross-device approach.
-  // margin-bottom / translateY math breaks on Android because window.innerHeight
-  // already shrinks when the keyboard opens, making kbHeight always near zero.
+  // ── Keyboard-lift: scroll focused field into view above keyboard ─────────────
+  // scrollPanelToBottom (scroll to panel's absolute bottom) works when the
+  // keyboard first opens (viewport shrinks → resize event fires).
+  // But going from amount → note keeps the keyboard open, so no resize fires.
+  // scrollFieldIntoView uses visualViewport.height (already accounts for the
+  // keyboard) to calculate the exact scroll delta needed for any field.
   if (window.visualViewport && window.innerWidth < 600) {
     const panel = document.getElementById('addTxSheet');
+
+    function scrollFieldIntoView(field) {
+      if (!bg.classList.contains('open')) return;
+      setTimeout(() => {
+        const vvHeight  = window.visualViewport.height;
+        const fieldRect = field.getBoundingClientRect();
+        const PADDING   = 24; // px of breathing room above keyboard edge
+        if (fieldRect.bottom > vvHeight - PADDING) {
+          panel.scrollTop += fieldRect.bottom - (vvHeight - PADDING);
+        }
+      }, 80);
+    }
 
     function scrollPanelToBottom() {
       if (!bg.classList.contains('open')) return;
@@ -1282,9 +1296,12 @@ function wireAddTxForm() {
 
     window.visualViewport.addEventListener('resize', onViewportResize);
 
-    // Also scroll when focus moves to the note field while keyboard is already open
-    const noteField = document.getElementById('txNote');
-    if (noteField) noteField.addEventListener('focus', scrollPanelToBottom);
+    // Wire every form field so focus always scrolls it above the keyboard,
+    // whether the keyboard just opened or was already open (amount → note).
+    ['txDate', 'txCategory', 'txAmount', 'txNote'].forEach(fId => {
+      const el = document.getElementById(fId);
+      if (el) el.addEventListener('focus', () => scrollFieldIntoView(el));
+    });
   }
 
   if (fab) fab.addEventListener('click', () => {
