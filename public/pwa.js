@@ -6,18 +6,34 @@
   'use strict';
 
   // ── 1. Register Service Worker ──────────────────────────────────────────────
+  // When a new SW version is found and ready, skip the waiting phase immediately
+  // and let the controllerchange handler below force-reload the page.
+  // No user-facing toast — updates are silent and automatic.
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').then(reg => {
+        // Handle updates found after initial registration
         reg.addEventListener('updatefound', () => {
           const nw = reg.installing;
           if (!nw) return;
           nw.addEventListener('statechange', () => {
-            if (nw.state === 'installed' && navigator.serviceWorker.controller) _showUpdateToast();
+            // New SW is installed and waiting — trigger it immediately.
+            // navigator.serviceWorker.controller being set means a previous
+            // version is active (i.e. this is an update, not a first install).
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
           });
         });
+
+        // Also handle the case where a waiting SW already exists when the
+        // page loads (e.g. the tab was open across a deploy).
+        if (reg.waiting && navigator.serviceWorker.controller) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
       }).catch(err => console.warn('[SW] Registration failed:', err));
 
+      // Once the new SW takes control, reload once to serve fresh assets.
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!refreshing) { refreshing = true; window.location.reload(); }
@@ -363,82 +379,5 @@
     localStorage.setItem(INSTALL_KEY, '1');
   }
 
-  // ── 4. Update available toast ────────────────────────────────────────────────
-  function _showUpdateToast() {
-    if (document.getElementById('__pwa_update_popup')) return;
-
-    const style = document.createElement('style');
-    style.textContent = `
-      #__pwa_update_backdrop{position:fixed;inset:0;z-index:9400;background:rgba(0,0,0,0);transition:background .3s ease;pointer-events:none;}
-      #__pwa_update_backdrop.pwa-up-vis{background:rgba(0,0,0,.4);pointer-events:auto;}
-      #__pwa_update_popup{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px)+16px);max-width:460px;margin:0 auto;z-index:9500;background:var(--bg-card,#fff);border:1.5px solid var(--border,#E2D9CF);border-radius:24px;box-shadow:0 16px 56px rgba(0,0,0,.18);padding:20px 20px 18px;font-family:'DM Sans',sans-serif;transform:translateY(calc(100% + 32px));transition:transform .42s cubic-bezier(.34,1.28,.64,1);}
-      #__pwa_update_popup.pwa-up-vis{transform:translateY(0);}
-      .__up_head{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
-      .__up_icon{width:44px;height:44px;border-radius:14px;background:var(--ink,#1c1c1c);color:var(--ink-fg,#fff);display:flex;align-items:center;justify-content:center;font-size:1.25rem;font-weight:700;flex-shrink:0;}
-      .__up_title{font-size:1rem;font-weight:700;color:var(--text-1,#1c1c1c);letter-spacing:-.01em;}
-      .__up_sub{font-size:.78rem;color:var(--text-3,#9a9a9a);margin-top:2px;}
-      .__up_body{font-size:.83rem;color:var(--text-2,#5a5a5a);line-height:1.55;margin-bottom:16px;}
-      .__up_actions{display:flex;gap:10px;}
-      .__up_later{flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border,#E2D9CF);background:transparent;color:var(--text-2,#5a5a5a);font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:border-color .15s,color .15s;}
-      .__up_later:hover{border-color:var(--text-3,#9a9a9a);color:var(--text-1,#1c1c1c);}
-      .__up_update{flex:2;padding:12px;border-radius:12px;border:none;background:var(--ink,#1c1c1c);color:var(--ink-fg,#fff);font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity .15s;}
-      .__up_update:hover{opacity:.88;}
-      .__up_update:disabled{opacity:.6;cursor:default;}
-      @keyframes __up_spin{to{transform:rotate(360deg)}}
-    `;
-    document.head.appendChild(style);
-
-    const backdrop = document.createElement('div');
-    backdrop.id = '__pwa_update_backdrop';
-    document.body.appendChild(backdrop);
-
-    const popup = document.createElement('div');
-    popup.id = '__pwa_update_popup';
-    popup.innerHTML = `
-      <div class="__up_head">
-        <div class="__up_icon">₹</div>
-        <div>
-          <div class="__up_title">Update available</div>
-          <div class="__up_sub">Finance Tracker · New version ready</div>
-        </div>
-      </div>
-      <div class="__up_body">A newer version of the app is ready to install. Update now for the latest fixes and improvements — it only takes a second.</div>
-      <div class="__up_actions">
-        <button class="__up_later" id="__up_later">Later</button>
-        <button class="__up_update" id="__up_update">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Update now
-        </button>
-      </div>`;
-    document.body.appendChild(popup);
-
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      backdrop.classList.add('pwa-up-vis');
-      popup.classList.add('pwa-up-vis');
-    }));
-
-    function _dismiss() {
-      backdrop.classList.remove('pwa-up-vis');
-      popup.classList.remove('pwa-up-vis');
-      setTimeout(() => { backdrop.remove(); popup.remove(); }, 460);
-    }
-
-    document.getElementById('__up_later').addEventListener('click', _dismiss);
-    backdrop.addEventListener('click', _dismiss);
-
-    document.getElementById('__up_update').addEventListener('click', () => {
-      const btn = document.getElementById('__up_update');
-      btn.disabled = true;
-      btn.innerHTML = '<span style="width:14px;height:14px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:__up_spin .75s linear infinite;display:inline-block;flex-shrink:0"></span> Updating…';
-      navigator.serviceWorker.getRegistration().then(reg => {
-        if (reg && reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      });
-    });
-
-    // Auto-reload once the new SW takes control
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.location.reload();
-    }, { once: true });
-  }
 
 })();
