@@ -681,12 +681,12 @@
     import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
     const app  = initializeApp({
-      apiKey:            "REDACTED",
-      authDomain:        "itisatharva-ft.firebaseapp.com",
-      projectId:         "itisatharva-ft",
-      storageBucket:     "itisatharva-ft.firebasestorage.app",
-      messagingSenderId: "1038076060696",
-      appId:             "1:1038076060696:web:4eabd0a57666554e7d4f6d"
+      apiKey:            "__FIREBASE_API_KEY__",
+      authDomain:        "__FIREBASE_AUTH_DOMAIN__",
+      projectId:         "__FIREBASE_PROJECT_ID__",
+      storageBucket:     "__FIREBASE_STORAGE_BUCKET__",
+      messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
+      appId:             "__FIREBASE_APP_ID__"
     });
     const auth = getAuth(app);
     onAuthStateChanged(auth, user => {
