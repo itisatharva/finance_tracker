@@ -1561,9 +1561,15 @@ function buildTxDiv(tx) {
     ? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
     : 'No date';
   const color = catColorByName(tx.type, tx.category);
-  const div   = document.createElement('div');
+
+  // .tx-row is the height-collapsing wrapper (owns the 10px gap via margin-bottom).
+  // data-tx-id lives here so confirmDeleteTx can find and collapse the whole wrapper.
+  const row = document.createElement('div');
+  row.className = 'tx-row';
+  row.setAttribute('data-tx-id', tx.id);
+
+  const div = document.createElement('div');
   div.className = 'tx-item';
-  div.setAttribute('data-tx-id', tx.id);
   div.style.cursor = 'pointer';
   const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
 
@@ -1593,7 +1599,8 @@ function buildTxDiv(tx) {
   });
   if (window._restoringTxId === tx.id) div.classList.add('tx-restoring');
   if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
-  return div;
+  row.appendChild(div);
+  return row;
 }
 
 function renderTxList() {
@@ -1700,41 +1707,7 @@ function renderAllTxList() {
 
   el.innerHTML = '';
   sorted.forEach(tx => {
-    const d     = toDate(tx.selectedDate);
-    const dateLabel = d ? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : 'No date';
-    const color = catColorByName(tx.type, tx.category);
-    const div   = document.createElement('div');
-    div.className = 'tx-item';
-    div.setAttribute('data-tx-id', tx.id);
-    div.style.cursor = 'pointer';
-    const pillHtml = _txPillHtml(tx.id, tx.hasPendingWrites);
-    div.innerHTML = `
-      <div class="tx-meta">
-        <div class="tx-cat"><span class="tx-badge" style="background:${color}22;color:${color}">${esc(tx.category)}</span>${pillHtml}</div>
-        ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
-        <div class="tx-date">${dateLabel}</div>
-      </div>
-      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-      <div class="tx-actions">
-        <div class="txa-normal">
-          <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
-          <button class="btn-sm del" onclick="event.stopPropagation();showDeleteConfirm('${tx.id}')">Delete</button>
-        </div>
-        <div class="txa-confirm" style="display:none">
-          <span class="tx-confirm-label">Delete?</span>
-          <button class="btn-sm del" onclick="event.stopPropagation();doConfirmDeleteTx('${tx.id}',this)">Yes</button>
-          <button class="btn-sm" onclick="event.stopPropagation();cancelDeleteTx(this)">No</button>
-          <label class="tx-dont-ask" onclick="event.stopPropagation()"><input type="checkbox" class="dont-ask-chk" style="accent-color:var(--red);width:12px;height:12px;cursor:pointer;flex-shrink:0"> <span>Don't ask again</span></label>
-        </div>
-      </div>
-    `;
-    div.addEventListener('click', e => {
-      if (e.target.closest('.tx-actions')) return;
-      openTxDetail(tx.id);
-    });
-    if (window._restoringTxId === tx.id) div.classList.add('tx-restoring');
-    el.appendChild(div);
-    if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
+    el.appendChild(buildTxDiv(tx));
   });
 }
 
@@ -1822,34 +1795,26 @@ window.confirmDeleteTx = async function(id) {
   _undoTxSnapshot = tx ? { ...tx } : null;
   _undoPendingId  = id;
 
-  // Animate out — measure real height so the collapse is perfectly smooth,
-  // then drive height+opacity+margin via CSS transitions (no max-height jitter)
+  // Animate out — target the .tx-row wrapper so:
+  //   • height + margin-bottom collapse (layout, but scoped by contain:layout on .tx-list)
+  //   • .tx-item fade/slide is handled by CSS on .tx-row.removing .tx-item (GPU only)
+  // JS only measures the start-height and adds the class; CSS does the rest.
   const activeList = activeView === 'transactions'
     ? document.getElementById('allTxList')
     : document.getElementById('txList');
-  const txEl = activeList ? activeList.querySelector('[data-tx-id="' + id + '"]')
-                          : document.querySelector('[data-tx-id="' + id + '"]');
-  if (txEl) {
-    const h = txEl.getBoundingClientRect().height;
-    txEl.style.height        = h + 'px';
-    txEl.style.overflow      = 'hidden';
-    txEl.style.pointerEvents = 'none';
-    // Force reflow so the browser registers the explicit starting height
-    void txEl.offsetHeight;
-    txEl.style.transition = [
-      'height 0.38s cubic-bezier(0.4,0,0.2,1)',
-      'opacity 0.28s ease',
-      'margin-bottom 0.38s cubic-bezier(0.4,0,0.2,1)',
-      'padding-top 0.3s cubic-bezier(0.4,0,0.2,1)',
-      'padding-bottom 0.3s cubic-bezier(0.4,0,0.2,1)',
-    ].join(', ');
-    requestAnimationFrame(() => {
-      txEl.style.height        = '0';
-      txEl.style.opacity       = '0';
-      txEl.style.marginBottom  = '0';
-      txEl.style.paddingTop    = '0';
-      txEl.style.paddingBottom = '0';
-    });
+  const txRow = activeList ? activeList.querySelector('[data-tx-id="' + id + '"]')
+                           : document.querySelector('[data-tx-id="' + id + '"]');
+  if (txRow) {
+    const h = txRow.getBoundingClientRect().height;
+    // Lock the start-height as a concrete px value so the CSS transition has a from-value.
+    txRow.style.height = h + 'px';
+    txRow.classList.add('removing');
+    // Double-rAF: first frame commits the explicit height to the CSSOM,
+    // second frame starts the transition to 0 (avoids the "jump to end" bug).
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      txRow.style.height       = '0';
+      txRow.style.marginBottom = '0';
+    }));
   }
   vibrate();
 

@@ -572,7 +572,12 @@ input[type="color"] {
 
 /* ---------- TRANSACTION LIST ---------- */
 
-.tx-list { display: flex; flex-direction: column; gap: 10px; }
+/* contain:layout scopes reflow to just this list — collapsing rows no longer */
+/* trigger full-page layout recalculations, critical for rapid-delete perf.   */
+.tx-list { display: flex; flex-direction: column; gap: 0; contain: layout; }
+/* Thin wrapper — owns spacing so margin-bottom can animate to 0 on delete   */
+.tx-row  { margin-bottom: 10px; }
+.tx-row:last-child { margin-bottom: 0; }
 
 .tx-item {
   display: flex;
@@ -2154,13 +2159,26 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   animation: txSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Slide-out animation for deleted transactions */
-/* NOTE: the actual height/opacity/margin transitions are driven by JS      */
-/* (measuring real height avoids max-height jitter). This rule just sets    */
-/* overflow and pointer-events so the collapsing row clips correctly.       */
-.tx-item.removing {
+/* ── Delete collapse animation ────────────────────────────────────────────────
+   Two-layer approach for smooth rapid-delete performance:
+   · .tx-row.removing  — collapses height + margin (layout, bounded by contain:layout)
+   · .tx-row.removing .tx-item — fades + slides (GPU-composited, zero layout cost)
+   JS only sets the measured start-height as an inline style then adds .removing;
+   the browser handles the rest via these CSS transitions.
+   ─────────────────────────────────────────────────────────────────────────── */
+.tx-row.removing {
+  will-change: height, margin-bottom;
   overflow: hidden;
   pointer-events: none;
+  transition:
+    height        0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-bottom 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tx-row.removing .tx-item {
+  will-change: opacity, transform;
+  opacity: 0;
+  transform: translateX(-12px) scale(0.98);
+  transition: opacity 0.18s ease, transform 0.22s ease;
 }
 
 /* Restore animation for undone transactions */
@@ -2263,11 +2281,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-top: 1px solid var(--border);
 }
 
-.tx-item.removing {
-  animation: txSlideOut 0.35s cubic-bezier(0.4, 0, 1, 1) forwards;
-  overflow: hidden;
-  pointer-events: none;
-}
+/* .tx-row.removing handles delete animation — see rule above near .tx-adding */
 
 /* ── Transaction skeleton loader ─────────────────────────────────────────── */
 @keyframes skel-shimmer {
