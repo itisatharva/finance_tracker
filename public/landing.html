@@ -676,23 +676,7 @@
   </footer>
 
   <!-- ── Auth redirect — skip landing for logged-in users ─────────────────── -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-    import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-
-    const app  = initializeApp({
-      apiKey:            "__FIREBASE_API_KEY__",
-      authDomain:        "__FIREBASE_AUTH_DOMAIN__",
-      projectId:         "__FIREBASE_PROJECT_ID__",
-      storageBucket:     "__FIREBASE_STORAGE_BUCKET__",
-      messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
-      appId:             "__FIREBASE_APP_ID__"
-    });
-    const auth = getAuth(app);
-    onAuthStateChanged(auth, user => {
-      if (user) window.location.replace('index.html');
-    });
-  </script>
+  <script type="module" src="firebase-config.js"></script>
 
   <!-- ── Scroll reveal ─────────────────────────────────────────────────────── -->
   <script>
