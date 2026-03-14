@@ -2150,24 +2150,32 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
-/* Slide-out animation for deleted transactions */
-@keyframes txSlideOut {
-  from {
-    opacity: 1;
-    max-height: 120px;
-    margin-bottom: 8px;
-  }
-  to {
-    opacity: 0;
-    max-height: 0;
-    margin-bottom: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-  }
-}
-
 .tx-adding {
   animation: txSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Slide-out animation for deleted transactions */
+/* NOTE: the actual height/opacity/margin transitions are driven by JS      */
+/* (measuring real height avoids max-height jitter). This rule just sets    */
+/* overflow and pointer-events so the collapsing row clips correctly.       */
+.tx-item.removing {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Restore animation for undone transactions */
+@keyframes txRestoreIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.tx-item.tx-restoring {
+  animation: txRestoreIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 

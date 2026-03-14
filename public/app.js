@@ -1496,6 +1496,7 @@ function buildTxDiv(tx) {
     if (e.target.closest('.tx-actions')) return;
     openTxDetail(tx.id);
   });
+  if (window._restoringTxId === tx.id) div.classList.add('tx-restoring');
   if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
   return div;
 }
@@ -1636,6 +1637,7 @@ function renderAllTxList() {
       if (e.target.closest('.tx-actions')) return;
       openTxDetail(tx.id);
     });
+    if (window._restoringTxId === tx.id) div.classList.add('tx-restoring');
     el.appendChild(div);
     if (pillHtml) setTimeout(() => _animateTxPill(tx.id, tx.hasPendingWrites), 0);
   });
@@ -1725,13 +1727,35 @@ window.confirmDeleteTx = async function(id) {
   _undoTxSnapshot = tx ? { ...tx } : null;
   _undoPendingId  = id;
 
-  // Animate out in the DOM
+  // Animate out — measure real height so the collapse is perfectly smooth,
+  // then drive height+opacity+margin via CSS transitions (no max-height jitter)
   const activeList = activeView === 'transactions'
     ? document.getElementById('allTxList')
     : document.getElementById('txList');
   const txEl = activeList ? activeList.querySelector('[data-tx-id="' + id + '"]')
                           : document.querySelector('[data-tx-id="' + id + '"]');
-  if (txEl) { txEl.classList.add('removing'); }
+  if (txEl) {
+    const h = txEl.getBoundingClientRect().height;
+    txEl.style.height        = h + 'px';
+    txEl.style.overflow      = 'hidden';
+    txEl.style.pointerEvents = 'none';
+    // Force reflow so the browser registers the explicit starting height
+    void txEl.offsetHeight;
+    txEl.style.transition = [
+      'height 0.38s cubic-bezier(0.4,0,0.2,1)',
+      'opacity 0.28s ease',
+      'margin-bottom 0.38s cubic-bezier(0.4,0,0.2,1)',
+      'padding-top 0.3s cubic-bezier(0.4,0,0.2,1)',
+      'padding-bottom 0.3s cubic-bezier(0.4,0,0.2,1)',
+    ].join(', ');
+    requestAnimationFrame(() => {
+      txEl.style.height        = '0';
+      txEl.style.opacity       = '0';
+      txEl.style.marginBottom  = '0';
+      txEl.style.paddingTop    = '0';
+      txEl.style.paddingBottom = '0';
+    });
+  }
   vibrate();
 
   // Show snackbar — description first, then category as fallback
@@ -1759,11 +1783,12 @@ async function _undoDelete() {
   _undoPendingId  = null;
   _undoTxSnapshot = null;
   _snack.hide();
-  // The doc still exists in Firestore (we haven't deleted it yet) — 
-  // the onSnapshot listener will fire and re-render it automatically.
-  // We just need to trigger a re-render to un-hide the animating row.
+  // The doc still exists in Firestore — just re-render with the filter lifted.
+  // Mark the ID so buildTxDiv / renderAllTxList can give it the restore animation.
+  window._restoringTxId = id;
   renderTxList();
   if (activeView === 'transactions') renderAllTxList();
+  setTimeout(() => { window._restoringTxId = null; }, 500);
 }
 
 // ── Transaction Detail Panel ──────────────────────────────────────────────────
