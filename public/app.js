@@ -1279,8 +1279,9 @@ function wireAddTxForm() {
   }
 
   // Resets button/done state so the user can immediately add another transaction.
-  // Called when the user taps during the 3-second success window instead of waiting.
-  function resetToAddForm() {
+  // Called when the user explicitly signals "add another" (FAB, backdrop, submit button).
+  // Does NOT steal focus on its own — caller decides whether to focus.
+  function resetToAddForm(shouldFocus = true) {
     clearTimeout(_autoCloseTimer);
     _autoCloseTimer = null;
     _txSuccessMode  = false;
@@ -1290,9 +1291,13 @@ function wireAddTxForm() {
     if (done)  done.classList.add('hidden');
     if (label) label.classList.remove('hidden');
     if (btn)   { btn.disabled = false; btn.style.background = ''; btn.style.color = ''; }
-    // Focus amount for fastest re-entry
-    const amtField = document.getElementById('txAmount');
-    if (amtField) setTimeout(() => amtField.focus(), 60);
+    // Focus category first — it was cleared after submit, so the correct
+    // flow is category → amount → note.  Only focus when the caller wants it
+    // (not when the user already tapped a specific field).
+    if (shouldFocus) {
+      const catField = document.getElementById('txCategory');
+      if (catField) setTimeout(() => catField.focus(), 60);
+    }
   }
 
   // Expose so post-submit can close it
@@ -1424,10 +1429,13 @@ function wireAddTxForm() {
 
   // Cancel auto-close the moment the user touches/clicks anywhere inside the
   // panel during the 3-second success window. Without this, tapping a form
-  // field to start the next entry wouldn't clear the timer (only the FAB,
-  // backdrop, and submit button did), so the sheet would still close 3s later.
+  // field to start the next entry wouldn't clear the timer.
+  // shouldFocus=false: whatever the user actually tapped gets its own natural
+  // focus — we must not call amtField/catField.focus() here because pointerdown
+  // fires BEFORE the element receives focus, so a setTimeout focus would fire
+  // 60ms later and yank the caret away from wherever the user tapped.
   document.getElementById('addTxSheet').addEventListener('pointerdown', () => {
-    if (_txSuccessMode) resetToAddForm();
+    if (_txSuccessMode) resetToAddForm(false);
   });
 
   document.getElementById('addTxForm').addEventListener('submit', async e => {
