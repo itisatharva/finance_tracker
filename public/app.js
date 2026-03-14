@@ -1264,24 +1264,36 @@ function wireAddTxForm() {
   window.closeAddTxSheet = closeAddTxSheet;
 
   // ── Keyboard-lift: scroll focused field into view above keyboard ─────────────
-  // scrollPanelToBottom (scroll to panel's absolute bottom) works when the
-  // keyboard first opens (viewport shrinks → resize event fires).
-  // But going from amount → note keeps the keyboard open, so no resize fires.
-  // scrollFieldIntoView uses visualViewport.height (already accounts for the
-  // keyboard) to calculate the exact scroll delta needed for any field.
+  // Single-pass getBoundingClientRect at 80ms fails for amount→note because
+  // Android briefly reports stale layout values during the focus handoff while
+  // the keyboard is already open (no visualViewport resize fires to re-trigger).
+  // Two-pass fix:
+  //   Pass 1 — native scrollIntoView to bring the field into the panel's
+  //             scroll container (handles all cases cleanly).
+  //   Pass 2 — rAF after pass 1 to measure the real post-keyboard position
+  //             and add any remaining offset above the keyboard edge.
   if (window.visualViewport && window.innerWidth < 600) {
     const panel = document.getElementById('addTxSheet');
 
     function scrollFieldIntoView(field) {
       if (!bg.classList.contains('open')) return;
+      // Wait for Android to finish its own focus-scroll attempt before we measure
       setTimeout(() => {
-        const vvHeight  = window.visualViewport.height;
-        const fieldRect = field.getBoundingClientRect();
-        const PADDING   = 24; // px of breathing room above keyboard edge
-        if (fieldRect.bottom > vvHeight - PADDING) {
-          panel.scrollTop += fieldRect.bottom - (vvHeight - PADDING);
-        }
-      }, 80);
+        // Pass 1: let the browser scroll the panel so the field is in its
+        // scroll viewport (doesn't account for on-screen keyboard yet)
+        field.scrollIntoView({ behavior: 'instant', block: 'nearest' });
+
+        // Pass 2: after pass 1 settles, check if field is still behind the
+        // keyboard and push panel scroll by the exact remaining gap
+        requestAnimationFrame(() => {
+          const vvHeight  = window.visualViewport.height;
+          const fieldRect = field.getBoundingClientRect();
+          const PADDING   = 28; // breathing room above keyboard edge
+          if (fieldRect.bottom > vvHeight - PADDING) {
+            panel.scrollTop += fieldRect.bottom - (vvHeight - PADDING);
+          }
+        });
+      }, 150); // 150ms lets keyboard + focus animation fully settle on Android
     }
 
     function scrollPanelToBottom() {
@@ -1296,8 +1308,8 @@ function wireAddTxForm() {
 
     window.visualViewport.addEventListener('resize', onViewportResize);
 
-    // Wire every form field so focus always scrolls it above the keyboard,
-    // whether the keyboard just opened or was already open (amount → note).
+    // Wire all four fields — covers both "keyboard just opened" and
+    // "keyboard already open, moving between fields" (the amount→note case)
     ['txDate', 'txCategory', 'txAmount', 'txNote'].forEach(fId => {
       const el = document.getElementById(fId);
       if (el) el.addEventListener('focus', () => scrollFieldIntoView(el));
