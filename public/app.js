@@ -1621,6 +1621,17 @@ function buildTxDiv(tx) {
   return row;
 }
 
+function _preserveRemovingRows(el, rebuildFn) {
+  // Detach any currently-animating .removing rows before the rebuild wipes them,
+  // then re-attach so their CSS transition can finish naturally.
+  // They are already height:0 / opacity:0 / pointer-events:none — completely
+  // invisible — so position in the list doesn't matter.
+  const live = [...el.querySelectorAll('.tx-row.removing')];
+  live.forEach(r => r.remove()); // detach (preserves element + inline styles)
+  rebuildFn();
+  live.forEach(r => el.appendChild(r)); // re-attach at end (invisible, harmless)
+}
+
 function renderTxList() {
   const el = document.getElementById('txList');
   let sorted = txSorted(transactions).slice(0, 5);
@@ -1647,18 +1658,20 @@ function renderTxList() {
     });
   } else if (newIds.size > 0) {
     // New transaction(s) added: animate new items sliding in at top
-    el.innerHTML = '';
-    sorted.forEach((tx, index) => {
-      const div = buildTxDiv(tx);
-      if (newIds.has(tx.id)) {
-        div.classList.add('tx-adding');
-      }
-      el.appendChild(div);
+    _preserveRemovingRows(el, () => {
+      el.innerHTML = '';
+      sorted.forEach(tx => {
+        const div = buildTxDiv(tx);
+        if (newIds.has(tx.id)) div.classList.add('tx-adding');
+        el.appendChild(div);
+      });
     });
   } else {
     // Regular update (delete/edit): rebuild without animation
-    el.innerHTML = '';
-    sorted.forEach(tx => el.appendChild(buildTxDiv(tx)));
+    _preserveRemovingRows(el, () => {
+      el.innerHTML = '';
+      sorted.forEach(tx => el.appendChild(buildTxDiv(tx)));
+    });
   }
 
   // IDs cleared by snapshot handler after brief window
@@ -1723,9 +1736,9 @@ function renderAllTxList() {
     return;
   }
 
-  el.innerHTML = '';
-  sorted.forEach(tx => {
-    el.appendChild(buildTxDiv(tx));
+  _preserveRemovingRows(el, () => {
+    el.innerHTML = '';
+    sorted.forEach(tx => el.appendChild(buildTxDiv(tx)));
   });
 }
 
@@ -1797,8 +1810,57 @@ window.doConfirmDeleteTx = function(id, btn) {
   window.confirmDeleteTx(id);
 };
 
+// Collapses a single .tx-row element out of the list.
+// - Searches BOTH lists so the correct visible row is always found.
+// - vibrate() fires inside the second rAF so haptic is in sync with the visual.
+// - transitionend removes the element from the DOM so no ghost rows linger.
+// - Safe to call multiple times on the same id (idempotent via _removingIds guard).
+const _removingIds = new Set();
+function _animateRowOut(id) {
+  if (_removingIds.has(id)) return;
+
+  // Search both lists — both exist in the DOM simultaneously.
+  // activeView-only targeting misses rows when the wrong tab is assumed.
+  const row = (document.getElementById('txList')    || { querySelector: () => null })
+                .querySelector('[data-tx-id="' + id + '"]')
+           || (document.getElementById('allTxList') || { querySelector: () => null })
+                .querySelector('[data-tx-id="' + id + '"]');
+  if (!row) return;
+
+  _removingIds.add(id);
+
+  // Lock the measured height so CSS has a concrete from-value to transition from.
+  const h = row.getBoundingClientRect().height;
+  row.style.height = h + 'px';
+  row.classList.add('removing');
+
+  // Double-rAF: frame 1 commits the locked height to the CSSOM,
+  // frame 2 sets the target values and starts the GPU transition.
+  // vibrate() lives here so haptic fires the instant the visual starts.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    row.style.height       = '0';
+    row.style.marginBottom = '0';
+    vibrate();
+    // Self-remove after the longest transition (height: 0.32s).
+    // 'height' is the property we animate; listening for it avoids
+    // double-firing from the inner .tx-item opacity transition.
+    row.addEventListener('transitionend', function onEnd(e) {
+      if (e.propertyName !== 'height') return;
+      row.removeEventListener('transitionend', onEnd);
+      _removingIds.delete(id);
+      row.remove();
+    });
+    // Safety net: if transitionend never fires (display:none, tab hidden, etc.)
+    // clean up after 600ms so ghost rows can't accumulate.
+    setTimeout(() => {
+      _removingIds.delete(id);
+      if (row.parentNode) row.remove();
+    }, 600);
+  }));
+}
+
 window.confirmDeleteTx = async function(id) {
-  // If there's already an undo pending for a different tx, hard-delete it now
+  // If there's already an undo pending for a different tx, hard-delete it now.
   if (_undoPendingId && _undoPendingId !== id) {
     clearTimeout(_undoTimer);
     _undoTimer = null;
@@ -1813,34 +1875,14 @@ window.confirmDeleteTx = async function(id) {
   _undoTxSnapshot = tx ? { ...tx } : null;
   _undoPendingId  = id;
 
-  // Animate out — target the .tx-row wrapper so:
-  //   • height + margin-bottom collapse (layout, but scoped by contain:layout on .tx-list)
-  //   • .tx-item fade/slide is handled by CSS on .tx-row.removing .tx-item (GPU only)
-  // JS only measures the start-height and adds the class; CSS does the rest.
-  const activeList = activeView === 'transactions'
-    ? document.getElementById('allTxList')
-    : document.getElementById('txList');
-  const txRow = activeList ? activeList.querySelector('[data-tx-id="' + id + '"]')
-                           : document.querySelector('[data-tx-id="' + id + '"]');
-  if (txRow) {
-    const h = txRow.getBoundingClientRect().height;
-    // Lock the start-height as a concrete px value so the CSS transition has a from-value.
-    txRow.style.height = h + 'px';
-    txRow.classList.add('removing');
-    // Double-rAF: first frame commits the explicit height to the CSSOM,
-    // second frame starts the transition to 0 (avoids the "jump to end" bug).
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      txRow.style.height       = '0';
-      txRow.style.marginBottom = '0';
-    }));
-  }
-  vibrate();
+  // Kick off the collapse animation immediately.
+  _animateRowOut(id);
 
   // Show snackbar — description first, then category as fallback
   const label = (tx && (tx.description || tx.category)) || 'Transaction';
   _snack.show(`"${label}" deleted`);
 
-  // Start 4-second countdown
+  // Start 4-second countdown before actual Firestore delete
   clearTimeout(_undoTimer);
   _undoTimer = setTimeout(async () => {
     _undoTimer = null;
