@@ -1377,8 +1377,6 @@ function wireAddTxForm() {
 
   // ── NLP Smart Entry ────────────────────────────────────────────────────────
   (function initNLP() {
-    if (!window.NLP) return;
-
     const toggleBtn        = document.getElementById('nlpToggleBtn');
     const nlpInputRow      = document.getElementById('nlpInputRow');
     const nlpInput         = document.getElementById('nlpInput');
@@ -1447,6 +1445,7 @@ function wireAddTxForm() {
     async function doNlpParse(text) {
       const trimmed = text.trim();
       if (!trimmed) return;
+      if (!window.NLP) { showStatus('AI model not loaded — please refresh.', true); return; }
       showStatus('Parsing…');
       hidePreview();
       try {
