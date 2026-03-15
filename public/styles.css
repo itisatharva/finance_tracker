@@ -47,35 +47,35 @@
 }
 
 [data-theme="dark"] {
-  /* Backgrounds */
-  --bg-page:        #111111;
-  --bg-card:        #1C1C1C;
-  --bg-input:       #242424;
-  --bg-subtle:      #252525;
+  /* Backgrounds — pure black base, dark elevated cards */
+  --bg-page:        #0C0C0C;
+  --bg-card:        #181818;
+  --bg-input:       #212121;
+  --bg-subtle:      #1C1C1C;
 
-  /* Text — always light on dark */
-  --text-1:         #F0EDE8;
-  --text-2:         #A8A8A8;
-  --text-3:         #606060;
+  /* Text — pure white primary, cool grays */
+  --text-1:         #FFFFFF;
+  --text-2:         #999999;
+  --text-3:         #505050;
 
-  /* Borders */
-  --border:         #2E2E2E;
+  /* Borders — very subtle, barely-there */
+  --border:         #262626;
 
-  /* Brand / accent — inverted so buttons stay readable */
-  --ink:            #F0EDE8;
-  --ink-fg:         #111111;
-  --muted:          #2A2A2A;
-  --muted-fg:       #F0EDE8;
+  /* Brand / accent */
+  --ink:            #FFFFFF;
+  --ink-fg:         #0C0C0C;
+  --muted:          #212121;
+  --muted-fg:       #FFFFFF;
 
-  /* Data colours stay the same */
-  --green:          #0FA974;
+  /* Data — brighter green to pop on pure black */
+  --green:          #00C97A;
   --red:            #E84545;
   --orange:         #E87A0F;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.3);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.4);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,.6);
+  /* Shadows — deeper for pure black bg */
+  --shadow-sm: 0 1px 6px rgba(0,0,0,.5);
+  --shadow-md: 0 4px 20px rgba(0,0,0,.65);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.85);
 }
 
 /* ---------- RESET ---------- */
