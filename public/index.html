@@ -31,6 +31,33 @@
   <div style="font-size:.9rem;color:var(--text-3);font-family:'DM Sans',sans-serif;">Loading…</div>
 </div>
 
+<!-- ☰ Hamburger button (desktop only) -->
+<button class="btn-hamburger" id="btnHamburger" aria-label="Menu">
+  <span class="ham-line"></span>
+  <span class="ham-line"></span>
+  <span class="ham-line"></span>
+</button>
+
+<!-- Hamburger menu backdrop -->
+<div class="ham-backdrop" id="hamBackdrop"></div>
+
+<!-- Hamburger slide-in menu -->
+<div class="ham-menu" id="hamMenu">
+  <div class="ham-menu-header">
+    <div class="ham-brand">
+      <div class="ham-logo">₹</div>
+      <span class="ham-brand-name">Finance Tracker</span>
+    </div>
+    <button class="ham-close" id="btnHamClose" aria-label="Close menu">×</button>
+  </div>
+  <nav class="ham-nav">
+    <button class="nav-tab active" id="hamTabDash"         onclick="showView('dashboard');closeHamMenu()"><span class="nav-rupee">₹</span> Dashboard</button>
+    <button class="nav-tab"        id="hamTabAnalytics"    onclick="showView('analytics');closeHamMenu()">Analytics</button>
+    <button class="nav-tab"        id="hamTabTransactions" onclick="showView('transactions');closeHamMenu()">Transactions</button>
+    <button class="nav-tab"        id="hamTabSettings"     onclick="closeHamMenu();document.getElementById('btnSettings').click()">Settings</button>
+  </nav>
+</div>
+
 <!-- ⚙ Settings button -->
 <button class="btn-settings" id="btnSettings" aria-label="Settings">
   <svg viewBox="0 0 24 24" stroke-width="1.8" fill="none" stroke="currentColor">
@@ -190,7 +217,7 @@
 <!-- ── Main ─────────────────────────────────────────────────────────────────── -->
 <div class="container">
 
-  <nav class="nav">
+  <nav class="nav" style="display:none" aria-hidden="true">
     <button class="nav-tab active" id="tabDash"          onclick="showView('dashboard')"><span class="nav-rupee">₹</span> Dashboard</button>
     <button class="nav-tab"        id="tabAnalytics"     onclick="showView('analytics')">Analytics</button>
     <button class="nav-tab"        id="tabTransactions"  onclick="showView('transactions')">Transactions</button>

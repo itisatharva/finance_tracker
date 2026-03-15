@@ -14,6 +14,33 @@ let _pendingTxIds    = new Set();   // IDs currently hasPendingWrites
 let _justSyncedIds   = new Set();   // IDs that just confirmed — show green briefly
 const _syncTimers    = {};          // cleanup timers per txId
 let activeView      = 'dashboard';
+
+// ── Hamburger menu (desktop only) ─────────────────────────────────────────────
+window.closeHamMenu = function() {
+  const menu     = document.getElementById('hamMenu');
+  const backdrop = document.getElementById('hamBackdrop');
+  if (!menu) return;
+  menu.classList.remove('open');
+  backdrop.classList.remove('open');
+  setTimeout(() => { backdrop.style.display = ''; }, 280);
+};
+
+(function initHamburger() {
+  const btn      = document.getElementById('btnHamburger');
+  const menu     = document.getElementById('hamMenu');
+  const backdrop = document.getElementById('hamBackdrop');
+  const closeBtn = document.getElementById('btnHamClose');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    backdrop.style.display = 'block';
+    requestAnimationFrame(() => {
+      menu.classList.add('open');
+      backdrop.classList.add('open');
+    });
+  });
+  closeBtn.addEventListener('click', window.closeHamMenu);
+  backdrop.addEventListener('click', window.closeHamMenu);
+})();
 let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
@@ -669,6 +696,13 @@ window.showView = function(v) {
     populateTxCategoryFilter();
     renderAllTxList();
   }
+  // Sync hamburger menu active pills
+  ['hamTabDash','hamTabAnalytics','hamTabTransactions'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  const hamMap = { dashboard: 'hamTabDash', analytics: 'hamTabAnalytics', transactions: 'hamTabTransactions' };
+  if (hamMap[v]) { const el = document.getElementById(hamMap[v]); if (el) el.classList.add('active'); }
 };
 
 // ─── Period switching ─────────────────────────────────────────────────────────
