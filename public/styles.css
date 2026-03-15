@@ -2727,9 +2727,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     flex-direction: column;
     align-items: center;
     position: fixed;
-    top: 50%;
+    top: 24px;
     left: max(16px, calc((100vw - 1216px) / 4));
-    transform: translateY(-50%);
+    transform: none;
     width: 52px;
     background: var(--bg-card);
     border: 1.5px solid var(--border);
@@ -2737,14 +2737,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     z-index: 900;
     box-shadow: var(--shadow-md);
     padding: 8px 0;
-    transition: width .25s cubic-bezier(.4,0,.2,1),
-                border-radius .25s cubic-bezier(.4,0,.2,1);
+    transition: width .28s cubic-bezier(.4,0,.2,1),
+                border-radius .28s cubic-bezier(.4,0,.2,1),
+                padding .28s cubic-bezier(.4,0,.2,1);
     overflow: hidden;
   }
   .sidebar:not(.collapsed) {
     width: 180px;
-    border-radius: 24px;
+    border-radius: 22px;
     align-items: stretch;
+    padding: 8px 6px;
   }
   .sidebar-nav,
   .sidebar-footer {
@@ -2753,7 +2755,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     align-items: center;
     gap: 2px;
     width: 100%;
-    padding: 0 6px;
+    padding: 0;
   }
   .sidebar:not(.collapsed) .sidebar-nav,
   .sidebar:not(.collapsed) .sidebar-footer { align-items: stretch; }
@@ -2782,7 +2784,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     font-size: .875rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background .15s, color .15s;
+    transition: background .15s, color .15s,
+                width .28s cubic-bezier(.4,0,.2,1),
+                height .28s cubic-bezier(.4,0,.2,1),
+                border-radius .28s cubic-bezier(.4,0,.2,1),
+                justify-content .28s;
     white-space: nowrap;
     overflow: hidden;
     flex-shrink: 0;
