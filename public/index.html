@@ -32,31 +32,69 @@
 </div>
 
 <!-- ☰ Hamburger button (desktop only) -->
-<button class="btn-hamburger" id="btnHamburger" aria-label="Menu">
-  <span class="ham-line"></span>
-  <span class="ham-line"></span>
-  <span class="ham-line"></span>
-</button>
+<!-- ── Desktop Sidebar ───────────────────────────────────────────────────────── -->
+<aside class="sidebar collapsed" id="sidebar">
 
-<!-- Hamburger menu backdrop -->
-<div class="ham-backdrop" id="hamBackdrop"></div>
+  <!-- Arrow toggle -->
+  <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
 
-<!-- Hamburger slide-in menu -->
-<div class="ham-menu" id="hamMenu">
-  <div class="ham-menu-header">
-    <div class="ham-brand">
-      <div class="ham-logo">₹</div>
-      <span class="ham-brand-name">Finance Tracker</span>
-    </div>
-    <button class="ham-close" id="btnHamClose" aria-label="Close menu">×</button>
+  <!-- Logo -->
+  <div class="sidebar-header">
+    <div class="sidebar-logo">₹</div>
   </div>
-  <nav class="ham-nav">
-    <button class="nav-tab active" id="hamTabDash"         onclick="showView('dashboard');closeHamMenu()"><span class="nav-rupee">₹</span> Dashboard</button>
-    <button class="nav-tab"        id="hamTabAnalytics"    onclick="showView('analytics');closeHamMenu()">Analytics</button>
-    <button class="nav-tab"        id="hamTabTransactions" onclick="showView('transactions');closeHamMenu()">Transactions</button>
-    <button class="nav-tab"        id="hamTabSettings"     onclick="closeHamMenu();document.getElementById('btnSettings').click()">Settings</button>
+
+  <!-- Nav items -->
+  <nav class="sidebar-nav">
+
+    <button class="sidebar-item active" id="sidebarDash" onclick="showView('dashboard')" aria-label="Dashboard">
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+          <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+      </div>
+      <span class="sidebar-label">Dashboard</span>
+    </button>
+
+    <button class="sidebar-item" id="sidebarAnalytics" onclick="showView('analytics')" aria-label="Analytics">
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      </div>
+      <span class="sidebar-label">Analytics</span>
+    </button>
+
+    <button class="sidebar-item" id="sidebarTransactions" onclick="showView('transactions')" aria-label="Transactions">
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+          <rect x="9" y="3" width="6" height="4" rx="2"/>
+          <line x1="9" y1="12" x2="15" y2="12"/>
+          <line x1="9" y1="16" x2="13" y2="16"/>
+        </svg>
+      </div>
+      <span class="sidebar-label">Transactions</span>
+    </button>
+
+    <button class="sidebar-item sidebar-settings-btn" id="sidebarSettings" onclick="document.getElementById('btnSettings').click()" aria-label="Settings">
+      <div class="sidebar-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </div>
+      <span class="sidebar-label">Settings</span>
+    </button>
+
   </nav>
-</div>
+</aside>
 
 <!-- ⚙ Settings button -->
 <button class="btn-settings" id="btnSettings" aria-label="Settings">
@@ -216,12 +254,6 @@
 
 <!-- ── Main ─────────────────────────────────────────────────────────────────── -->
 <div class="container">
-
-  <nav class="nav" style="display:none" aria-hidden="true">
-    <button class="nav-tab active" id="tabDash"          onclick="showView('dashboard')"><span class="nav-rupee">₹</span> Dashboard</button>
-    <button class="nav-tab"        id="tabAnalytics"     onclick="showView('analytics')">Analytics</button>
-    <button class="nav-tab"        id="tabTransactions"  onclick="showView('transactions')">Transactions</button>
-  </nav>
 
   <!-- ══════════════ DASHBOARD ══════════════ -->
   <div id="viewDashboard">

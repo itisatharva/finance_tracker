@@ -15,31 +15,22 @@ let _justSyncedIds   = new Set();   // IDs that just confirmed — show green br
 const _syncTimers    = {};          // cleanup timers per txId
 let activeView      = 'dashboard';
 
-// ── Hamburger menu (desktop only) ─────────────────────────────────────────────
-window.closeHamMenu = function() {
-  const menu     = document.getElementById('hamMenu');
-  const backdrop = document.getElementById('hamBackdrop');
-  if (!menu) return;
-  menu.classList.remove('open');
-  backdrop.classList.remove('open');
-  setTimeout(() => { backdrop.style.display = ''; }, 280);
-};
+// ── Desktop Sidebar toggle ────────────────────────────────────────────────────
+(function initSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const toggle  = document.getElementById('sidebarToggle');
+  if (!sidebar || !toggle) return;
 
-(function initHamburger() {
-  const btn      = document.getElementById('btnHamburger');
-  const menu     = document.getElementById('hamMenu');
-  const backdrop = document.getElementById('hamBackdrop');
-  const closeBtn = document.getElementById('btnHamClose');
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    backdrop.style.display = 'block';
-    requestAnimationFrame(() => {
-      menu.classList.add('open');
-      backdrop.classList.add('open');
-    });
+  toggle.addEventListener('click', () => {
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    if (isCollapsed) {
+      sidebar.classList.remove('collapsed');
+      document.body.classList.add('sidebar-expanded');
+    } else {
+      sidebar.classList.add('collapsed');
+      document.body.classList.remove('sidebar-expanded');
+    }
   });
-  closeBtn.addEventListener('click', window.closeHamMenu);
-  backdrop.addEventListener('click', window.closeHamMenu);
 })();
 let activePeriod    = 'daily';
 let monthlyType     = 'expense';
@@ -678,9 +669,6 @@ window.showView = function(v) {
   document.getElementById('viewDashboard').classList.toggle('hidden', v !== 'dashboard');
   document.getElementById('viewAnalytics').classList.toggle('hidden', v !== 'analytics');
   document.getElementById('viewTransactions').classList.toggle('hidden', v !== 'transactions');
-  document.getElementById('tabDash').classList.toggle('active', v === 'dashboard');
-  document.getElementById('tabAnalytics').classList.toggle('active', v === 'analytics');
-  document.getElementById('tabTransactions').classList.toggle('active', v === 'transactions');
   // Sync bottom nav
   const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
   ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
@@ -696,13 +684,13 @@ window.showView = function(v) {
     populateTxCategoryFilter();
     renderAllTxList();
   }
-  // Sync hamburger menu active pills
-  ['hamTabDash','hamTabAnalytics','hamTabTransactions'].forEach(id => {
+  // Sync sidebar active state
+  ['sidebarDash','sidebarAnalytics','sidebarTransactions'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
-  const hamMap = { dashboard: 'hamTabDash', analytics: 'hamTabAnalytics', transactions: 'hamTabTransactions' };
-  if (hamMap[v]) { const el = document.getElementById(hamMap[v]); if (el) el.classList.add('active'); }
+  const sidebarMap = { dashboard: 'sidebarDash', analytics: 'sidebarAnalytics', transactions: 'sidebarTransactions' };
+  if (sidebarMap[v]) { const el = document.getElementById(sidebarMap[v]); if (el) el.classList.add('active'); }
 };
 
 // ─── Period switching ─────────────────────────────────────────────────────────

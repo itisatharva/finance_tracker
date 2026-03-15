@@ -170,14 +170,14 @@ body {
 
 .settings-drawer {
   position: fixed;
-  top: 0; right: 0; bottom: 0;
+  top: 0; left: 0; bottom: 0;
   width: min(360px, 92vw);
   background: var(--bg-card);
-  border-left: 1.5px solid var(--border);
+  border-right: 1.5px solid var(--border);
   z-index: 920;
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
+  transform: translateX(-100%);
   transition: transform .28s cubic-bezier(.4,0,.2,1);
   box-shadow: var(--shadow-lg);
 }
@@ -2632,109 +2632,140 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
    ============================================= */
 
 /* Hide on desktop — only show bottom nav on mobile */
-/* ── Hamburger button (desktop only) ───────────────────────────────────────── */
-.btn-hamburger {
-  display: none;
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 1000;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border);
-  background: var(--bg-card);
-  cursor: pointer;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow .15s, transform .15s;
-}
-.btn-hamburger:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.ham-line { display: block; width: 16px; height: 2px; background: var(--text-1); border-radius: 2px; transition: all .2s; }
-
-.ham-backdrop {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.35);
-  z-index: 1001;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  opacity: 0;
-  transition: opacity .25s;
-}
-.ham-backdrop.open { opacity: 1; }
-
-.ham-menu {
-  position: fixed;
-  top: 0; left: 0; bottom: 0;
-  width: 260px;
-  background: var(--bg-card);
-  border-right: 1.5px solid var(--border);
-  z-index: 1002;
-  transform: translateX(-100%);
-  transition: transform .28s cubic-bezier(.4,0,.2,1);
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-md);
-}
-.ham-menu.open { transform: translateX(0); }
-
-.ham-menu-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 20px 16px;
-  border-bottom: 1.5px solid var(--border);
-}
-.ham-brand { display: flex; align-items: center; gap: 10px; }
-.ham-logo {
-  width: 34px; height: 34px;
-  background: var(--ink);
-  color: var(--ink-fg);
-  border-radius: 9px;
-  font-size: 1rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.ham-brand-name { font-size: .95rem; font-weight: 600; color: var(--text-1); letter-spacing: -.01em; }
-.ham-close {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border);
-  background: none;
-  color: var(--text-2);
-  font-size: 1.2rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background .15s;
-  font-family: inherit;
-}
-.ham-close:hover { background: var(--bg-subtle); }
-
-.ham-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 20px 16px;
-}
-.ham-nav .nav-tab {
-  width: 100%;
-  text-align: left;
+/* ── Desktop Sidebar ────────────────────────────────────────────────────────── */
+.sidebar {
+  display: none; /* hidden on mobile */
 }
 
 @media (min-width: 769px) {
-  .btn-hamburger { display: flex; }
-  .btn-settings  { display: none !important; }
-  .ham-backdrop.open { display: block; }
-  .container { padding-left: 72px; }
+  /* Always-visible sidebar */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 220px;
+    background: var(--bg-card);
+    border-right: 1.5px solid var(--border);
+    z-index: 900;
+    transition: width .25s cubic-bezier(.4,0,.2,1);
+    overflow: hidden;
+  }
+  .sidebar.collapsed { width: 64px; }
+
+  /* Arrow toggle — sits on the right edge */
+  .sidebar-toggle {
+    position: absolute;
+    top: 20px;
+    right: -13px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 901;
+    box-shadow: var(--shadow-sm);
+    transition: background .15s, color .15s;
+  }
+  .sidebar-toggle:hover { background: var(--bg-subtle); color: var(--text-1); }
+  .sidebar-toggle svg {
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    flex-shrink: 0;
+  }
+  .sidebar.collapsed .sidebar-toggle svg { transform: rotate(0deg); }
+  .sidebar:not(.collapsed) .sidebar-toggle svg { transform: rotate(180deg); }
+
+  /* Logo header */
+  .sidebar-header {
+    padding: 18px 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-bottom: 1.5px solid var(--border);
+    min-height: 64px;
+  }
+  .sidebar-logo {
+    width: 34px; height: 34px;
+    background: var(--ink);
+    color: var(--ink-fg);
+    border-radius: 9px;
+    font-size: 1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Nav list */
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 8px;
+    flex: 1;
+  }
+
+  /* Each nav item — icon + label pill */
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--r-pill);
+    border: 2px solid transparent;
+    background: transparent;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+    white-space: nowrap;
+    overflow: hidden;
+    width: 100%;
+    text-align: left;
+  }
+  .sidebar-item:hover { background: var(--bg-subtle); color: var(--text-1); }
+  .sidebar-item.active {
+    background: var(--ink);
+    color: var(--ink-fg);
+    border-color: var(--ink);
+  }
+
+  /* Icon wrapper */
+  .sidebar-icon {
+    width: 28px; height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .sidebar-icon svg { width: 18px; height: 18px; }
+
+  /* Label — fades out when collapsed */
+  .sidebar-label {
+    opacity: 1;
+    transition: opacity .15s;
+    flex-shrink: 0;
+  }
+  .sidebar.collapsed .sidebar-label { opacity: 0; pointer-events: none; }
+
+  /* Settings item pinned to bottom */
+  .sidebar-settings-btn { margin-top: auto; }
+
+  /* Push content right to clear sidebar */
+  .btn-settings { display: none !important; }
+  .container {
+    padding-left: calc(64px + 20px);
+    transition: padding-left .25s cubic-bezier(.4,0,.2,1);
+  }
+  body.sidebar-expanded .container { padding-left: calc(220px + 20px); }
 }
 
 /* ── Bottom nav (mobile only) ───────────────────────────────────────────────── */
