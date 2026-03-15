@@ -38,4 +38,5 @@ yarn-debug.log*
 yarn-error.log*
 
 # Firebase hosting cache
-.firebase/hosting.*.cachefinance-nlp/
+.firebase/hosting.*.cache
+finance-nlp/
