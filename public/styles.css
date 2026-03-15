@@ -2632,54 +2632,44 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
    ============================================= */
 
 /* Hide on desktop — only show bottom nav on mobile */
-/* ── Desktop Sidebar — floating pill ────────────────────────────────────────── */
+/* ── Desktop Sidebar ────────────────────────────────────────────────────────── */
 .sidebar {
   display: none;
 }
 
 @media (min-width: 769px) {
+  /* ── Floating pill — vertically centered, hugs left margin ── */
   .sidebar {
     display: flex;
     flex-direction: column;
     align-items: center;
     position: fixed;
     top: 50%;
-    left: 12px;
-    transform: translateY(-50%);
+    left: 50%;
+    /* shift left by half the container max-width + half the pill width */
+    /* container max-width: 960px → half = 480px. pill collapsed = 52px → half = 26px */
+    /* so left edge of pill = 50vw - 480px - 26px - 16px(gap) */
+    transform: translateY(-50%) translateX(calc(-480px - 42px));
     width: 52px;
-    /* height auto — grows with content */
     background: var(--bg-card);
     border: 1.5px solid var(--border);
     border-radius: 999px;
     z-index: 900;
     box-shadow: var(--shadow-md);
-    padding: 10px 0;
-    gap: 0;
-    transition: width .25s cubic-bezier(.4,0,.2,1);
+    padding: 8px 0;
+    transition: width .25s cubic-bezier(.4,0,.2,1),
+                border-radius .25s cubic-bezier(.4,0,.2,1);
     overflow: hidden;
   }
 
-  /* Expanded: widen to show labels */
+  /* Expanded — wider pill with softer corners */
   .sidebar:not(.collapsed) {
     width: 180px;
-    border-radius: 28px;
+    border-radius: 24px;
     align-items: stretch;
   }
 
-  /* Divider between nav and footer */
-  .sidebar-divider {
-    width: 32px;
-    height: 1px;
-    background: var(--border);
-    margin: 6px auto;
-    flex-shrink: 0;
-    transition: width .25s;
-  }
-  .sidebar:not(.collapsed) .sidebar-divider {
-    width: calc(100% - 24px);
-  }
-
-  /* Nav and footer — no padding, just stack */
+  /* Nav and footer */
   .sidebar-nav,
   .sidebar-footer {
     display: flex;
@@ -2692,6 +2682,19 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .sidebar:not(.collapsed) .sidebar-nav,
   .sidebar:not(.collapsed) .sidebar-footer {
     align-items: stretch;
+  }
+
+  /* Divider */
+  .sidebar-divider {
+    width: 28px;
+    height: 1px;
+    background: var(--border);
+    margin: 4px auto;
+    flex-shrink: 0;
+    transition: width .25s;
+  }
+  .sidebar:not(.collapsed) .sidebar-divider {
+    width: calc(100% - 20px);
   }
 
   /* Each button */
@@ -2721,7 +2724,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     width: 100%;
     justify-content: flex-start;
     border-radius: 12px;
-    height: 44px;
+    height: 42px;
   }
 
   .sidebar-item:hover,
@@ -2729,13 +2732,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     background: var(--bg-subtle);
     color: var(--text-1);
   }
-
   .sidebar-item.active {
     background: var(--ink);
     color: var(--ink-fg);
   }
   .sidebar-item.active:hover { opacity: .9; }
-
   .sidebar-toggle { color: var(--text-3); }
 
   /* Icon */
@@ -2749,22 +2750,22 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
   .sidebar:not(.collapsed) .sidebar-icon {
     width: 44px;
-    height: 44px;
+    height: 42px;
   }
   .sidebar-icon svg { width: 17px; height: 17px; flex-shrink: 0; }
 
-  /* Label — hidden when collapsed */
+  /* Label */
   .sidebar-label {
     opacity: 0;
-    width: 0;
+    max-width: 0;
     overflow: hidden;
     pointer-events: none;
-    transition: opacity .15s, width .25s;
+    transition: opacity .15s, max-width .25s;
     flex-shrink: 0;
   }
   .sidebar:not(.collapsed) .sidebar-label {
     opacity: 1;
-    width: auto;
+    max-width: 120px;
     padding-right: 12px;
   }
 
@@ -2775,15 +2776,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
   /* Hide old floating settings btn */
   .btn-settings { display: none !important; }
-
-  /* Content offset — just enough to clear the pill */
-  .container {
-    padding-left: calc(12px + 52px + 16px);
-    transition: padding-left .25s cubic-bezier(.4,0,.2,1);
-  }
-  body.sidebar-expanded .container {
-    padding-left: calc(12px + 180px + 16px);
-  }
 }
 
 /* ── Bottom nav (mobile only) ───────────────────────────────────────────────── */
