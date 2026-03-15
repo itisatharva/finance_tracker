@@ -459,8 +459,38 @@ function wireSettingsDrawer() {
     nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveBtn.click(); });
   }
 
-  btnOut.addEventListener('click', async () => {
-    if (!confirm('Sign out?')) return;
+  btnOut.addEventListener('click', () => {
+    _showSignOutToast();
+  });
+
+  // ── Sign-out toast ───────────────────────────────────────────────────────────
+  const _signOutToast      = document.getElementById('signOutToast');
+  const _signOutConfirmBtn = document.getElementById('signOutConfirmBtn');
+  const _signOutCancelBtn  = document.getElementById('signOutCancelBtn');
+  let _signOutTimer = null;
+
+  function _showSignOutToast() {
+    if (_signOutTimer) { clearTimeout(_signOutTimer); _signOutTimer = null; }
+    _signOut_hideUndo(); // hide undo snackbar if visible
+    _signOutToast.classList.add('show');
+    // Auto-dismiss after 6s if no action
+    _signOutTimer = setTimeout(_hideSignOutToast, 6000);
+  }
+
+  function _hideSignOutToast() {
+    _signOutToast.classList.remove('show');
+    if (_signOutTimer) { clearTimeout(_signOutTimer); _signOutTimer = null; }
+  }
+
+  function _signOut_hideUndo() {
+    const undo = document.getElementById('undoSnackbar');
+    if (undo) undo.classList.remove('show');
+  }
+
+  _signOutCancelBtn.addEventListener('click', _hideSignOutToast);
+
+  _signOutConfirmBtn.addEventListener('click', async () => {
+    _hideSignOutToast();
     // Reset delete-confirmation preference on every sign-out so it defaults to asking again on next login
     localStorage.removeItem('skipDeleteConfirm');
     await window.fbSignOut(window.auth).catch(console.error);

@@ -2445,6 +2445,33 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   to   { transform: scaleX(0); }
 }
 
+/* ── Sign-out confirmation toast ───────────────────────────────────────────── */
+.signout-toast {
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 12px);
+  gap: 8px;
+}
+@media (min-width: 600px) {
+  .signout-toast { bottom: 24px; }
+}
+.signout-cancel-btn {
+  border-color: rgba(255,255,255,.25);
+  opacity: .75;
+}
+.signout-cancel-btn:hover {
+  background: rgba(255,255,255,.1);
+  border-color: rgba(255,255,255,.5);
+  opacity: 1;
+}
+.signout-confirm-btn {
+  background: var(--red);
+  border-color: transparent;
+  color: #fff;
+}
+.signout-confirm-btn:hover {
+  background: #d03030;
+  border-color: transparent;
+}
+
 /* ── Monthly Spending Insights ─────────────────────────────────────────────── */
 .insights-header {
   display: flex;
