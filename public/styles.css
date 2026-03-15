@@ -2632,7 +2632,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
    ============================================= */
 
 /* Hide on desktop — only show bottom nav on mobile */
-/* ── Desktop Sidebar ────────────────────────────────────────────────────────── */
+/* ── Desktop Sidebar — floating pill ────────────────────────────────────────── */
 .sidebar {
   display: none;
 }
@@ -2641,47 +2641,72 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .sidebar {
     display: flex;
     flex-direction: column;
+    align-items: center;
     position: fixed;
-    top: 0; left: 0; bottom: 0;
-    width: 210px;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    width: 52px;
+    /* height auto — grows with content */
     background: var(--bg-card);
-    border-right: 1.5px solid var(--border);
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
     z-index: 900;
+    box-shadow: var(--shadow-md);
+    padding: 10px 0;
+    gap: 0;
     transition: width .25s cubic-bezier(.4,0,.2,1);
     overflow: hidden;
   }
-  .sidebar.collapsed { width: 68px; }
 
-  /* Nav list — top */
-  .sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 20px 8px 0;
-    flex: 1;
+  /* Expanded: widen to show labels */
+  .sidebar:not(.collapsed) {
+    width: 180px;
+    border-radius: 28px;
+    align-items: stretch;
   }
 
-  /* Footer — sign out, settings, toggle */
+  /* Divider between nav and footer */
+  .sidebar-divider {
+    width: 32px;
+    height: 1px;
+    background: var(--border);
+    margin: 6px auto;
+    flex-shrink: 0;
+    transition: width .25s;
+  }
+  .sidebar:not(.collapsed) .sidebar-divider {
+    width: calc(100% - 24px);
+  }
+
+  /* Nav and footer — no padding, just stack */
+  .sidebar-nav,
   .sidebar-footer {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 0 8px 20px;
+    align-items: center;
+    gap: 2px;
+    width: 100%;
+    padding: 0 6px;
+  }
+  .sidebar:not(.collapsed) .sidebar-nav,
+  .sidebar:not(.collapsed) .sidebar-footer {
+    align-items: stretch;
   }
 
-  /* ── The pill button ── */
+  /* Each button */
   .sidebar-item,
   .sidebar-toggle {
     display: flex;
     align-items: center;
-    gap: 0;
-    width: 100%;
-    height: 48px;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
     padding: 0;
     border: none;
-    border-radius: 999px;        /* full pill */
+    border-radius: 999px;
     background: transparent;
-    color: var(--text-2);
+    color: var(--text-3);
     font-family: inherit;
     font-size: .875rem;
     font-weight: 600;
@@ -2689,7 +2714,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     transition: background .15s, color .15s;
     white-space: nowrap;
     overflow: hidden;
-    text-align: left;
+    flex-shrink: 0;
+  }
+  .sidebar:not(.collapsed) .sidebar-item,
+  .sidebar:not(.collapsed) .sidebar-toggle {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 12px;
+    height: 44px;
   }
 
   .sidebar-item:hover,
@@ -2698,61 +2730,59 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     color: var(--text-1);
   }
 
-  /* Active nav item */
   .sidebar-item.active {
     background: var(--ink);
     color: var(--ink-fg);
   }
+  .sidebar-item.active:hover { opacity: .9; }
 
-  /* Toggle stays muted */
   .sidebar-toggle { color: var(--text-3); }
-  .sidebar-toggle:hover { color: var(--text-2); }
 
-  /* Icon — fixed 48px wide so pill stays centered when collapsed */
+  /* Icon */
   .sidebar-icon {
-    width: 52px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
-  .sidebar-icon svg {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
+  .sidebar:not(.collapsed) .sidebar-icon {
+    width: 44px;
+    height: 44px;
   }
+  .sidebar-icon svg { width: 17px; height: 17px; flex-shrink: 0; }
 
-  /* Label fades when collapsed */
+  /* Label — hidden when collapsed */
   .sidebar-label {
-    opacity: 1;
-    transition: opacity .15s .05s;
-    flex-shrink: 0;
-    padding-right: 16px;
-  }
-  .sidebar.collapsed .sidebar-label {
     opacity: 0;
+    width: 0;
+    overflow: hidden;
     pointer-events: none;
-    transition: opacity .08s 0s;
+    transition: opacity .15s, width .25s;
+    flex-shrink: 0;
+  }
+  .sidebar:not(.collapsed) .sidebar-label {
+    opacity: 1;
+    width: auto;
+    padding-right: 12px;
   }
 
-  /* Arrow rotates */
-  .toggle-arrow {
-    transition: transform .25s cubic-bezier(.4,0,.2,1);
-  }
+  /* Arrow */
+  .toggle-arrow { transition: transform .25s cubic-bezier(.4,0,.2,1); }
   .sidebar.collapsed .toggle-arrow  { transform: rotate(0deg); }
   .sidebar:not(.collapsed) .toggle-arrow { transform: rotate(180deg); }
 
-  /* Hide floating settings btn on desktop */
+  /* Hide old floating settings btn */
   .btn-settings { display: none !important; }
 
-  /* Push content right */
+  /* Content offset — just enough to clear the pill */
   .container {
-    padding-left: calc(68px + 16px);
+    padding-left: calc(12px + 52px + 16px);
     transition: padding-left .25s cubic-bezier(.4,0,.2,1);
   }
   body.sidebar-expanded .container {
-    padding-left: calc(210px + 16px);
+    padding-left: calc(12px + 180px + 16px);
   }
 }
 
