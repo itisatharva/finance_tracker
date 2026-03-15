@@ -1539,7 +1539,10 @@ select:focus option { animation: fadeIn .1s ease; }
 /* ---------- DESKTOP GRID LAYOUT (≥ 1024px) ---------- */
 
 @media (min-width: 1024px) {
-  .container { max-width: 1280px; padding: 32px 40px 60px 76px; }
+  .container { max-width: 1280px; padding: 32px 40px 60px 84px; }
+  /* At 1024px+ container padding-top is 32px, avatar center = 54px.
+     Sidebar: top 28px + padding 6px + half-button 20px = 54px → aligned. */
+  .sidebar { top: 28px; }
 
   /* ── Dashboard ── */
   .dash-main {
@@ -2730,14 +2733,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     top: 24px;
     left: max(16px, calc((100vw - 1216px) / 4));
     transform: none;
-    width: 44px;
+    width: 52px;
     background: var(--bg-card);
     border: 1.5px solid var(--border);
-    /* 22px = exact half of 44px → perfect capsule, no 999px jank */
-    border-radius: 22px;
+    /* 26px = exact half of 52px → perfect capsule */
+    border-radius: 26px;
     z-index: 900;
     box-shadow: var(--shadow-md);
-    padding: 6px 2px;
+    padding: 6px 6px;
     transition: width .28s cubic-bezier(.4,0,.2,1),
                 border-radius .28s cubic-bezier(.4,0,.2,1),
                 padding .28s cubic-bezier(.4,0,.2,1);
@@ -2747,14 +2750,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     width: 176px;
     border-radius: 16px;
     align-items: stretch;
-    padding: 6px 4px;
+    padding: 6px 6px;
   }
   .sidebar-nav,
   .sidebar-footer {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 6px;
     width: 100%;
     padding: 0;
   }
@@ -2778,7 +2781,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     height: 40px;
     padding: 0;
     border: none;
-    border-radius: 20px; /* exact half of 40px = perfect circle, no 999px jank */
+    border-radius: 20px;
     background: transparent;
     color: var(--text-3);
     font-family: inherit;
@@ -2793,6 +2796,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     overflow: hidden;
     flex-shrink: 0;
   }
+  /* First nav item: top corners match inner curve of pill (outer 26px - padding 6px - border 1.5px ≈ 18px) */
+  .sidebar-nav .sidebar-item:first-child { border-radius: 18px 18px 20px 20px; }
+  /* Last footer toggle: bottom corners match inner curve */
+  .sidebar-footer .sidebar-toggle:last-child { border-radius: 20px 20px 18px 18px; }
   .sidebar:not(.collapsed) .sidebar-item,
   .sidebar:not(.collapsed) .sidebar-toggle {
     width: 100%;
@@ -2834,8 +2841,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .btn-settings { display: none !important; }
   /* Pill is at left:16px, width:52px → right edge at 68px. Add 16px gap = 84px */
   .container {
-    /* 16px left offset + 44px pill + 16px gap = 76px */
-    padding-left: 76px;
+    /* 16px left offset + 52px pill + 16px gap = 84px */
+    padding-left: 84px;
     transition: padding-left .28s cubic-bezier(.4,0,.2,1);
   }
   body.sidebar-expanded .container { padding-left: 208px; /* 16 + 176 + 16 */ }
