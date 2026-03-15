@@ -232,7 +232,7 @@
     <div class="settings-group">
       <h3>Appearance</h3>
       <button class="settings-row" onclick="toggleTheme()">
-        <span>Toggle Dark Mode</span><span class="row-icon">◑</span>
+        <span id="themeLabelText">Toggle Dark Mode</span><span class="row-icon">◑</span>
       </button>
     </div>
 
@@ -706,6 +706,23 @@
 </nav>
 
 <script type="module" src="theme.js"></script>
+<script>
+  // Update theme toggle label on load and after each toggle
+  function _updateThemeLabel() {
+    const el = document.getElementById('themeLabelText');
+    if (!el) return;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    el.textContent = isDark ? 'Toggle Light Mode' : 'Toggle Dark Mode';
+  }
+  // Patch toggleTheme to also update the label
+  const _origToggle = window.toggleTheme;
+  window.toggleTheme = function() {
+    if (_origToggle) _origToggle();
+    _updateThemeLabel();
+  };
+  // Set correct label on page load
+  document.addEventListener('DOMContentLoaded', _updateThemeLabel);
+</script>
 <script type="module" src="firebase-config.js"></script>
 <script type="module" src="app.js"></script>
 
