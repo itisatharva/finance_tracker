@@ -35,13 +35,6 @@
 <!-- ── Desktop Sidebar ───────────────────────────────────────────────────────── -->
 <aside class="sidebar collapsed" id="sidebar">
 
-  <!-- Arrow toggle -->
-  <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-      <polyline points="9 18 15 12 9 6"/>
-    </svg>
-  </button>
-
   <!-- Logo -->
   <div class="sidebar-header">
     <div class="sidebar-logo">₹</div>
@@ -83,6 +76,11 @@
       <span class="sidebar-label">Transactions</span>
     </button>
 
+  </nav>
+
+  <!-- Bottom: Settings + Toggle -->
+  <div class="sidebar-footer">
+
     <button class="sidebar-item sidebar-settings-btn" id="sidebarSettings" onclick="document.getElementById('btnSettings').click()" aria-label="Settings">
       <div class="sidebar-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -93,7 +91,18 @@
       <span class="sidebar-label">Settings</span>
     </button>
 
-  </nav>
+    <!-- Arrow toggle at bottom -->
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+      <div class="sidebar-icon">
+        <svg class="toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
+      <span class="sidebar-label">Collapse</span>
+    </button>
+
+  </div>
+
 </aside>
 
 <!-- ⚙ Settings button -->

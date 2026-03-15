@@ -2638,62 +2638,34 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 @media (min-width: 769px) {
-  /* Always-visible sidebar */
   .sidebar {
     display: flex;
     flex-direction: column;
     position: fixed;
     top: 0; left: 0; bottom: 0;
-    width: 220px;
+    width: 200px;
     background: var(--bg-card);
     border-right: 1.5px solid var(--border);
     z-index: 900;
     transition: width .25s cubic-bezier(.4,0,.2,1);
-    overflow: hidden;
+    overflow: hidden; /* clips labels on collapse */
   }
-  .sidebar.collapsed { width: 64px; }
-
-  /* Arrow toggle — sits on the right edge */
-  .sidebar-toggle {
-    position: absolute;
-    top: 20px;
-    right: -13px;
-    width: 26px; height: 26px;
-    border-radius: 50%;
-    border: 1.5px solid var(--border);
-    background: var(--bg-card);
-    color: var(--text-2);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 901;
-    box-shadow: var(--shadow-sm);
-    transition: background .15s, color .15s;
-  }
-  .sidebar-toggle:hover { background: var(--bg-subtle); color: var(--text-1); }
-  .sidebar-toggle svg {
-    transition: transform .25s cubic-bezier(.4,0,.2,1);
-    flex-shrink: 0;
-  }
-  .sidebar.collapsed .sidebar-toggle svg { transform: rotate(0deg); }
-  .sidebar:not(.collapsed) .sidebar-toggle svg { transform: rotate(180deg); }
+  .sidebar.collapsed { width: 60px; }
 
   /* Logo header */
   .sidebar-header {
-    padding: 18px 0 14px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
     border-bottom: 1.5px solid var(--border);
-    min-height: 64px;
   }
   .sidebar-logo {
-    width: 34px; height: 34px;
+    width: 36px; height: 36px;
     background: var(--ink);
     color: var(--ink-fg);
-    border-radius: 9px;
+    border-radius: 10px;
     font-size: 1rem;
     font-weight: 700;
     display: flex;
@@ -2706,66 +2678,111 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 14px 8px;
+    gap: 2px;
+    padding: 12px 8px;
     flex: 1;
   }
 
-  /* Each nav item — icon + label pill */
+  /* Footer: settings + toggle */
+  .sidebar-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 8px 16px;
+    border-top: 1.5px solid var(--border);
+  }
+
+  /* Each nav item */
   .sidebar-item {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 10px;
-    border-radius: var(--r-pill);
-    border: 2px solid transparent;
+    padding: 0;
+    height: 42px;
+    border-radius: 12px;
+    border: none;
     background: transparent;
     color: var(--text-2);
     font-family: inherit;
-    font-size: .88rem;
+    font-size: .875rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background .15s, color .15s, border-color .15s;
+    transition: background .15s, color .15s;
     white-space: nowrap;
-    overflow: hidden;
     width: 100%;
     text-align: left;
+    overflow: hidden;
   }
-  .sidebar-item:hover { background: var(--bg-subtle); color: var(--text-1); }
+  .sidebar-item:hover {
+    background: var(--bg-subtle);
+    color: var(--text-1);
+  }
   .sidebar-item.active {
     background: var(--ink);
     color: var(--ink-fg);
-    border-color: var(--ink);
   }
 
-  /* Icon wrapper */
+  /* Icon wrapper — always a fixed 44px square centered */
   .sidebar-icon {
-    width: 28px; height: 28px;
+    width: 44px;
+    height: 42px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
-  .sidebar-icon svg { width: 18px; height: 18px; }
+  .sidebar-icon svg { width: 18px; height: 18px; flex-shrink: 0; }
 
-  /* Label — fades out when collapsed */
+  /* Label fades out when collapsed */
   .sidebar-label {
     opacity: 1;
-    transition: opacity .15s;
+    transition: opacity .15s .05s;
     flex-shrink: 0;
   }
-  .sidebar.collapsed .sidebar-label { opacity: 0; pointer-events: none; }
+  .sidebar.collapsed .sidebar-label {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .1s 0s;
+  }
 
-  /* Settings item pinned to bottom */
-  .sidebar-settings-btn { margin-top: auto; }
+  /* Toggle arrow button — same style as a sidebar item */
+  .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0;
+    height: 42px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-3);
+    font-family: inherit;
+    font-size: .875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+    width: 100%;
+    text-align: left;
+    overflow: hidden;
+  }
+  .sidebar-toggle:hover { background: var(--bg-subtle); color: var(--text-2); }
+
+  /* Arrow rotates based on state */
+  .toggle-arrow {
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    flex-shrink: 0;
+  }
+  .sidebar.collapsed .toggle-arrow { transform: rotate(0deg); }
+  .sidebar:not(.collapsed) .toggle-arrow { transform: rotate(180deg); }
 
   /* Push content right to clear sidebar */
   .btn-settings { display: none !important; }
   .container {
-    padding-left: calc(64px + 20px);
+    padding-left: calc(60px + 20px);
     transition: padding-left .25s cubic-bezier(.4,0,.2,1);
   }
-  body.sidebar-expanded .container { padding-left: calc(220px + 20px); }
+  body.sidebar-expanded .container { padding-left: calc(200px + 20px); }
 }
 
 /* ── Bottom nav (mobile only) ───────────────────────────────────────────────── */
