@@ -21,7 +21,70 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=1771054095282" />
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
-<style>@keyframes loader-out{to{opacity:0;pointer-events:none;}}</style>
+<style>@keyframes loader-out{to{opacity:0;pointer-events:none;}}
+/* ── NLP Smart Entry ── */
+.nlp-toggle-btn {
+  display:flex;align-items:center;gap:5px;padding:5px 10px;
+  border-radius:var(--r-pill);border:1.5px solid var(--border);
+  background:var(--bg-subtle);color:var(--text-3);font-size:.75rem;
+  font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;
+  font-family:inherit;letter-spacing:.03em;flex-shrink:0;
+}
+.nlp-toggle-btn:hover{border-color:var(--green);color:var(--green);}
+.nlp-toggle-btn.active{background:var(--green);border-color:var(--green);color:#fff;}
+.nlp-input-row{display:flex;align-items:center;gap:8px;padding:10px 0 2px;}
+.nlp-input{
+  flex:1;padding:10px 14px;border-radius:var(--r-pill);
+  border:1.5px solid var(--border);background:var(--bg-page);
+  color:var(--text-1);font-size:.9rem;font-family:inherit;
+  outline:none;transition:border-color .15s;
+}
+.nlp-input:focus{border-color:var(--green);}
+.nlp-send-btn{
+  width:36px;height:36px;border-radius:50%;border:none;
+  background:var(--ink);color:var(--ink-fg);display:flex;
+  align-items:center;justify-content:center;cursor:pointer;
+  flex-shrink:0;transition:opacity .15s;
+}
+.nlp-send-btn:hover{opacity:.85;}
+.nlp-close-btn{
+  width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);
+  background:none;color:var(--text-3);font-size:1.1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  font-family:inherit;
+}
+.nlp-status{font-size:.8rem;color:var(--green);padding:4px 0 0;font-weight:500;}
+.nlp-status-error{color:var(--red);}
+.nlp-preview{padding:10px 0 2px;}
+.nlp-preview-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.nlp-preview-row{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  background:var(--bg-subtle);border-radius:var(--r-md);padding:8px 10px;font-size:.82rem;
+}
+.nlp-preview-cat{font-weight:600;color:var(--text-1);flex:1;min-width:90px;}
+.nlp-preview-amt{font-weight:700;flex-shrink:0;}
+.nlp-preview-note{color:var(--text-3);flex:2;font-size:.78rem;}
+.nlp-preview-date{color:var(--text-3);font-size:.75rem;flex-shrink:0;}
+.nlp-preview-conf{color:var(--text-3);font-size:.72rem;flex-shrink:0;}
+.nlp-preview-remove{background:none;border:none;color:var(--text-3);font-size:1rem;cursor:pointer;padding:0 2px;flex-shrink:0;}
+.nlp-preview-remove:hover{color:var(--red);}
+.nlp-preview-actions{display:flex;gap:8px;justify-content:flex-end;}
+/* Mobile NLP bar above FAB */
+.mobile-nlp-wrap{
+  position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,0px));
+  left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg-card);border:1.5px solid var(--border);
+  border-radius:var(--r-pill);padding:6px 8px 6px 16px;
+  box-shadow:var(--shadow-md);z-index:940;
+  width:calc(100vw - 40px);max-width:420px;
+}
+.mobile-nlp-input{
+  flex:1;border:none;background:transparent;
+  color:var(--text-1);font-size:.9rem;font-family:inherit;outline:none;
+}
+.hidden{display:none!important;}
+</style>
 </head>
 <body>
 
@@ -297,7 +360,7 @@
       <div class="dash-left">
         <!-- Add Transaction — desktop trigger card (hidden on mobile, FAB used instead) -->
         <div class="card add-tx-desktop-card">
-          <div class="add-tx-desktop-row">
+          <div class="add-tx-desktop-row" id="addTxNormalRow">
             <div class="add-tx-desktop-trigger" id="btnOpenAddTx">
               <div class="add-tx-desktop-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -305,6 +368,26 @@
               <span>Add Transaction</span>
             </div>
             <div class="quick-cats" id="quickCats"></div>
+            <button class="nlp-toggle-btn" id="nlpToggleBtn" title="AI smart entry">✦ AI</button>
+          </div>
+          <!-- NLP input row -->
+          <div class="nlp-input-row hidden" id="nlpInputRow">
+            <input type="text" id="nlpInput" class="nlp-input"
+              placeholder="e.g. paid 350 for groceries at DMart yesterday"
+              autocomplete="off" autocorrect="off" spellcheck="false" />
+            <button class="nlp-send-btn" id="nlpSendBtn" aria-label="Parse">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+            <button class="nlp-close-btn" id="nlpCloseBtn" aria-label="Cancel">×</button>
+          </div>
+          <div class="nlp-status hidden" id="nlpStatus"></div>
+          <!-- Multi-tx preview -->
+          <div class="nlp-preview hidden" id="nlpPreview">
+            <div class="nlp-preview-list" id="nlpPreviewList"></div>
+            <div class="nlp-preview-actions">
+              <button class="btn btn-secondary btn-sm" id="nlpPreviewCancel">Cancel</button>
+              <button class="btn btn-primary btn-sm" id="nlpPreviewLogAll">Log All</button>
+            </div>
           </div>
         </div>
 
@@ -671,6 +754,16 @@
     <span class="bn-label">Analytics</span>
   </button>
 
+  <!-- Mobile NLP input (shown when AI toggle is on) -->
+  <div class="mobile-nlp-wrap hidden" id="mobileNlpWrap">
+    <input type="text" id="mobileNlpInput" class="mobile-nlp-input"
+      placeholder="e.g. paid 350 for groceries…"
+      autocomplete="off" autocorrect="off" />
+    <button class="nlp-send-btn" id="mobileNlpSendBtn" aria-label="Parse">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+
   <!-- FAB: Add Transaction -->
   <button class="bn-fab" id="bnAddTx" aria-label="Add Transaction">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
@@ -705,6 +798,7 @@
 
 </nav>
 
+<script src="/nlp.js"></script>
 <script type="module" src="theme.js"></script>
 <script type="module" src="firebase-config.js"></script>
 <script type="module" src="app.js"></script>

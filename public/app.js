@@ -85,6 +85,8 @@ const _snack = {
 };
 
 window.firebaseReady.then(() => {
+  if (window.NLP) NLP.preload(); // load model.json in background
+
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) return;
     uid = user.uid;
@@ -1372,6 +1374,171 @@ function wireAddTxForm() {
   // Expose so post-submit can close it
   window.openAddTxSheet  = openAddTxSheet;
   window.closeAddTxSheet = closeAddTxSheet;
+
+  // ── NLP Smart Entry ────────────────────────────────────────────────────────
+  (function initNLP() {
+    if (!window.NLP) return;
+
+    const toggleBtn        = document.getElementById('nlpToggleBtn');
+    const nlpInputRow      = document.getElementById('nlpInputRow');
+    const nlpInput         = document.getElementById('nlpInput');
+    const nlpSendBtn       = document.getElementById('nlpSendBtn');
+    const nlpCloseBtn      = document.getElementById('nlpCloseBtn');
+    const nlpStatus        = document.getElementById('nlpStatus');
+    const nlpPreview       = document.getElementById('nlpPreview');
+    const nlpPreviewList   = document.getElementById('nlpPreviewList');
+    const nlpPreviewCancel = document.getElementById('nlpPreviewCancel');
+    const nlpPreviewLogAll = document.getElementById('nlpPreviewLogAll');
+    const mobileWrap       = document.getElementById('mobileNlpWrap');
+    const mobileInput      = document.getElementById('mobileNlpInput');
+    const mobileSendBtn    = document.getElementById('mobileNlpSendBtn');
+
+    let nlpOn = localStorage.getItem('nlpEnabled') === 'true';
+    let pendingTxns = [];
+
+    function setNlpMode(on) {
+      nlpOn = on;
+      localStorage.setItem('nlpEnabled', on);
+      if (toggleBtn)   toggleBtn.classList.toggle('active', on);
+      if (nlpInputRow) nlpInputRow.classList.toggle('hidden', !on);
+      if (mobileWrap)  mobileWrap.classList.toggle('hidden', !on);
+      if (!on) { hideStatus(); hidePreview(); }
+      else setTimeout(() => (nlpInput || mobileInput)?.focus(), 100);
+    }
+
+    function showStatus(msg, isError = false) {
+      if (!nlpStatus) return;
+      nlpStatus.textContent = msg;
+      nlpStatus.className = 'nlp-status' + (isError ? ' nlp-status-error' : '');
+      nlpStatus.classList.remove('hidden');
+    }
+    function hideStatus() { if (nlpStatus) nlpStatus.classList.add('hidden'); }
+
+    function showPreview(txns) {
+      if (!nlpPreview || !nlpPreviewList) return;
+      pendingTxns = txns;
+      nlpPreviewList.innerHTML = '';
+      txns.forEach((tx, i) => {
+        const row = document.createElement('div');
+        row.className = 'nlp-preview-row';
+        const col = tx.type === 'income' ? 'var(--green)' : 'var(--red)';
+        row.innerHTML = `
+          <span class="nlp-preview-cat">${tx.category}</span>
+          <span class="nlp-preview-amt" style="color:${col}">₹${tx.amount}</span>
+          <span class="nlp-preview-note">${tx.note || ''}</span>
+          <span class="nlp-preview-date">${tx.date}</span>
+          <span class="nlp-preview-conf">${tx.confidence}%</span>
+          <button class="nlp-preview-remove" data-idx="${i}" aria-label="Remove">×</button>`;
+        nlpPreviewList.appendChild(row);
+      });
+      nlpPreviewList.querySelectorAll('.nlp-preview-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          pendingTxns.splice(parseInt(btn.dataset.idx), 1);
+          pendingTxns.length === 0 ? hidePreview() : showPreview(pendingTxns);
+        });
+      });
+      nlpPreview.classList.remove('hidden');
+    }
+    function hidePreview() {
+      if (nlpPreview) nlpPreview.classList.add('hidden');
+      pendingTxns = [];
+    }
+
+    async function doNlpParse(text) {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      showStatus('Parsing…');
+      hidePreview();
+      try {
+        const results = await NLP.parse(trimmed);
+        const valid = results.filter(r => r.amount && r.amount > 0);
+        if (!valid.length) {
+          showStatus('No amount found. Try: "paid 350 for groceries"', true);
+          return;
+        }
+        // Validate categories against user's actual list
+        const allCatNames = [
+          ...(categories.expense || []).map(c => typeof c === 'string' ? c : c.name),
+          ...(categories.income  || []).map(c => typeof c === 'string' ? c : c.name),
+        ];
+        valid.forEach(tx => {
+          if (!allCatNames.includes(tx.category)) {
+            const fallbacks = tx.type === 'income' ? categories.income : categories.expense;
+            if (fallbacks && fallbacks.length) {
+              tx.category = typeof fallbacks[0] === 'string' ? fallbacks[0] : fallbacks[0].name;
+            }
+            tx.confidence = Math.max(20, tx.confidence - 20);
+          }
+        });
+
+        if (valid.length === 1) {
+          // Single tx → prefill sheet
+          hideStatus();
+          const tx = valid[0];
+          openAddTxSheet();
+          setTimeout(() => {
+            const sel  = document.getElementById('txCategory');
+            const amt  = document.getElementById('txAmount');
+            const note = document.getElementById('txNote');
+            const date = document.getElementById('txDate');
+            if (sel)  sel.value  = tx.category;
+            if (amt)  amt.value  = tx.amount;
+            if (note) note.value = tx.note || '';
+            if (date) date.value = tx.date;
+            if (nlpInput)    nlpInput.value    = '';
+            if (mobileInput) mobileInput.value = '';
+          }, 120);
+        } else {
+          // Multiple → preview list
+          hideStatus();
+          showPreview(valid);
+        }
+      } catch (err) {
+        showStatus('Parse failed — try again.', true);
+        console.error('NLP error:', err);
+      }
+    }
+
+    async function logAllPending() {
+      if (!pendingTxns.length) return;
+      const btn = nlpPreviewLogAll;
+      if (btn) { btn.disabled = true; btn.textContent = 'Logging…'; }
+      let logged = 0;
+      for (const tx of pendingTxns) {
+        const type = catType(tx.category) || tx.type;
+        if (!type) continue;
+        try {
+          await window.addDoc(
+            window.collection(window.db, 'users', uid, 'transactions'),
+            { type, category: tx.category, amount: tx.amount,
+              description: tx.note || '',
+              selectedDate: new Date(tx.date + 'T00:00:00'),
+              createdAt: window.serverTimestamp() }
+          );
+          logged++;
+        } catch (e) { console.error('NLP log failed:', e); }
+      }
+      hidePreview();
+      if (nlpInput)    nlpInput.value    = '';
+      if (mobileInput) mobileInput.value = '';
+      showStatus(`✓ Logged ${logged} transaction${logged !== 1 ? 's' : ''}!`);
+      setTimeout(hideStatus, 3000);
+      if (window.vibrate) vibrate();
+      if (btn) { btn.disabled = false; btn.textContent = 'Log All'; }
+    }
+
+    // Wire up all events
+    if (toggleBtn)        toggleBtn.addEventListener('click', () => setNlpMode(!nlpOn));
+    if (nlpCloseBtn)      nlpCloseBtn.addEventListener('click', () => setNlpMode(false));
+    if (nlpPreviewCancel) nlpPreviewCancel.addEventListener('click', hidePreview);
+    if (nlpPreviewLogAll) nlpPreviewLogAll.addEventListener('click', logAllPending);
+    if (nlpSendBtn)       nlpSendBtn.addEventListener('click', () => doNlpParse(nlpInput.value));
+    if (mobileSendBtn)    mobileSendBtn.addEventListener('click', () => doNlpParse(mobileInput.value));
+    if (nlpInput)         nlpInput.addEventListener('keydown', e => { if (e.key==='Enter') doNlpParse(nlpInput.value); });
+    if (mobileInput)      mobileInput.addEventListener('keydown', e => { if (e.key==='Enter') doNlpParse(mobileInput.value); });
+
+    setNlpMode(nlpOn); // restore saved state
+  })();
 
   // Opens the sheet pre-filtered to a specific type ('income' | 'expense').
   // Rebuilds the category <select> to only show that type's categories,

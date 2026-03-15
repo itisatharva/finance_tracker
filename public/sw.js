@@ -25,6 +25,8 @@ const SHELL_ASSETS = [
   '/category-setup.js',
   '/theme.js',
   '/pwa.js',
+  '/nlp.js',
+  '/model.json',
   '/manifest.json',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
