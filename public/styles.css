@@ -1539,7 +1539,7 @@ select:focus option { animation: fadeIn .1s ease; }
 /* ---------- DESKTOP GRID LAYOUT (≥ 1024px) ---------- */
 
 @media (min-width: 1024px) {
-  .container { max-width: 1280px; padding: 32px 40px 60px; }
+  .container { max-width: 1280px; padding: 32px 40px 60px 84px; }
 
   /* ── Dashboard ── */
   .dash-main {
@@ -2638,18 +2638,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 @media (min-width: 769px) {
-  /* ── Floating pill — vertically centered, hugs left margin ── */
   .sidebar {
     display: flex;
     flex-direction: column;
     align-items: center;
     position: fixed;
     top: 50%;
-    left: 50%;
-    /* shift left by half the container max-width + half the pill width */
-    /* container max-width: 960px → half = 480px. pill collapsed = 52px → half = 26px */
-    /* so left edge of pill = 50vw - 480px - 26px - 16px(gap) */
-    transform: translateY(-50%) translateX(calc(-480px - 42px));
+    left: 16px;
+    transform: translateY(-50%);
     width: 52px;
     background: var(--bg-card);
     border: 1.5px solid var(--border);
@@ -2661,15 +2657,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
                 border-radius .25s cubic-bezier(.4,0,.2,1);
     overflow: hidden;
   }
-
-  /* Expanded — wider pill with softer corners */
   .sidebar:not(.collapsed) {
     width: 180px;
     border-radius: 24px;
     align-items: stretch;
   }
-
-  /* Nav and footer */
   .sidebar-nav,
   .sidebar-footer {
     display: flex;
@@ -2680,11 +2672,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     padding: 0 6px;
   }
   .sidebar:not(.collapsed) .sidebar-nav,
-  .sidebar:not(.collapsed) .sidebar-footer {
-    align-items: stretch;
-  }
-
-  /* Divider */
+  .sidebar:not(.collapsed) .sidebar-footer { align-items: stretch; }
   .sidebar-divider {
     width: 28px;
     height: 1px;
@@ -2693,11 +2681,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     flex-shrink: 0;
     transition: width .25s;
   }
-  .sidebar:not(.collapsed) .sidebar-divider {
-    width: calc(100% - 20px);
-  }
-
-  /* Each button */
+  .sidebar:not(.collapsed) .sidebar-divider { width: calc(100% - 20px); }
   .sidebar-item,
   .sidebar-toggle {
     display: flex;
@@ -2726,20 +2710,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     border-radius: 12px;
     height: 42px;
   }
-
   .sidebar-item:hover,
-  .sidebar-toggle:hover {
-    background: var(--bg-subtle);
-    color: var(--text-1);
-  }
-  .sidebar-item.active {
-    background: var(--ink);
-    color: var(--ink-fg);
-  }
+  .sidebar-toggle:hover { background: var(--bg-subtle); color: var(--text-1); }
+  .sidebar-item.active { background: var(--ink); color: var(--ink-fg); }
   .sidebar-item.active:hover { opacity: .9; }
   .sidebar-toggle { color: var(--text-3); }
-
-  /* Icon */
   .sidebar-icon {
     width: 40px;
     height: 40px;
@@ -2748,13 +2723,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     justify-content: center;
     flex-shrink: 0;
   }
-  .sidebar:not(.collapsed) .sidebar-icon {
-    width: 44px;
-    height: 42px;
-  }
+  .sidebar:not(.collapsed) .sidebar-icon { width: 44px; height: 42px; }
   .sidebar-icon svg { width: 17px; height: 17px; flex-shrink: 0; }
-
-  /* Label */
   .sidebar-label {
     opacity: 0;
     max-width: 0;
@@ -2768,14 +2738,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     max-width: 120px;
     padding-right: 12px;
   }
-
-  /* Arrow */
   .toggle-arrow { transition: transform .25s cubic-bezier(.4,0,.2,1); }
   .sidebar.collapsed .toggle-arrow  { transform: rotate(0deg); }
   .sidebar:not(.collapsed) .toggle-arrow { transform: rotate(180deg); }
-
-  /* Hide old floating settings btn */
   .btn-settings { display: none !important; }
+  /* Pill is at left:16px, width:52px → right edge at 68px. Add 16px gap = 84px */
+  .container {
+    padding-left: 84px;
+    transition: padding-left .25s cubic-bezier(.4,0,.2,1);
+  }
+  body.sidebar-expanded .container { padding-left: 212px; }
 }
 
 /* ── Bottom nav (mobile only) ───────────────────────────────────────────────── */
