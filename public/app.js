@@ -1668,7 +1668,9 @@ function wireAddTxForm() {
       // Don't double-fire if the desktopTrigger itself or a pill already handled it
       if (e.target.closest('.quick-cat-pill')) return;
       // Don't open sheet if user clicked the NLP UI elements
-      if (e.target.closest('.nlp-toggle-btn, .nlp-input-row, .nlp-status, .nlp-preview, #nlpInputRow, #nlpStatus, #nlpPreview')) return;
+      const t = e.target;
+      if (t.closest('#nlpToggleBtn') || t.closest('#nlpInputRow') ||
+          t.closest('#nlpStatus')    || t.closest('#nlpPreview')) return;
       if (!document.getElementById('addTxSheetBg')?.classList.contains('open')) openAddTxSheet();
     });
   }
