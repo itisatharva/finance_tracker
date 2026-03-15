@@ -2446,30 +2446,87 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 /* ── Sign-out confirmation toast ───────────────────────────────────────────── */
-.signout-toast {
-  bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 12px);
-  gap: 8px;
+/* ── Sign-out confirmation modal ───────────────────────────────────────────── */
+.signout-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1300;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
 }
-@media (min-width: 600px) {
-  .signout-toast { bottom: 24px; }
+.signout-backdrop.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.signout-toast {
+  /* override undo-snackbar positioning — centered modal */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  bottom: auto;
+  transform: translate(-50%, -48px) scale(.96);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1301;
+  /* layout */
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  /* sizing */
+  min-width: 280px;
+  max-width: calc(100vw - 48px);
+  width: max-content;
+  /* style */
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 20px 20px 20px 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35), 0 4px 16px rgba(0,0,0,.2);
+  transition: opacity .22s ease, transform .25s cubic-bezier(.22,1,.36,1);
+}
+.signout-toast.show {
+  opacity: 1;
+  pointer-events: all;
+  transform: translate(-50%, -50%) scale(1);
+}
+.signout-toast .undo-snack-msg {
+  color: var(--text-1);
+  font-size: .95rem;
+  font-weight: 600;
+  flex: 1 1 100%;
+  margin-bottom: 4px;
+  white-space: normal;
 }
 .signout-cancel-btn {
-  border-color: rgba(255,255,255,.25);
-  opacity: .75;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border);
+  color: var(--text-2);
+  font-size: .875rem;
+  padding: 9px 18px;
+  border-radius: var(--r-pill);
+  flex: 1;
 }
 .signout-cancel-btn:hover {
-  background: rgba(255,255,255,.1);
-  border-color: rgba(255,255,255,.5);
-  opacity: 1;
+  background: var(--border);
+  color: var(--text-1);
 }
 .signout-confirm-btn {
   background: var(--red);
-  border-color: transparent;
+  border: 1.5px solid transparent;
   color: #fff;
+  font-size: .875rem;
+  padding: 9px 18px;
+  border-radius: var(--r-pill);
+  flex: 1;
 }
 .signout-confirm-btn:hover {
   background: #d03030;
-  border-color: transparent;
 }
 
 /* ── Monthly Spending Insights ─────────────────────────────────────────────── */

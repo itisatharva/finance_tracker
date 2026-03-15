@@ -465,6 +465,7 @@ function wireSettingsDrawer() {
 
   // ── Sign-out toast ───────────────────────────────────────────────────────────
   const _signOutToast      = document.getElementById('signOutToast');
+  const _signOutBackdrop   = document.getElementById('signOutBackdrop');
   const _signOutConfirmBtn = document.getElementById('signOutConfirmBtn');
   const _signOutCancelBtn  = document.getElementById('signOutCancelBtn');
   let _signOutTimer = null;
@@ -472,6 +473,7 @@ function wireSettingsDrawer() {
   function _showSignOutToast() {
     if (_signOutTimer) { clearTimeout(_signOutTimer); _signOutTimer = null; }
     _signOut_hideUndo(); // hide undo snackbar if visible
+    _signOutBackdrop.classList.add('show');
     _signOutToast.classList.add('show');
     // Auto-dismiss after 6s if no action
     _signOutTimer = setTimeout(_hideSignOutToast, 6000);
@@ -479,6 +481,7 @@ function wireSettingsDrawer() {
 
   function _hideSignOutToast() {
     _signOutToast.classList.remove('show');
+    _signOutBackdrop.classList.remove('show');
     if (_signOutTimer) { clearTimeout(_signOutTimer); _signOutTimer = null; }
   }
 
@@ -488,6 +491,7 @@ function wireSettingsDrawer() {
   }
 
   _signOutCancelBtn.addEventListener('click', _hideSignOutToast);
+  _signOutBackdrop.addEventListener('click', _hideSignOutToast);
 
   _signOutConfirmBtn.addEventListener('click', async () => {
     _hideSignOutToast();
