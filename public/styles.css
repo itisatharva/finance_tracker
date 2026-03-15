@@ -1540,9 +1540,8 @@ select:focus option { animation: fadeIn .1s ease; }
 
 @media (min-width: 1024px) {
   .container { max-width: 1280px; padding: 32px 40px 60px 84px; }
-  /* At 1024px+ container padding-top is 32px, avatar center = 54px.
-     Sidebar: top 28px + padding 6px + half-button 20px = 54px → aligned. */
-  .sidebar { top: 28px; }
+  /* At 1024px+ container padding-top is 32px, greeting bar 44px + margin-bottom 24px = 100px → cards start here. */
+  .sidebar { top: 100px; }
 
   /* ── Dashboard ── */
   .dash-main {
@@ -2730,7 +2729,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     flex-direction: column;
     align-items: center;
     position: fixed;
-    top: 24px;
+    top: 96px;
     left: max(16px, calc((100vw - 1216px) / 4));
     transform: none;
     width: 52px;
