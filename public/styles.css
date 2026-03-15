@@ -2634,7 +2634,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* Hide on desktop — only show bottom nav on mobile */
 /* ── Desktop Sidebar ────────────────────────────────────────────────────────── */
 .sidebar {
-  display: none; /* hidden on mobile */
+  display: none;
 }
 
 @media (min-width: 769px) {
@@ -2643,64 +2643,43 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     flex-direction: column;
     position: fixed;
     top: 0; left: 0; bottom: 0;
-    width: 200px;
+    width: 210px;
     background: var(--bg-card);
     border-right: 1.5px solid var(--border);
     z-index: 900;
     transition: width .25s cubic-bezier(.4,0,.2,1);
-    overflow: hidden; /* clips labels on collapse */
+    overflow: hidden;
   }
-  .sidebar.collapsed { width: 60px; }
+  .sidebar.collapsed { width: 68px; }
 
-  /* Logo header */
-  .sidebar-header {
-    height: 64px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    border-bottom: 1.5px solid var(--border);
-  }
-  .sidebar-logo {
-    width: 36px; height: 36px;
-    background: var(--ink);
-    color: var(--ink-fg);
-    border-radius: 10px;
-    font-size: 1rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* Nav list */
+  /* Nav list — top */
   .sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 12px 8px;
+    gap: 4px;
+    padding: 20px 8px 0;
     flex: 1;
   }
 
-  /* Footer: settings + toggle */
+  /* Footer — sign out, settings, toggle */
   .sidebar-footer {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 8px 8px 16px;
-    border-top: 1.5px solid var(--border);
+    gap: 4px;
+    padding: 0 8px 20px;
   }
 
-  /* Each nav item */
-  .sidebar-item {
+  /* ── The pill button ── */
+  .sidebar-item,
+  .sidebar-toggle {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0;
+    width: 100%;
+    height: 48px;
     padding: 0;
-    height: 42px;
-    border-radius: 12px;
     border: none;
+    border-radius: 999px;        /* full pill */
     background: transparent;
     color: var(--text-2);
     font-family: inherit;
@@ -2709,80 +2688,72 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     cursor: pointer;
     transition: background .15s, color .15s;
     white-space: nowrap;
-    width: 100%;
-    text-align: left;
     overflow: hidden;
+    text-align: left;
   }
-  .sidebar-item:hover {
+
+  .sidebar-item:hover,
+  .sidebar-toggle:hover {
     background: var(--bg-subtle);
     color: var(--text-1);
   }
+
+  /* Active nav item */
   .sidebar-item.active {
     background: var(--ink);
     color: var(--ink-fg);
   }
 
-  /* Icon wrapper — always a fixed 44px square centered */
+  /* Toggle stays muted */
+  .sidebar-toggle { color: var(--text-3); }
+  .sidebar-toggle:hover { color: var(--text-2); }
+
+  /* Icon — fixed 48px wide so pill stays centered when collapsed */
   .sidebar-icon {
-    width: 44px;
-    height: 42px;
+    width: 52px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
   }
-  .sidebar-icon svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .sidebar-icon svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
 
-  /* Label fades out when collapsed */
+  /* Label fades when collapsed */
   .sidebar-label {
     opacity: 1;
     transition: opacity .15s .05s;
     flex-shrink: 0;
+    padding-right: 16px;
   }
   .sidebar.collapsed .sidebar-label {
     opacity: 0;
     pointer-events: none;
-    transition: opacity .1s 0s;
+    transition: opacity .08s 0s;
   }
 
-  /* Toggle arrow button — same style as a sidebar item */
-  .sidebar-toggle {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 0;
-    height: 42px;
-    border-radius: 12px;
-    border: none;
-    background: transparent;
-    color: var(--text-3);
-    font-family: inherit;
-    font-size: .875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background .15s, color .15s;
-    white-space: nowrap;
-    width: 100%;
-    text-align: left;
-    overflow: hidden;
-  }
-  .sidebar-toggle:hover { background: var(--bg-subtle); color: var(--text-2); }
-
-  /* Arrow rotates based on state */
+  /* Arrow rotates */
   .toggle-arrow {
     transition: transform .25s cubic-bezier(.4,0,.2,1);
-    flex-shrink: 0;
   }
-  .sidebar.collapsed .toggle-arrow { transform: rotate(0deg); }
+  .sidebar.collapsed .toggle-arrow  { transform: rotate(0deg); }
   .sidebar:not(.collapsed) .toggle-arrow { transform: rotate(180deg); }
 
-  /* Push content right to clear sidebar */
+  /* Hide floating settings btn on desktop */
   .btn-settings { display: none !important; }
+
+  /* Push content right */
   .container {
-    padding-left: calc(60px + 20px);
+    padding-left: calc(68px + 16px);
     transition: padding-left .25s cubic-bezier(.4,0,.2,1);
   }
-  body.sidebar-expanded .container { padding-left: calc(200px + 20px); }
+  body.sidebar-expanded .container {
+    padding-left: calc(210px + 16px);
+  }
 }
 
 /* ── Bottom nav (mobile only) ───────────────────────────────────────────────── */
