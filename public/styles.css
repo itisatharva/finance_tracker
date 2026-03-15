@@ -2644,7 +2644,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     align-items: center;
     position: fixed;
     top: 50%;
-    left: 16px;
+    left: max(16px, calc((100vw - 1216px) / 4));
     transform: translateY(-50%);
     width: 52px;
     background: var(--bg-card);
