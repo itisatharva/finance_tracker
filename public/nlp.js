@@ -2,7 +2,7 @@
 // Runs TF-IDF + Logistic Regression entirely in the browser.
 // No API key. No server. Works offline.
 
-const NLP = (() => {
+window.NLP = (() => {
 
   let model = null;
   let modelLoading = null;
