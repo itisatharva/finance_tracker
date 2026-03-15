@@ -8,35 +8,35 @@
 /* ---------- CSS VARIABLES ---------- */
 
 :root {
-  /* Backgrounds */
-  --bg-page:        #F5F2EE;
+  /* Backgrounds — cool neutral, iOS-inspired */
+  --bg-page:        #F4F4F7;
   --bg-card:        #FFFFFF;
-  --bg-input:       #FAFAF9;
-  --bg-subtle:      #F0EBE4;
+  --bg-input:       #F8F8FA;
+  --bg-subtle:      #EDEDF0;
 
-  /* Text — always dark on light */
-  --text-1:         #1C1C1C;
-  --text-2:         #5A5A5A;
-  --text-3:         #9A9A9A;
+  /* Text — cool grays, no warm tint */
+  --text-1:         #111111;
+  --text-2:         #6B6B6B;
+  --text-3:         #AAAAAA;
 
-  /* Borders */
-  --border:         #E2D9CF;
+  /* Borders — very subtle, barely-there */
+  --border:         #E6E6EA;
 
   /* Brand / accent */
-  --ink:            #1C1C1C;   /* primary button bg in light */
+  --ink:            #111111;   /* primary button bg in light */
   --ink-fg:         #FFFFFF;   /* primary button text in light */
-  --muted:          #EDE7DF;   /* secondary button bg in light */
-  --muted-fg:       #1C1C1C;   /* secondary button text in light */
+  --muted:          #EDEDF0;   /* secondary button bg in light */
+  --muted-fg:       #111111;   /* secondary button text in light */
 
   /* Data */
-  --green:          #0FA974;
+  --green:          #00C97A;
   --red:            #E84545;
-  --orange:         #E87A0F;
+  --orange:         #F59E0B;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 4px rgba(0,0,0,.06);
-  --shadow-md: 0 4px 16px rgba(0,0,0,.08);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
+  /* Shadows — floaty, like cards lifted off the page */
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.07), 0 0px 1px rgba(0,0,0,.04);
+  --shadow-md: 0 6px 24px rgba(0,0,0,.09), 0 1px 3px rgba(0,0,0,.05);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.13), 0 2px 6px rgba(0,0,0,.06);
 
   /* Radius */
   --r-sm:  8px;
@@ -361,7 +361,7 @@ body {
 
 .stat-card {
   background: var(--bg-card);
-  border: 1.5px solid var(--border);
+  border: 1.5px solid transparent;
   border-radius: var(--r-lg);
   padding: 20px 22px;
   box-shadow: var(--shadow-sm);
@@ -371,7 +371,7 @@ body {
   overflow: hidden;
 }
 .stat-card:hover {
-  border-color: var(--ink);
+  border-color: transparent;
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
@@ -446,7 +446,7 @@ body {
 
 .card {
   background: var(--bg-card);
-  border: 1.5px solid var(--border);
+  border: 1.5px solid transparent;
   border-radius: var(--r-xl);
   padding: 24px;
   margin-bottom: 20px;
@@ -515,7 +515,7 @@ input[type="date"] {
 input:focus, select:focus {
   outline: none;
   border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(28,28,28,.08);
+  box-shadow: 0 0 0 3px rgba(17,17,17,.08);
 }
 [data-theme="dark"] input:focus,
 [data-theme="dark"] select:focus {
@@ -549,8 +549,10 @@ input[type="color"] {
 .btn:active { transform: translateY(0); }
 .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-.btn-primary { background: #EDEBE7; color: #1C1C1C; }
-[data-theme="dark"] .btn-primary { background: #1C1C1C; color: #F0EDE8; border: 1.5px solid #3a3a3a; }
+.btn-primary { background: var(--ink); color: var(--ink-fg); }
+[data-theme="dark"] .btn-primary { background: #FFFFFF; color: #0C0C0C; border: none; }
+[data-theme="dark"] .card,
+[data-theme="dark"] .stat-card { border-color: var(--border); }
 .btn-secondary { background: var(--muted); color: var(--muted-fg); }
 .btn-danger { background: var(--red); color: #fff; }
 
@@ -2869,20 +2871,19 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     width: auto;
     z-index: 950;
 
-    /* frosted glass */
-    background: rgba(255, 255, 255, 0.55);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    /* clean white pill with soft shadow */
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
 
-    border: 1px solid rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(0, 0, 0, 0.06);
     border-radius: 999px;
     padding: 6px 10px;
     gap: 2px;
     align-items: center;
     box-shadow:
-      0 8px 32px rgba(0, 0, 0, 0.12),
-      0 2px 8px  rgba(0, 0, 0, 0.08),
-      inset 0 1px 0 rgba(255,255,255,0.6);
+      0 8px 32px rgba(0, 0, 0, 0.10),
+      0 2px 8px  rgba(0, 0, 0, 0.06);
   }
 
   [data-theme="dark"] .bottom-nav {
