@@ -10,7 +10,7 @@ const DEFAULTS = {
     { name: 'Healthcare',       color: '#14b8a6', budget: null },
     { name: 'Education',        color: '#3b82f6', budget: null },
     { name: 'Travel',           color: '#06b6d4', budget: null },
-    { name: 'Other',            color: '#6b7280', budget: null },
+    { name: 'Other Expenses',            color: '#6b7280', budget: null },
   ],
   income: [
     { name: 'Salary',     color: '#0FA974', budget: null },
@@ -18,7 +18,7 @@ const DEFAULTS = {
     { name: 'Business',   color: '#8b5cf6', budget: null },
     { name: 'Investment', color: '#06b6d4', budget: null },
     { name: 'Gift',       color: '#ec4899', budget: null },
-    { name: 'Other',      color: '#6366f1', budget: null },
+    { name: 'Other Income',      color: '#6366f1', budget: null },
   ],
 };
 

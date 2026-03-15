@@ -1373,6 +1373,35 @@ function wireAddTxForm() {
   window.openAddTxSheet  = openAddTxSheet;
   window.closeAddTxSheet = closeAddTxSheet;
 
+  // Opens the sheet pre-filtered to a specific type ('income' | 'expense').
+  // Rebuilds the category <select> to only show that type's categories,
+  // so the user lands directly on the right options without scrolling.
+  window.openAddTxSheetWithType = function(type) {
+    openAddTxSheet();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const sel = document.getElementById('txCategory');
+      if (!sel) return;
+      const typeCats = type === 'income' ? categories.income : categories.expense;
+      sel.innerHTML = '<option value="">Select category</option>';
+      typeCats.forEach(c => {
+        const o = document.createElement('option');
+        o.value = catName(c);
+        o.textContent = catName(c);
+        sel.appendChild(o);
+      });
+      sel.focus();
+    }));
+  };
+
+  // After the close animation, restore all categories so the normal FAB shows both types
+  const _origCloseForType = closeAddTxSheet;
+  closeAddTxSheet = function() {
+    _origCloseForType();
+    setTimeout(() => populateCategoryDropdowns(), 420);
+  };
+  window.closeAddTxSheet = closeAddTxSheet;
+
+
   // ── Keyboard-lift: scroll focused field into view above keyboard ─────────────
   // Single-pass getBoundingClientRect at 80ms fails for amount→note because
   // Android briefly reports stale layout values during the focus handoff while

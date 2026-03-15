@@ -376,6 +376,16 @@ body {
   transform: translateY(-2px);
 }
 
+/* Clickable stat cards (income, expense, pending) get a tap-highlight ring */
+.stat-card[role="button"]:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+.stat-card.income[role="button"]:hover  { box-shadow: 0 6px 24px rgba(0,201,122,.18), var(--shadow-md); }
+.stat-card.expense[role="button"]:hover { box-shadow: 0 6px 24px rgba(232,69,69,.18), var(--shadow-md); }
+.stat-card.pending[role="button"]:hover { box-shadow: 0 6px 24px rgba(245,158,11,.18), var(--shadow-md); }
+.stat-card[role="button"]:active { transform: translateY(0) scale(.98); transition: transform .08s; }
+
 /* Cards with sparklines: remove bottom padding so SVG sits flush */
 .stat-card.has-spark {
   padding-bottom: 0;
