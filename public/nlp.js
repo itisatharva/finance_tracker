@@ -2,7 +2,7 @@
 // Runs TF-IDF + Logistic Regression entirely in the browser.
 // No API key. No server. Works offline.
 
-const NLP = (() => {
+window.NLP = (() => {
 
   let model = null;
   let modelLoading = null;
@@ -145,7 +145,7 @@ const NLP = (() => {
   // ── Type detector ─────────────────────────────────────────────────────────
   const EXPENSE_WORDS = new Set(['paid','spent','bought','purchased','ordered','charged','swiped','paying','fee','bill','cost']);
   const INCOME_WORDS  = new Set(['received','got','credited','earned','income','salary','freelance','refund','cashback','bonus']);
-  const INCOME_CATS   = new Set(['Salary','Freelance','Business','Investment','Gift','Other Income']);
+  const INCOME_CATS   = new Set(['Salary','Freelance','Business','Investment','Gift','Other Income','Baba']);
 
   function detectType(text, category) {
     const words = text.toLowerCase().split(/\s+/);
@@ -168,52 +168,22 @@ const NLP = (() => {
       /\bon\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi,
     ];
     timePatterns.forEach(p => { note = note.replace(p, ' '); });
-    // Strip orphaned currency words left after amount removal (e.g. "20rs" → "rs")
-    note = note.replace(/\b(rs\.?|inr)\b/gi, ' ');
     note = note.replace(/\s+/g, ' ').trim().replace(/^(for|on|at|from|to|and)\s+/i, '').trim().replace(/[,. ]+$/, '');
     return note.length > 2 ? note : '';
   }
 
-  // ── Split comma/"and"-separated items into per-item segments ───────────────
-  function splitItems(text) {
-    const parts = text.split(/\s*,\s*|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
-    const valid = parts.filter(p => extractAmounts(p).length > 0);
-    return valid.length > 1 ? valid : [text];
-  }
-
-  // ── Classify a single short segment ──────────────────────────────────────────
-  function classifySegment(seg, m, date) {
-    const vec        = tfidfVector(seg, m.vocabulary, m.idf, m.sublinear_tf);
-    const probs      = predict(vec, m.coef, m.intercept);
-    const maxProb    = Math.max(...probs);
-    const category   = m.classes[probs.indexOf(maxProb)];
-    const confidence = Math.round(maxProb * 100);
-    const amounts    = extractAmounts(seg);
-    const type       = detectType(seg, category);
-    const note       = extractNote(seg);
-    return { amount: amounts[0] || null, category, type, date, note, confidence };
-  }
-
   // ── Main parse function ───────────────────────────────────────────────────
   async function parse(text) {
-    const m    = await loadModel();
-    const date = extractDate(text);
-
-    // Split comma/"and"-separated items and classify each independently
-    const segments = splitItems(text);
-    if (segments.length > 1) {
-      return segments.map(seg => classifySegment(seg, m, date));
-    }
-
-    // Single-item path
-    const vec        = tfidfVector(text, m.vocabulary, m.idf, m.sublinear_tf);
-    const probs      = predict(vec, m.coef, m.intercept);
-    const maxProb    = Math.max(...probs);
-    const category   = m.classes[probs.indexOf(maxProb)];
+    const m = await loadModel();
+    const vec = tfidfVector(text, m.vocabulary, m.idf, m.sublinear_tf);
+    const probs = predict(vec, m.coef, m.intercept);
+    const maxProb = Math.max(...probs);
+    const category = m.classes[probs.indexOf(maxProb)];
     const confidence = Math.round(maxProb * 100);
-    const amounts    = extractAmounts(text);
-    const type       = detectType(text, category);
-    const note       = extractNote(text);
+    const amounts = extractAmounts(text);
+    const date = extractDate(text);
+    const type = detectType(text, category);
+    const note = extractNote(text);
 
     if (amounts.length > 1) {
       return amounts.map(amount => ({ amount, category, type, date, note, confidence }));
