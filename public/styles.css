@@ -3192,6 +3192,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   align-items: center;
   gap: 12px;
   padding: 4px 0;
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 .add-tx-desktop-trigger {
   display: flex;
@@ -3282,7 +3284,20 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   min-width: 0;
   overflow: hidden;
 }
-.sidebar-account-icon { font-size: 1rem; flex-shrink: 0; }
+.sidebar-account-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+.settings-active-account-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-2);
+}
 .sidebar-account-name {
   font-size: .78rem;
   font-weight: 600;
@@ -3319,7 +3334,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-radius: var(--r-md);
   margin-bottom: 10px;
 }
-.settings-active-account-icon { font-size: 1.1rem; }
 .settings-active-account-name {
   font-size: .88rem;
   font-weight: 600;
