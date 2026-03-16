@@ -15,6 +15,29 @@ let _justSyncedIds   = new Set();   // IDs that just confirmed — show green br
 const _syncTimers    = {};          // cleanup timers per txId
 let activeView      = 'dashboard';
 
+// ── Multi-account state ───────────────────────────────────────────────────────
+let activeAccountId    = null;   // currently selected bank account ID
+let accounts           = [];     // [{id, name, createdAt}]
+let _unsubTransactions = null;   // unsubscribe fn for transaction listener
+let _unsubPending      = null;   // unsubscribe fn for pending listener
+
+// ── Firestore path helpers (all scoped to the active account) ─────────────────
+function txCol()        { return window.collection(window.db, 'users', uid, 'accounts', activeAccountId, 'transactions'); }
+function pendingCol()   { return window.collection(window.db, 'users', uid, 'accounts', activeAccountId, 'pending'); }
+function txDocRef(id)   { return window.doc(window.db, 'users', uid, 'accounts', activeAccountId, 'transactions', id); }
+function pendDocRef(id) { return window.doc(window.db, 'users', uid, 'accounts', activeAccountId, 'pending', id); }
+function catDocRef()    { return window.doc(window.db, 'users', uid, 'accounts', activeAccountId, 'categories', 'data'); }
+function settDocRef()   { return window.doc(window.db, 'users', uid, 'accounts', activeAccountId, 'settings', 'general'); }
+function acctColRef()   { return window.collection(window.db, 'users', uid, 'accounts'); }
+function acctDocRef(id) { return window.doc(window.db, 'users', uid, 'accounts', id); }
+
+// One-time Firestore read using onSnapshot (works for both doc refs and queries)
+function _once(q) {
+  return new Promise((res, rej) => {
+    const u = window.onSnapshot(q, s => { u(); res(s); }, rej);
+  });
+}
+
 // ── Desktop Sidebar toggle ────────────────────────────────────────────────────
 (function initSidebar() {
   const sidebar = document.getElementById('sidebar');
@@ -31,8 +54,7 @@ let activeView      = 'dashboard';
       document.body.classList.remove('sidebar-expanded');
     }
   });
-})();
-let activePeriod    = 'daily';
+})();let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
 
@@ -188,6 +210,7 @@ window.firebaseReady.then(() => {
     document.getElementById('yearlyYear').value    = today.getFullYear();
     document.getElementById('cashflowYear').value  = today.getFullYear();
 
+    await initAccounts();
     await loadCategories();
     await loadSettings();
     listenPending();
@@ -195,6 +218,7 @@ window.firebaseReady.then(() => {
     wireSettingsDrawer();
     wireAddTxForm();
     wireAddPending();
+    wireAccountSwitcher();
   });
 });
 
@@ -770,7 +794,7 @@ window.setYearlyType = function(type) {
 
 // ─── Categories ──────────────────────────────────────────────────────────────
 async function loadCategories() {
-  const snap = await window.getDoc(window.doc(window.db, 'users', uid, 'settings', 'categories'));
+  const snap = await window.getDoc(catDocRef());
   if (snap.exists()) {
     const d = snap.data();
     categories = { income: d.income||[], expense: d.expense||[] };
@@ -823,7 +847,7 @@ function triggerNewTransactionAnimations() {
 
 async function saveCategories() {
   await window.setDoc(
-    window.doc(window.db, 'users', uid, 'settings', 'categories'),
+    catDocRef(),
     { income: categories.income, expense: categories.expense, updatedAt: window.serverTimestamp() }
   );
 }
@@ -831,7 +855,7 @@ async function saveCategories() {
 // ─── General Settings ────────────────────────────────────────────────────────
 async function loadSettings() {
   try {
-    const snap = await window.getDoc(window.doc(window.db, 'users', uid, 'settings', 'general'));
+    const snap = await window.getDoc(settDocRef());
     if (snap.exists()) startingBalance = Number(snap.data().startingBalance) || 0;
     const inp = document.getElementById('startingBalanceInput');
     if (inp) inp.value = startingBalance > 0 ? startingBalance : '';
@@ -841,7 +865,7 @@ async function loadSettings() {
 
 async function saveSettings() {
   await window.setDoc(
-    window.doc(window.db, 'users', uid, 'settings', 'general'),
+    settDocRef(),
     { startingBalance, updatedAt: window.serverTimestamp() }
   );
 }
@@ -1063,7 +1087,7 @@ window.closeCatsModal = function() {
       const chunk = rows.slice(batchStart, batchStart + BATCH_SIZE);
       const batch = window.writeBatch(window.db);
       chunk.forEach(r => {
-        const ref = window.doc(window.collection(window.db, 'users', uid, 'transactions'));
+        const ref = window.doc(txCol());
         batch.set(ref, {
           type: r.type, category: r.category, amount: r.amount,
           description: r.description, selectedDate: r.dateObj,
@@ -1242,13 +1266,14 @@ function renderCatLists() {
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
 function listenTransactions() {
+  // Unsubscribe any existing listener before starting a new one
+  if (_unsubTransactions) { _unsubTransactions(); _unsubTransactions = null; }
   const q = window.query(
-    window.collection(window.db, 'users', uid, 'transactions'),
+    txCol(),
     window.orderBy('selectedDate', 'desc')
   );
   let firstLoad = true;
-  window.onSnapshot(q, snap => {
-    // ── Track pending-write transitions for the sync pill ──
+  _unsubTransactions = window.onSnapshot(q, snap => {
     snap.docs.forEach(d => {
       const isPending = d.metadata.hasPendingWrites;
       if (_pendingTxIds.has(d.id) && !isPending) {
@@ -1508,7 +1533,7 @@ function wireAddTxForm() {
         if (!type) continue;
         try {
           await window.addDoc(
-            window.collection(window.db, 'users', uid, 'transactions'),
+            txCol(),
             { type, category: tx.category, amount: tx.amount,
               description: tx.note || '',
               selectedDate: new Date(tx.date + 'T00:00:00'),
@@ -1735,7 +1760,7 @@ function wireAddTxForm() {
     try {
       const QUEUE_TIMEOUT = 800;
       const addDocPromise = window.addDoc(
-        window.collection(window.db, 'users', uid, 'transactions'),
+        txCol(),
         { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), createdAt: window.serverTimestamp() }
       );
       const timeoutPromise = new Promise(resolve =>
@@ -2135,7 +2160,7 @@ window.confirmDeleteTx = async function(id) {
     const staleId = _undoPendingId;
     _undoPendingId = null;
     _undoTxSnapshot = null;
-    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', staleId)).catch(console.error);
+    await window.deleteDoc(txDocRef(staleId)).catch(console.error);
   }
 
   // Snapshot the tx data before we "delete" it (for undo re-add)
@@ -2158,7 +2183,7 @@ window.confirmDeleteTx = async function(id) {
     _undoPendingId  = null;
     _undoTxSnapshot = null;
     _snack.hide();
-    await window.deleteDoc(window.doc(window.db, 'users', uid, 'transactions', id)).catch(console.error);
+    await window.deleteDoc(txDocRef(id)).catch(console.error);
   }, 4000);
 };
 
@@ -2307,7 +2332,7 @@ window.txDetailSave = async function() {
   const type     = catType(category);
   if (!category || !amount || !dateVal || !type) { alert('Please fill all fields'); return; }
   await window.setDoc(
-    window.doc(window.db, 'users', uid, 'transactions', _txDetailId),
+    window.doc(window.db, 'users', uid, 'accounts', activeAccountId, 'transactions', _txDetailId),
     { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), updatedAt: window.serverTimestamp() },
     { merge: true }
   );
@@ -2381,7 +2406,7 @@ window.saveEdit = async function() {
 
   try {
     await window.setDoc(
-      window.doc(window.db, 'users', uid, 'transactions', editTxId),
+      window.doc(window.db, 'users', uid, 'accounts', activeAccountId, 'transactions', editTxId),
       { type, category, amount, description: note, selectedDate: new Date(dateVal + 'T00:00:00'), updatedAt: window.serverTimestamp() },
       { merge: true }
     );
@@ -2667,12 +2692,13 @@ function drawSparkline(id, data, color, isDark) {
 
 // ─── Pending Amounts ──────────────────────────────────────────────────────────
 function listenPending() {
+  if (_unsubPending) { _unsubPending(); _unsubPending = null; }
   const q = window.query(
-    window.collection(window.db, 'users', uid, 'pending'),
+    pendingCol(),
     window.orderBy('createdAt', 'desc')
   );
   let firstLoad = true;
-  window.onSnapshot(q, snap => {
+  _unsubPending = window.onSnapshot(q, snap => {
     pendingAmounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderPendingList();
     renderStats();
@@ -2737,7 +2763,7 @@ function wireAddPending() {
     btn.disabled = true;
     btn.textContent = 'Adding…';
     await window.addDoc(
-      window.collection(window.db, 'users', uid, 'pending'),
+      window.collection(window.db, 'users', uid, 'accounts', activeAccountId, 'pending'),
       { name, amount, createdAt: window.serverTimestamp() }
     );
     document.getElementById('pendingName').value = '';
@@ -2785,7 +2811,7 @@ function renderPendingList() {
 }
 
 window.clearPending = async function(id) {
-  await window.deleteDoc(window.doc(window.db, 'users', uid, 'pending', id));
+  await window.deleteDoc(pendDocRef(id));
   vibrate();
 };
 
@@ -3542,3 +3568,426 @@ function renderPieChart(wrapId, txList, type) {
 
 // Re-render sparklines on theme toggle (balance line color is theme-dependent)
 registerChartThemeCallback('sparklines', () => renderSparklines());
+// ═══════════════════════════════════════════════════════════════════
+// ── MULTI-ACCOUNT SYSTEM ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Default categories for a brand-new account ────────────────────
+const DEFAULT_CATEGORIES = {
+  expense: [
+    { name: 'Food & Dining',     color: '#E84545', budget: null },
+    { name: 'Transport',         color: '#f97316', budget: null },
+    { name: 'Shopping',          color: '#ec4899', budget: null },
+    { name: 'Bills & Utilities', color: '#f59e0b', budget: null },
+    { name: 'Entertainment',     color: '#a855f7', budget: null },
+    { name: 'Healthcare',        color: '#14b8a6', budget: null },
+    { name: 'Education',         color: '#3b82f6', budget: null },
+    { name: 'Travel',            color: '#06b6d4', budget: null },
+    { name: 'Other Expenses',    color: '#6b7280', budget: null },
+  ],
+  income: [
+    { name: 'Salary',      color: '#0FA974', budget: null },
+    { name: 'Freelance',   color: '#3b82f6', budget: null },
+    { name: 'Business',    color: '#8b5cf6', budget: null },
+    { name: 'Investment',  color: '#06b6d4', budget: null },
+    { name: 'Gift',        color: '#ec4899', budget: null },
+    { name: 'Other Income',color: '#6366f1', budget: null },
+  ],
+};
+
+// ── Migrate legacy data (existing users pre-multi-account) ─────────
+async function migrateLegacyData() {
+  // Check if migration already done
+  const userMeta = await window.getDoc(window.doc(window.db, 'users', uid, 'meta', 'accounts'));
+  if (userMeta.exists() && userMeta.data().migrated) return null;
+
+  // Check if there is any legacy data to migrate
+  const legacyCatSnap  = await window.getDoc(window.doc(window.db, 'users', uid, 'settings', 'categories'));
+  const legacySettSnap = await window.getDoc(window.doc(window.db, 'users', uid, 'settings', 'general'));
+  const legacyTxSnap   = await _once(window.query(window.collection(window.db, 'users', uid, 'transactions')));
+  const legacyPendSnap = await _once(window.query(window.collection(window.db, 'users', uid, 'pending')));
+
+  const hasLegacy = legacyCatSnap.exists() || legacyTxSnap.docs.length > 0;
+  if (!hasLegacy) {
+    // New user — just mark migrated
+    await window.setDoc(window.doc(window.db, 'users', uid, 'meta', 'accounts'), { migrated: true });
+    return null;
+  }
+
+  console.log('[Accounts] Migrating legacy data → "Main Account"');
+
+  // 1. Create "Main Account" doc
+  const acctRef = window.doc(acctColRef());
+  await window.setDoc(acctRef, {
+    name: 'Main Account',
+    createdAt: window.serverTimestamp(),
+    isDefault: true,
+  });
+  const acctId = acctRef.id;
+
+  // 2. Copy categories
+  const catData = legacyCatSnap.exists()
+    ? legacyCatSnap.data()
+    : { income: DEFAULT_CATEGORIES.income, expense: DEFAULT_CATEGORIES.expense };
+  await window.setDoc(window.doc(window.db, 'users', uid, 'accounts', acctId, 'categories', 'data'), {
+    income: catData.income || [],
+    expense: catData.expense || [],
+    migratedAt: window.serverTimestamp(),
+  });
+
+  // 3. Copy settings
+  if (legacySettSnap.exists()) {
+    await window.setDoc(window.doc(window.db, 'users', uid, 'accounts', acctId, 'settings', 'general'), {
+      ...legacySettSnap.data(),
+      migratedAt: window.serverTimestamp(),
+    });
+  }
+
+  // 4. Copy transactions in batches of 500
+  const BATCH_SIZE = 500;
+  const txDocs = legacyTxSnap.docs;
+  for (let i = 0; i < txDocs.length; i += BATCH_SIZE) {
+    const batch = window.writeBatch(window.db);
+    txDocs.slice(i, i + BATCH_SIZE).forEach(d => {
+      const newRef = window.doc(window.db, 'users', uid, 'accounts', acctId, 'transactions', d.id);
+      batch.set(newRef, { ...d.data(), migratedAt: window.serverTimestamp() });
+    });
+    await batch.commit();
+  }
+
+  // 5. Copy pending in one batch
+  if (legacyPendSnap.docs.length) {
+    const batch = window.writeBatch(window.db);
+    legacyPendSnap.docs.forEach(d => {
+      const newRef = window.doc(window.db, 'users', uid, 'accounts', acctId, 'pending', d.id);
+      batch.set(newRef, d.data());
+    });
+    await batch.commit();
+  }
+
+  // 6. Mark migration done
+  await window.setDoc(window.doc(window.db, 'users', uid, 'meta', 'accounts'), {
+    migrated: true,
+    mainAccountId: acctId,
+    migratedAt: window.serverTimestamp(),
+  });
+
+  console.log('[Accounts] Migration complete, accountId =', acctId);
+  return acctId;
+}
+
+// ── initAccounts — called once per login ───────────────────────────
+async function initAccounts() {
+  // Run migration if needed (idempotent)
+  const migratedId = await migrateLegacyData();
+
+  // Load all accounts
+  const snap = await _once(acctColRef());
+  accounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // Restore last used account from localStorage, or pick first
+  const saved = localStorage.getItem('activeAccountId_' + uid);
+  let chosen = accounts.find(a => a.id === saved) || accounts[0];
+
+  // If still no account (brand-new user with no migration), create first account via modal
+  if (!chosen) {
+    const newId = await promptCreateFirstAccount();
+    const newSnap = await _once(acctColRef());
+    accounts = newSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    chosen = accounts.find(a => a.id === newId) || accounts[0];
+  }
+
+  activeAccountId = chosen.id;
+  localStorage.setItem('activeAccountId_' + uid, activeAccountId);
+  updateAccountBadge();
+}
+
+// ── Prompt new user to name their first account ────────────────────
+function promptCreateFirstAccount() {
+  return new Promise(resolve => {
+    const modal = document.getElementById('firstAccountModal');
+    const input = document.getElementById('firstAccountNameInput');
+    const btn   = document.getElementById('firstAccountSaveBtn');
+    if (!modal) { resolve(_createAccount('Main Account')); return; }
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    input.value = '';
+    setTimeout(() => input.focus(), 300);
+
+    async function save() {
+      const name = input.value.trim() || 'Main Account';
+      btn.disabled = true;
+      btn.textContent = 'Creating…';
+      const id = await _createAccount(name);
+      modal.classList.remove('open');
+      document.body.style.overflow = '';
+      resolve(id);
+    }
+    btn.onclick = save;
+    input.onkeydown = e => { if (e.key === 'Enter') save(); };
+  });
+}
+
+// ── Create a new account doc and seed empty categories ────────────
+async function _createAccount(name) {
+  const ref = window.doc(acctColRef());
+  await window.setDoc(ref, { name, createdAt: window.serverTimestamp() });
+  // Seed default categories for the new account
+  await window.setDoc(window.doc(window.db, 'users', uid, 'accounts', ref.id, 'categories', 'data'), {
+    income: DEFAULT_CATEGORIES.income.map(c => ({ ...c })),
+    expense: DEFAULT_CATEGORIES.expense.map(c => ({ ...c })),
+  });
+  return ref.id;
+}
+
+// ── Switch to a different account ─────────────────────────────────
+async function switchAccount(id) {
+  if (id === activeAccountId) return;
+
+  // Tear down existing listeners
+  if (_unsubTransactions) { _unsubTransactions(); _unsubTransactions = null; }
+  if (_unsubPending)      { _unsubPending(); _unsubPending = null; }
+
+  // Reset state
+  transactions   = [];
+  pendingAmounts = [];
+  categories     = { income: [], expense: [] };
+  startingBalance = 0;
+  isFirstLoad    = true;
+  window._allDataLoaded = false;
+
+  activeAccountId = id;
+  localStorage.setItem('activeAccountId_' + uid, id);
+  updateAccountBadge();
+
+  // Show loader briefly
+  const loader = document.getElementById('pageLoader');
+  if (loader) { loader.style.opacity = '1'; loader.style.display = 'flex'; }
+
+  // Reset data-loaded flags
+  window._dataLoaded = { categories: false, settings: false, transactions: false, pending: false };
+
+  // Re-render empty state immediately
+  renderTxList();
+  renderStats();
+
+  await loadCategories();
+  await loadSettings();
+  listenPending();
+  listenTransactions();
+}
+
+// ── Update the account name badge in the sidebar / settings ───────
+function updateAccountBadge() {
+  const acct = accounts.find(a => a.id === activeAccountId);
+  const name = acct ? acct.name : '—';
+  document.querySelectorAll('.active-account-name').forEach(el => {
+    el.textContent = name;
+  });
+}
+
+// ── Account Switcher UI ────────────────────────────────────────────
+function wireAccountSwitcher() {
+  const bg    = document.getElementById('acctSwitcherBg');
+  const panel = document.getElementById('acctSwitcherPanel');
+  if (!bg || !panel) return;
+
+  function openSwitcher() {
+    renderAccountList();
+    bg.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSwitcher() {
+    bg.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  window.openAccountSwitcher  = openSwitcher;
+  window.closeAccountSwitcher = closeSwitcher;
+
+  bg.addEventListener('click', e => { if (e.target === bg) closeSwitcher(); });
+  document.getElementById('acctSwitcherCloseBtn')?.addEventListener('click', closeSwitcher);
+  wireBottomSheetDrag(panel, closeSwitcher);
+
+  // Desktop sidebar button
+  document.getElementById('btnChangeAccount')?.addEventListener('click', () => {
+    closeSidebarIfOpen();
+    openSwitcher();
+  });
+
+  // Settings drawer button (mobile)
+  document.getElementById('btnChangeAccountMobile')?.addEventListener('click', () => {
+    // close settings drawer first
+    document.getElementById('settingsDrawer')?.classList.remove('open');
+    document.getElementById('settingsBackdrop')?.classList.remove('open');
+    document.body.style.overflow = '';
+    setTimeout(openSwitcher, 180);
+  });
+
+  // "Add new account" button inside switcher
+  document.getElementById('acctSwitcherAddBtn')?.addEventListener('click', () => {
+    closeSwitcher();
+    setTimeout(openNewAccountModal, 180);
+  });
+}
+
+function closeSidebarIfOpen() {
+  const sb = document.getElementById('sidebar');
+  if (sb && !sb.classList.contains('collapsed')) {
+    sb.classList.add('collapsed');
+    document.body.classList.remove('sidebar-expanded');
+  }
+}
+
+function renderAccountList() {
+  const list = document.getElementById('acctSwitcherList');
+  if (!list) return;
+  list.innerHTML = '';
+  accounts.forEach(acct => {
+    const isActive = acct.id === activeAccountId;
+    const div = document.createElement('div');
+    div.className = 'acct-switcher-item' + (isActive ? ' active' : '');
+    div.innerHTML = `
+      <span class="acct-switcher-check">${isActive ? '✓' : ''}</span>
+      <span class="acct-switcher-name">${esc(acct.name)}</span>
+      <div class="acct-switcher-actions">
+        <button class="btn-sm" onclick="openRenameAccount('${acct.id}','${esc(acct.name).replace(/'/g,"\\'")}')">Rename</button>
+        ${accounts.length > 1 ? `<button class="btn-sm del" onclick="confirmDeleteAccount('${acct.id}')">Delete</button>` : ''}
+      </div>
+    `;
+    if (!isActive) {
+      div.style.cursor = 'pointer';
+      div.addEventListener('click', async e => {
+        if (e.target.closest('.acct-switcher-actions')) return;
+        window.closeAccountSwitcher();
+        const acctList = await _once(acctColRef());
+        accounts = acctList.docs.map(d => ({ id: d.id, ...d.data() }));
+        await switchAccount(acct.id);
+      });
+    }
+    list.appendChild(div);
+  });
+}
+
+// ── New account modal ──────────────────────────────────────────────
+function openNewAccountModal() {
+  const modal = document.getElementById('newAccountModal');
+  const input = document.getElementById('newAccountNameInput');
+  const btn   = document.getElementById('newAccountSaveBtn');
+  if (!modal) return;
+  input.value = '';
+  document.getElementById('newAccountErr').textContent = '';
+  btn.disabled = false;
+  btn.textContent = 'Create Account';
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => input.focus(), 300);
+}
+window.openNewAccountModal = openNewAccountModal;
+
+function closeNewAccountModal() {
+  document.getElementById('newAccountModal')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+window.closeNewAccountModal = closeNewAccountModal;
+
+document.getElementById('newAccountSaveBtn')?.addEventListener('click', async () => {
+  const input = document.getElementById('newAccountNameInput');
+  const errEl = document.getElementById('newAccountErr');
+  const btn   = document.getElementById('newAccountSaveBtn');
+  const name  = input.value.trim();
+  if (!name) { errEl.textContent = 'Please enter an account name.'; return; }
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Creating…';
+  const newId = await _createAccount(name);
+  const snap = await _once(acctColRef());
+  accounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  closeNewAccountModal();
+  await switchAccount(newId);
+});
+
+document.getElementById('newAccountNameInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('newAccountSaveBtn')?.click();
+});
+
+document.getElementById('newAccountModal')?.addEventListener('click', e => {
+  if (e.target === document.getElementById('newAccountModal')) closeNewAccountModal();
+});
+
+// ── Rename account ────────────────────────────────────────────────
+window.openRenameAccount = function(id, currentName) {
+  window.closeAccountSwitcher();
+  const modal = document.getElementById('renameAccountModal');
+  const input = document.getElementById('renameAccountInput');
+  const btn   = document.getElementById('renameAccountSaveBtn');
+  if (!modal) return;
+  input.value = currentName;
+  document.getElementById('renameAccountErr').textContent = '';
+  btn.disabled = false;
+  btn.textContent = 'Save';
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => { input.focus(); input.select(); }, 300);
+
+  btn.onclick = async () => {
+    const name = input.value.trim();
+    if (!name) { document.getElementById('renameAccountErr').textContent = 'Enter a name.'; return; }
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    await window.setDoc(acctDocRef(id), { name }, { merge: true });
+    const snap = await _once(acctColRef());
+    accounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    updateAccountBadge();
+    closeRenameAccountModal();
+    // Re-open switcher so user sees updated list
+    setTimeout(() => window.openAccountSwitcher(), 180);
+  };
+
+  input.onkeydown = e => { if (e.key === 'Enter') btn.click(); };
+  modal.onclick = e => { if (e.target === modal) closeRenameAccountModal(); };
+};
+
+function closeRenameAccountModal() {
+  document.getElementById('renameAccountModal')?.classList.remove('open');
+  document.body.style.overflow = '';
+}
+window.closeRenameAccountModal = closeRenameAccountModal;
+
+// ── Delete account ────────────────────────────────────────────────
+window.confirmDeleteAccount = function(id) {
+  if (accounts.length <= 1) { alert('You must have at least one account.'); return; }
+  const acct = accounts.find(a => a.id === id);
+  const name = acct ? acct.name : 'this account';
+  if (!confirm(`Delete "${name}"?\n\nAll transactions and categories in this account will be permanently deleted. This cannot be undone.`)) return;
+  _deleteAccount(id);
+};
+
+async function _deleteAccount(id) {
+  // If deleting active account, switch to another first
+  if (id === activeAccountId) {
+    const other = accounts.find(a => a.id !== id);
+    if (other) await switchAccount(other.id);
+  }
+
+  // Delete all subcollections (transactions, pending, categories, settings)
+  // Firestore does not auto-delete subcollections from the client; we batch-delete docs
+  const subColNames = ['transactions', 'pending'];
+  for (const col of subColNames) {
+    const q = window.query(window.collection(window.db, 'users', uid, 'accounts', id, col));
+    const snap = await _once(q);
+    const BATCH = 500;
+    for (let i = 0; i < snap.docs.length; i += BATCH) {
+      const batch = window.writeBatch(window.db);
+      snap.docs.slice(i, i + BATCH).forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+  // Delete the account doc itself
+  await window.deleteDoc(acctDocRef(id));
+
+  // Refresh account list
+  const snap = await _once(acctColRef());
+  accounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  updateAccountBadge();
+  window.openAccountSwitcher();
+}

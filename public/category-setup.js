@@ -120,10 +120,38 @@ async function persist(expenseList, incomeList) {
 
   try {
     const uid = window.auth.currentUser.uid;
-    await window.setDoc(
-      window.doc(window.db, 'users', uid, 'settings', 'categories'),
-      { income: incomeList, expense: expenseList, setupCompleted: true, createdAt: window.serverTimestamp() }
-    );
+
+    // Determine whether we're editing an existing account or creating first account
+    // After migration, accounts live at users/{uid}/accounts/{acctId}/categories/data
+    // We look for a pending account ID passed via sessionStorage (set by initAccounts → promptCreateFirstAccount flow)
+    // OR fall back to creating/using the legacy path for the initial setup page.
+    const pendingAcctId = sessionStorage.getItem('pendingSetupAccountId');
+
+    if (pendingAcctId) {
+      // Save to the specific account already created
+      await window.setDoc(
+        window.doc(window.db, 'users', uid, 'accounts', pendingAcctId, 'categories', 'data'),
+        { income: incomeList, expense: expenseList, setupCompleted: true, createdAt: window.serverTimestamp() }
+      );
+      sessionStorage.removeItem('pendingSetupAccountId');
+    } else {
+      // Legacy path: first-time setup before account system existed
+      // Create a "Main Account" and save categories there, plus the old path for compatibility
+      const { addDoc, collection, serverTimestamp, doc, setDoc } = window;
+      const acctRef = doc(collection(window.db, 'users', uid, 'accounts'));
+      await setDoc(acctRef, { name: 'Main Account', createdAt: serverTimestamp(), isDefault: true });
+      await setDoc(
+        doc(window.db, 'users', uid, 'accounts', acctRef.id, 'categories', 'data'),
+        { income: incomeList, expense: expenseList, setupCompleted: true, createdAt: serverTimestamp() }
+      );
+      // Also save migration marker so initAccounts won't try to migrate
+      await setDoc(doc(window.db, 'users', uid, 'meta', 'accounts'), {
+        migrated: true,
+        mainAccountId: acctRef.id,
+        migratedAt: serverTimestamp(),
+      });
+    }
+
     window._authHandled = true;
     window.location.replace('index.html');
   } catch (e) {

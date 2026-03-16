@@ -141,6 +141,17 @@
   <div class="sidebar-divider"></div>
   <div class="sidebar-footer">
 
+    <!-- Active account badge + change button -->
+    <div class="sidebar-account-wrap">
+      <div class="sidebar-account-badge">
+        <span class="sidebar-account-icon">🏦</span>
+        <span class="sidebar-account-name active-account-name">—</span>
+      </div>
+      <button class="sidebar-account-change" id="btnChangeAccount" title="Change bank account">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+    </div>
+
     <button class="sidebar-item" id="sidebarSignOut" onclick="document.getElementById('btnSignOut').click()" aria-label="Sign out">
       <div class="sidebar-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -307,6 +318,17 @@
         <input type="text" id="startingBalanceInput" placeholder="e.g. 10000" inputmode="decimal" style="margin-bottom:8px;" />
         <button class="btn btn-secondary" id="saveStartingBalance" style="width:100%;">Save Balance</button>
       </div>
+    </div>
+
+    <div class="settings-group">
+      <h3>Bank Accounts</h3>
+      <div class="settings-active-account">
+        <span class="settings-active-account-icon">🏦</span>
+        <span class="active-account-name settings-active-account-name">—</span>
+      </div>
+      <button class="settings-row" id="btnChangeAccountMobile">
+        <span>Switch / Manage Accounts</span><span class="row-icon">⇄</span>
+      </button>
     </div>
 
     <div class="settings-group">
@@ -904,6 +926,84 @@
   <span class="undo-snack-msg">Sign out of Finance Tracker?</span>
   <button id="signOutCancelBtn" class="undo-snack-btn signout-cancel-btn">Cancel</button>
   <button id="signOutConfirmBtn" class="undo-snack-btn signout-confirm-btn">Sign Out</button>
+</div>
+
+<!-- ── First-time Account Setup Modal (new users only) ──────── -->
+<div class="modal-backdrop" id="firstAccountModal" style="z-index:10001;">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-head">
+      <h2>Welcome! Set Up Your Account</h2>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.88rem;color:var(--text-3);margin-bottom:18px;line-height:1.6;">Give your first bank account a name. You can add more accounts later.<br><span style="color:var(--text-3);font-size:.82rem;">e.g. HDFC Savings, Cash Wallet, Business Account</span></p>
+      <div class="field">
+        <label>Account Name</label>
+        <input type="text" id="firstAccountNameInput" placeholder="e.g. HDFC Savings" autocomplete="off" />
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="firstAccountSaveBtn">Get Started →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Account Switcher Panel ────────────────────────────────── -->
+<div class="acct-switcher-backdrop" id="acctSwitcherBg">
+  <div class="acct-switcher-panel" id="acctSwitcherPanel">
+    <div class="acct-switcher-head">
+      <h2>Bank Accounts</h2>
+      <button class="btn-close-settings" id="acctSwitcherCloseBtn">×</button>
+    </div>
+    <div class="acct-switcher-list" id="acctSwitcherList"></div>
+    <div class="acct-switcher-foot">
+      <button class="btn btn-secondary w-full" id="acctSwitcherAddBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="margin-right:6px;vertical-align:middle;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add New Account
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── New Account Modal ──────────────────────────────────────── -->
+<div class="modal-backdrop" id="newAccountModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-head">
+      <h2>New Bank Account</h2>
+      <button class="btn-close-settings" onclick="closeNewAccountModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Account Name</label>
+        <input type="text" id="newAccountNameInput" placeholder="e.g. SBI Savings, Cash Wallet" autocomplete="off" />
+      </div>
+      <div class="auth-err" id="newAccountErr" style="margin-top:8px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeNewAccountModal()">Cancel</button>
+      <button class="btn btn-primary" id="newAccountSaveBtn">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Rename Account Modal ───────────────────────────────────── -->
+<div class="modal-backdrop" id="renameAccountModal">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-head">
+      <h2>Rename Account</h2>
+      <button class="btn-close-settings" onclick="closeRenameAccountModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Account Name</label>
+        <input type="text" id="renameAccountInput" placeholder="Account name" autocomplete="off" />
+      </div>
+      <div class="auth-err" id="renameAccountErr" style="margin-top:8px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeRenameAccountModal()">Cancel</button>
+      <button class="btn btn-primary" id="renameAccountSaveBtn">Save</button>
+    </div>
+  </div>
 </div>
 
 </body>

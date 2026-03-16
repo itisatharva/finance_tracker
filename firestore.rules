@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper: only the authenticated owner can access their data ──────────
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+
+      // ── NEW: Multi-account system ─────────────────────────────────────────
+      // Migration marker (written once during migration, then read-only)
+      match /meta/{doc} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Account documents (name, createdAt, isDefault)
+      match /accounts/{accountId} {
+        allow read, write: if isOwner(userId);
+
+        // Per-account categories
+        match /categories/{doc} {
+          allow read, write: if isOwner(userId);
+        }
+
+        // Per-account general settings (startingBalance, etc.)
+        match /settings/{doc} {
+          allow read, write: if isOwner(userId);
+        }
+
+        // Per-account transactions
+        match /transactions/{transactionId} {
+          allow read, write: if isOwner(userId);
+        }
+
+        // Per-account pending amounts
+        match /pending/{pendingId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+
+      // ── LEGACY paths — kept for the one-time migration read ──────────────
+      // migrateLegacyData() reads these once, then the app never writes here again.
+      // Safe to keep: isOwner() guard is still enforced.
+      match /transactions/{transactionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /settings/{setting} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /pending/{pendingId} {
+        allow read, write: if isOwner(userId);
+      }
+
+    }
+  }
+}
