@@ -172,18 +172,46 @@ window.NLP = (() => {
     return note.length > 2 ? note : '';
   }
 
+  // ── Split comma/"and"-separated items into per-item segments ───────────────
+  function splitItems(text) {
+    const parts = text.split(/\s*,\s*|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
+    const valid = parts.filter(p => extractAmounts(p).length > 0);
+    return valid.length > 1 ? valid : [text];
+  }
+
+  // ── Classify a single short segment ──────────────────────────────────────────
+  function classifySegment(seg, m, date) {
+    const vec        = tfidfVector(seg, m.vocabulary, m.idf, m.sublinear_tf);
+    const probs      = predict(vec, m.coef, m.intercept);
+    const maxProb    = Math.max(...probs);
+    const category   = m.classes[probs.indexOf(maxProb)];
+    const confidence = Math.round(maxProb * 100);
+    const amounts    = extractAmounts(seg);
+    const type       = detectType(seg, category);
+    const note       = extractNote(seg);
+    return { amount: amounts[0] || null, category, type, date, note, confidence };
+  }
+
   // ── Main parse function ───────────────────────────────────────────────────
   async function parse(text) {
-    const m = await loadModel();
-    const vec = tfidfVector(text, m.vocabulary, m.idf, m.sublinear_tf);
-    const probs = predict(vec, m.coef, m.intercept);
-    const maxProb = Math.max(...probs);
-    const category = m.classes[probs.indexOf(maxProb)];
-    const confidence = Math.round(maxProb * 100);
-    const amounts = extractAmounts(text);
+    const m    = await loadModel();
     const date = extractDate(text);
-    const type = detectType(text, category);
-    const note = extractNote(text);
+
+    // Split comma/"and"-separated items and classify each independently
+    const segments = splitItems(text);
+    if (segments.length > 1) {
+      return segments.map(seg => classifySegment(seg, m, date));
+    }
+
+    // Single-item path
+    const vec        = tfidfVector(text, m.vocabulary, m.idf, m.sublinear_tf);
+    const probs      = predict(vec, m.coef, m.intercept);
+    const maxProb    = Math.max(...probs);
+    const category   = m.classes[probs.indexOf(maxProb)];
+    const confidence = Math.round(maxProb * 100);
+    const amounts    = extractAmounts(text);
+    const type       = detectType(text, category);
+    const note       = extractNote(text);
 
     if (amounts.length > 1) {
       return amounts.map(amount => ({ amount, category, type, date, note, confidence }));
