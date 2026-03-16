@@ -24,9 +24,9 @@
 <style>@keyframes loader-out{to{opacity:0;pointer-events:none;}}
 /* ── NLP Smart Entry ── */
 .nlp-toggle-btn {
-  display:flex;align-items:center;gap:5px;padding:5px 10px;
+  display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
   border-radius:var(--r-pill);border:1.5px solid var(--border);
-  background:var(--bg-subtle);color:var(--text-3);font-size:.75rem;
+  background:var(--bg-card);color:var(--text-2);font-size:.82rem;
   font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;
   font-family:inherit;letter-spacing:.03em;flex-shrink:0;
 }
@@ -144,15 +144,7 @@
     <!-- Active account badge + change button -->
     <div class="sidebar-account-wrap">
       <div class="sidebar-account-badge">
-        <span class="sidebar-account-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-            <rect x="3" y="10" width="18" height="11" rx="1.5"/>
-            <path d="M3 10l9-7 9 7"/>
-            <line x1="12" y1="10" x2="12" y2="21"/>
-            <line x1="7" y1="14" x2="7" y2="17"/>
-            <line x1="17" y1="14" x2="17" y2="17"/>
-          </svg>
-        </span>
+        <span class="sidebar-account-icon">🏦</span>
         <span class="sidebar-account-name active-account-name">—</span>
       </div>
       <button class="sidebar-account-change" id="btnChangeAccount" title="Change bank account">
@@ -331,15 +323,7 @@
     <div class="settings-group">
       <h3>Bank Accounts</h3>
       <div class="settings-active-account">
-        <span class="settings-active-account-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-            <rect x="3" y="10" width="18" height="11" rx="1.5"/>
-            <path d="M3 10l9-7 9 7"/>
-            <line x1="12" y1="10" x2="12" y2="21"/>
-            <line x1="7" y1="14" x2="7" y2="17"/>
-            <line x1="17" y1="14" x2="17" y2="17"/>
-          </svg>
-        </span>
+        <span class="settings-active-account-icon">🏦</span>
         <span class="active-account-name settings-active-account-name">—</span>
       </div>
       <button class="settings-row" id="btnChangeAccountMobile">
@@ -405,8 +389,9 @@
               </div>
               <span>Add Transaction</span>
             </div>
-            <div class="quick-cats" id="quickCats"></div>
-            <button class="nlp-toggle-btn" id="nlpToggleBtn" title="AI smart entry">✦ AI</button>
+            <div class="quick-cats" id="quickCats">
+              <button class="nlp-toggle-btn quick-cat-pill" id="nlpToggleBtn" title="AI smart entry">✦ AI</button>
+            </div>
           </div>
           <!-- NLP input row -->
           <div class="nlp-input-row hidden" id="nlpInputRow">
