@@ -13,6 +13,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Finance" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <script>
+    // Instant auth guard — runs synchronously before any paint.
+    // If no login flag exists, redirect to landing immediately so the user
+    // never sees the skeleton or page loader at all.
+    if (!localStorage.getItem('ftAuthed')) {
+      window.location.replace('landing.html');
+    }
+  </script>
   <script src="/pwa.js"></script>
   <script>(function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light'); })();</script>
 

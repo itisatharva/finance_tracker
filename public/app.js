@@ -112,6 +112,8 @@ window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) return;
     uid = user.uid;
+    // Mark session as active so index.html can skip-redirect immediately on next visit
+    localStorage.setItem('ftAuthed', '1');
     isFirstLoad = true; // reset per session so animations fire correctly on re-login
     window._allDataLoaded = false; // reset so stat cards show skeleton on re-login
     
@@ -524,6 +526,7 @@ function wireSettingsDrawer() {
     // Reset delete-confirmation preference on every sign-out so it defaults to asking again on next login
     localStorage.removeItem('skipDeleteConfirm');
     await window.fbSignOut(window.auth).catch(console.error);
+    localStorage.removeItem('ftAuthed');
     window.location.replace('login.html');
   });
 
