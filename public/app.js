@@ -3801,6 +3801,12 @@ function updateAccountBadge() {
   document.querySelectorAll('.active-account-name').forEach(el => {
     el.textContent = name;
   });
+  // Update greeting bar pill
+  const pill = document.getElementById('acctGreetingPill');
+  if (pill) {
+    pill.textContent = name;
+    pill.style.opacity = name && name !== '—' ? '1' : '0';
+  }
 }
 
 // ── Account Switcher UI ────────────────────────────────────────────

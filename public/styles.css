@@ -351,6 +351,26 @@ body {
   gap: 8px;
 }
 
+/* Account name pill beside greeting name */
+.acct-greeting-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--text-2);
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border);
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+
 /* ---------- STAT CARDS ---------- */
 
 .stats-row {
