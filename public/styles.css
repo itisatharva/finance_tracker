@@ -337,6 +337,12 @@ body {
   color: var(--text-3);
   font-weight: 500;
 }
+.dash-greeting-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 .dash-greeting-name {
   font-size: 1rem;
   font-weight: 700;
@@ -345,10 +351,6 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* flex so the desktop offline badge sits inline on the same line */
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* Account name pill beside greeting name */
