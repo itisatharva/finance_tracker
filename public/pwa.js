@@ -87,15 +87,15 @@
       flex-shrink: 0;
       will-change: opacity, transform;
 
-      /* Hidden: invisible + shifted slightly up-left */
+      /* Hidden: invisible + shifted left (slide-in origin) */
       opacity: 0;
-      transform: scale(0.72) translateX(-6px);
+      transform: translateX(-10px);
       pointer-events: none;
 
       /* GPU-only transitions — silky 60fps */
       transition:
-        opacity   0.65s cubic-bezier(0.16, 1, 0.3, 1),
-        transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+        opacity   0.45s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     /* Offline colours */
@@ -125,8 +125,15 @@
     /* Visible: full opacity, natural position */
     #__pwa_badge.pwa-badge-show {
       opacity: 1;
-      transform: scale(1) translateX(0);
+      transform: translateX(0);
       pointer-events: auto;
+    }
+
+    /* Hiding: slide out to the right */
+    #__pwa_badge.pwa-badge-hiding {
+      opacity: 0;
+      transform: translateX(10px);
+      pointer-events: none;
     }
 
     /* Dot */
@@ -227,6 +234,7 @@
 
       // Reset colours + text while badge is still invisible
       b.classList.remove('pwa-badge-online');
+      b.classList.remove('pwa-badge-hiding');
       b.classList.add('pwa-badge-offline');
       dot.classList.remove('pwa-dot-online');
       txt.classList.remove('pwa-text-fade');
@@ -268,19 +276,21 @@
       // Step 3: Fade text back in
       txt.classList.remove('pwa-text-fade');
 
-      // Step 4: After 2.6s hold, fade the whole badge out
+      // Step 4: After 2.6s hold, slide the whole badge out to the right
       _hideTimer = setTimeout(() => {
-        b.classList.remove('pwa-badge-show');   // GPU opacity + transform fade-out
+        b.classList.remove('pwa-badge-show');   // remove visible state
+        b.classList.add('pwa-badge-hiding');     // slide out to the right
 
-        // Step 5: After fade-out completes (650ms), snap wrapper closed + reset colours
+        // Step 5: After slide-out completes, snap wrapper closed + reset
         setTimeout(() => {
           if (!_isOffline) {
-            w.classList.remove('pwa-wrap-show');
+            b.classList.remove('pwa-badge-hiding');
             b.classList.remove('pwa-badge-online');
             b.classList.add('pwa-badge-offline');
             dot.classList.remove('pwa-dot-online');
+            w.classList.remove('pwa-wrap-show');
           }
-        }, 700); // slightly longer than transition duration
+        }, 500);
       }, 2600);
     }, 450); // matches pwa-text-fade transition duration
   }
