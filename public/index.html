@@ -14,7 +14,12 @@
   <meta name="apple-mobile-web-app-title" content="Finance" />
   <meta name="mobile-web-app-capable" content="yes" />
   <script src="/pwa.js"></script>
-  <script>(function(){ document.documentElement.setAttribute('data-theme', localStorage.getItem('theme')||'light'); })();</script>
+  <script>(function(){
+    var t = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', t);
+    // Set real background color before stylesheet loads — prevents any flash
+    document.documentElement.style.background = t === 'dark' ? '#0C0C0C' : '#F4F4F7';
+  })();</script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -22,6 +27,8 @@
   <link rel="stylesheet" href="styles.css?v=1771054095282" />
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
 <style>@keyframes loader-out{to{opacity:0;pointer-events:none;}}
+/* Hide body until Firebase confirms auth — prevents skeleton flash for logged-out users */
+body { visibility: hidden; }
 /* ── NLP Smart Entry ── */
 .nlp-toggle-btn {
   display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
@@ -89,7 +96,8 @@
 <body>
 
 <!-- Page loader -->
-<div id="pageLoader" style="position:fixed;inset:0;background:var(--bg-page);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;animation:loader-out 0.4s linear 6s forwards;">
+<div id="pageLoader" style="position:fixed;inset:0;background:#F4F4F7;background:var(--bg-page);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;animation:loader-out 0.4s linear 6s forwards;">
+  <script>(function(){ var l=document.getElementById('pageLoader'); if(l) l.style.background=localStorage.getItem('theme')==='dark'?'#0C0C0C':'#F4F4F7'; })();</script>
   <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite;"></div>
   <div style="font-size:.9rem;color:var(--text-3);font-family:'DM Sans',sans-serif;">Loading…</div>
 </div>
