@@ -2781,7 +2781,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     overflow: hidden;
   }
   .sidebar:not(.collapsed) {
-    width: 176px;
+    width: var(--sidebar-open-w, 176px);
     border-radius: 16px;
     align-items: stretch;
     padding: 6px 6px;
@@ -2879,7 +2879,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     padding-left: 84px;
     transition: padding-left .28s cubic-bezier(.4,0,.2,1);
   }
-  body.sidebar-expanded .container { padding-left: 208px; /* 16 + 176 + 16 */ }
+  body.sidebar-expanded .container { padding-left: calc(var(--sidebar-open-w, 176px) + 32px); /* 16 + width + 16 */ }
 }
 
 /* ── Bottom nav (mobile only) ───────────────────────────────────────────────── */
@@ -3306,7 +3306,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   min-width: 0;
   overflow: hidden;
 }
-.sidebar-account-icon { font-size: 1rem; flex-shrink: 0; }
+.sidebar-account-icon { font-size: 1rem; flex-shrink: 0; display: flex; align-items: center; color: var(--text-2); }
 .sidebar-account-name {
   font-size: .78rem;
   font-weight: 600;
@@ -3343,7 +3343,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-radius: var(--r-md);
   margin-bottom: 10px;
 }
-.settings-active-account-icon { font-size: 1.1rem; }
+.settings-active-account-icon { font-size: 1.1rem; display: flex; align-items: center; color: var(--text-2); }
 .settings-active-account-name {
   font-size: .88rem;
   font-weight: 600;

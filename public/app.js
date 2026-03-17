@@ -44,9 +44,29 @@ function _once(q) {
   const toggle  = document.getElementById('sidebarToggle');
   if (!sidebar || !toggle) return;
 
+  // Measure the required expanded width based on the account name text.
+  // Called once on open and again whenever the active account name changes.
+  function _setSidebarWidth() {
+    const nameEl = sidebar.querySelector('.sidebar-account-name');
+    if (!nameEl) return;
+
+    // Temporarily measure natural text width: remove overflow clipping via clone
+    const MIN_W = 176;
+    const PADDING = 84; // icon(44) + gap(7) + change-btn(26) + gaps/padding(~7)
+    const canvas = _setSidebarWidth._canvas || (_setSidebarWidth._canvas = document.createElement('canvas'));
+    const ctx = canvas.getContext('2d');
+    const style = window.getComputedStyle(nameEl);
+    ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const textW = ctx.measureText(nameEl.textContent || '').width;
+    const needed = Math.ceil(textW) + PADDING;
+    const finalW = Math.max(MIN_W, needed);
+    sidebar.style.setProperty('--sidebar-open-w', finalW + 'px');
+  }
+
   toggle.addEventListener('click', () => {
     const isCollapsed = sidebar.classList.contains('collapsed');
     if (isCollapsed) {
+      _setSidebarWidth(); // recalculate before animating open
       sidebar.classList.remove('collapsed');
       document.body.classList.add('sidebar-expanded');
     } else {
@@ -54,6 +74,9 @@ function _once(q) {
       document.body.classList.remove('sidebar-expanded');
     }
   });
+
+  // Expose so account-switch code can recalculate after name changes
+  window._recalcSidebarWidth = _setSidebarWidth;
 })();let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
@@ -3813,6 +3836,8 @@ function updateAccountBadge() {
     pill.textContent = name;
     pill.style.opacity = name && name !== '—' ? '1' : '0';
   }
+  // Recalc sidebar expanded width for the new name
+  if (window._recalcSidebarWidth) window._recalcSidebarWidth();
 }
 
 // ── Account Switcher UI ────────────────────────────────────────────
