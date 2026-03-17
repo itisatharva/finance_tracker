@@ -677,6 +677,19 @@
 
   <!-- ── Auth redirect — skip landing for logged-in users ─────────────────── -->
   <script type="module" src="firebase-config.js"></script>
+  <script type="module">
+    // If a returning user lands here with a cached session, send them straight
+    // to the dashboard with a gentle fade instead of showing the landing page.
+    window.firebaseReady.then(() => {
+      window.onAuthStateChanged(window.auth, user => {
+        if (!user) return; // not signed in — stay on landing
+        // Fade page out, then navigate
+        document.body.style.transition = 'opacity 0.3s ease';
+        document.body.style.opacity = '0';
+        setTimeout(() => window.location.replace('index.html'), 320);
+      });
+    });
+  </script>
 
   <!-- ── Scroll reveal ─────────────────────────────────────────────────────── -->
   <script>

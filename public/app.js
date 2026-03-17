@@ -110,7 +110,11 @@ window.firebaseReady.then(() => {
   if (window.NLP) NLP.preload(); // load model.json in background
 
   window.onAuthStateChanged(window.auth, async user => {
-    if (!user) return;
+    if (!user) {
+      // No session — send to landing page for new visitors
+      window.location.replace('landing.html');
+      return;
+    }
     uid = user.uid;
     // Reveal app content now that Firebase has confirmed a real session
     document.body.classList.remove('auth-pending');
