@@ -3744,6 +3744,14 @@ async function _createAccount(name) {
 async function switchAccount(id) {
   if (id === activeAccountId) return;
 
+  // ── Fade out main content ─────────────────────────────────────────
+  const container = document.querySelector('.container');
+  if (container) {
+    container.style.transition = 'opacity .18s ease';
+    container.style.opacity = '0';
+  }
+  await new Promise(r => setTimeout(r, 180));
+
   // Tear down existing listeners
   if (_unsubTransactions) { _unsubTransactions(); _unsubTransactions = null; }
   if (_unsubPending)      { _unsubPending(); _unsubPending = null; }
@@ -3760,16 +3768,25 @@ async function switchAccount(id) {
   localStorage.setItem('activeAccountId_' + uid, id);
   updateAccountBadge();
 
-  // Show loader briefly
-  const loader = document.getElementById('pageLoader');
-  if (loader) { loader.style.opacity = '1'; loader.style.display = 'flex'; }
-
   // Reset data-loaded flags
   window._dataLoaded = { categories: false, settings: false, transactions: false, pending: false };
 
   // Re-render empty state immediately
   renderTxList();
   renderStats();
+
+  // Override _checkAllDataLoaded to fade back in once data is ready
+  const _origCheck = window._checkAllDataLoaded;
+  window._checkAllDataLoaded = function() {
+    _origCheck && _origCheck();
+    if (window._allDataLoaded && container) {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        container.style.transition = 'opacity .3s ease';
+        container.style.opacity = '1';
+      }));
+      window._checkAllDataLoaded = _origCheck;
+    }
+  };
 
   await loadCategories();
   await loadSettings();
