@@ -49,16 +49,14 @@ function redirect(url) {
 }
 
 
-// ── Card toggle ───────────────────────────────────────────────────────────────
+// ── Card toggle (uses switchTo() flip animation defined in login.html) ────────
 document.getElementById('goToSignup').addEventListener('click', e => {
   e.preventDefault();
-  document.getElementById('cardSignin').classList.add('auth-slide-out');
-  document.getElementById('cardSignup').classList.remove('auth-slide-out');
+  window.switchTo('signup');
 });
 document.getElementById('goToSignin').addEventListener('click', e => {
   e.preventDefault();
-  document.getElementById('cardSignup').classList.add('auth-slide-out');
-  document.getElementById('cardSignin').classList.remove('auth-slide-out');
+  window.switchTo('signin');
 });
 
 // ── Email sign-in ─────────────────────────────────────────────────────────────
@@ -149,17 +147,15 @@ document.getElementById('goToForgot').addEventListener('click', e => {
   // Pre-fill with whatever email is already typed — saves the user a step
   const email = document.getElementById('siEmail').value.trim();
   if (email) document.getElementById('fpEmail').value = email;
-  document.getElementById('cardSignin').classList.add('auth-slide-out');
-  document.getElementById('cardForgot').classList.remove('auth-slide-out');
-  setTimeout(() => document.getElementById('fpEmail').focus(), 340);
+  window.switchTo('forgot');
+  setTimeout(() => document.getElementById('fpEmail').focus(), 460);
 });
 
 document.getElementById('goToSigninFromForgot').addEventListener('click', e => {
   e.preventDefault();
   _resetForgotCard();
-  document.getElementById('cardForgot').classList.add('auth-slide-out');
-  document.getElementById('cardSignin').classList.remove('auth-slide-out');
-  setTimeout(() => document.getElementById('siEmail').focus(), 340);
+  window.switchTo('signin');
+  setTimeout(() => document.getElementById('siEmail').focus(), 460);
 });
 
 function _resetForgotCard() {
