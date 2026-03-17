@@ -103,9 +103,17 @@ body.auth-pending .btn-settings {
 
 <!-- Page loader -->
 <div id="pageLoader" style="position:fixed;inset:0;background:#F4F4F7;background:var(--bg-page);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;animation:loader-out 0.4s linear 6s forwards;">
-  <script>(function(){ var l=document.getElementById('pageLoader'); if(l) l.style.background=localStorage.getItem('theme')==='dark'?'#0C0C0C':'#F4F4F7'; })();</script>
-  <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite;"></div>
-  <div style="font-size:.9rem;color:var(--text-3);font-family:'DM Sans',sans-serif;">Loading…</div>
+  <script>(function(){
+    var t = localStorage.getItem('theme') === 'dark';
+    var l = document.getElementById('pageLoader');
+    var s = l && l.querySelector('.pl-spinner');
+    var tx = l && l.querySelector('.pl-text');
+    if (l)  l.style.background  = t ? '#0C0C0C' : '#F4F4F7';
+    if (s)  { s.style.borderColor = t ? '#262626' : '#E6E6EA'; s.style.borderTopColor = t ? '#FFFFFF' : '#111111'; }
+    if (tx) tx.style.color = t ? '#505050' : '#AAAAAA';
+  })();</script>
+  <div class="pl-spinner" style="width:36px;height:36px;border:3px solid #E6E6EA;border-top-color:#111111;border-radius:50%;animation:spin .8s linear infinite;"></div>
+  <div class="pl-text" style="font-size:.9rem;color:#AAAAAA;font-family:'DM Sans',sans-serif;">Loading…</div>
 </div>
 
 <!-- ☰ Hamburger button (desktop only) -->
