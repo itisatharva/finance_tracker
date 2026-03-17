@@ -475,6 +475,17 @@
       .btn-hero, .btn-hero-outline { width: 100%; justify-content: center; }
       .hero-stats { gap: 24px; }
     }
+    /* Offline flow pill row */
+    .offline-flow { display:flex; flex-direction:row; align-items:center; gap:8px; flex-wrap:wrap; }
+    .offline-pill { display:flex; align-items:center; gap:6px; border-radius:999px; padding:4px 11px 4px 7px; }
+    .offline-pill span { font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+    .offline-pill--queued { border:1.5px solid rgba(245,158,11,.45); }
+    .offline-pill--queued span { color:#92400e; }
+    .offline-pill--synced { border:1.5px solid rgba(15,169,116,.4); }
+    .offline-pill--synced span { color:#065f46; }
+    .offline-label { font-size:.8rem; color:var(--text-3); white-space:nowrap; }
+    [data-theme="dark"] .offline-pill--queued span { color:#fbbf24; }
+    [data-theme="dark"] .offline-pill--synced span { color:#34d399; }
   </style>
 </head>
 <body>
@@ -611,17 +622,17 @@
         <div class="feature-icon" style="background:rgba(245,158,11,.12);">📶</div>
         <div class="feature-title">Works fully offline — transactions never get lost</div>
         <div class="feature-desc">Add expenses mid-flight, on the subway, anywhere without signal. Writes queue to your device and sync to the cloud the moment you reconnect — automatically.</div>
-        <div class="feature-mockup" style="display:flex;flex-direction:row;align-items:center;gap:10px;flex-wrap:nowrap;">
-          <div style="display:flex;align-items:center;gap:6px;border:1.5px solid rgba(245,158,11,.45);border-radius:999px;padding:4px 11px 4px 7px;white-space:nowrap;">
+        <div class="feature-mockup offline-flow">
+          <div class="offline-pill offline-pill--queued">
             <div style="width:6px;height:6px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></div>
-            <span style="font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#92400e;">Queued offline</span>
+            <span>Queued offline</span>
           </div>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          <span style="font-size:.8rem;color:var(--text-3);white-space:nowrap;">Back online</span>
+          <span class="offline-label">Back online</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          <div style="display:flex;align-items:center;gap:6px;border:1.5px solid rgba(15,169,116,.4);border-radius:999px;padding:4px 11px 4px 7px;white-space:nowrap;">
+          <div class="offline-pill offline-pill--synced">
             <div style="width:6px;height:6px;border-radius:50%;background:#0FA974;flex-shrink:0;"></div>
-            <span style="font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#065f46;">Synced</span>
+            <span>Synced</span>
           </div>
         </div>
       </div>
