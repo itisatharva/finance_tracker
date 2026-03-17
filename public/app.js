@@ -112,8 +112,6 @@ window.firebaseReady.then(() => {
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) return;
     uid = user.uid;
-    // Reveal the app now that we know the user is authenticated
-    document.body.style.visibility = 'visible';
     isFirstLoad = true; // reset per session so animations fire correctly on re-login
     window._allDataLoaded = false; // reset so stat cards show skeleton on re-login
     
