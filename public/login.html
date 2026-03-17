@@ -49,14 +49,14 @@
       <div class="field">
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:0;">
           <label>Password</label>
-          <a href="#" id="goToForgot" class="auth-forgot-link">Forgot password?</a>
+          <a href="#" id="goToForgot" class="auth-forgot-link" onclick="switchTo('forgot'); return false;">Forgot password?</a>
         </div>
         <input type="password" id="siPass" placeholder="••••••••" autocomplete="current-password" />
       </div>
       <button type="submit" class="btn btn-primary w-full auth-btn" id="signinBtn">Sign In</button>
     </form>
 
-    <p class="auth-toggle">Don't have an account? <a href="#" id="goToSignup">Join for free →</a></p>
+    <p class="auth-toggle">Don't have an account? <a href="#" id="goToSignup" onclick="switchTo('signup'); return false;">Join for free →</a></p>
   </div>
 
   <!-- FORGOT PASSWORD CARD -->
@@ -84,7 +84,7 @@
       <p class="forgot-success-hint">Didn't get it? Check your spam folder or <a href="#" id="resendReset">resend</a>.</p>
     </div>
 
-    <p class="auth-toggle" style="margin-top:20px;"><a href="#" id="goToSigninFromForgot">← Back to Sign In</a></p>
+    <p class="auth-toggle" style="margin-top:20px;"><a href="#" id="goToSigninFromForgot" onclick="switchTo('signin'); return false;">← Back to Sign In</a></p>
   </div>
 
   <!-- JOIN CARD -->
@@ -123,7 +123,7 @@
       <button type="submit" class="btn btn-join w-full auth-btn" id="signupBtn">Join</button>
     </form>
 
-    <p class="auth-toggle">Already have an account? <a href="#" id="goToSignin">← Sign in</a></p>
+    <p class="auth-toggle">Already have an account? <a href="#" id="goToSignin" onclick="switchTo('signin'); return false;">← Sign in</a></p>
   </div>
 
 </div>
@@ -139,7 +139,48 @@
     }); });
   }
 </script>
-<script type="module" src="firebase-config.js?v=1771067140680"></script>
-<script type="module" src="auth.js?v=1771067140680"></script>
+  <!-- Flip-card navigation helper -->
+  <script>
+    (function () {
+      var CARDS = { signin: 'cardSignin', signup: 'cardSignup', forgot: 'cardForgot' };
+      var _busy = false;
+
+      window.switchTo = function (target) {
+        if (_busy) return;
+        var targetEl = document.getElementById(CARDS[target]);
+        if (!targetEl) return;
+
+        // Find the currently visible card
+        var fromEl = null;
+        Object.values(CARDS).forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el && !el.classList.contains('auth-slide-out') && el !== targetEl) fromEl = el;
+        });
+        if (!fromEl || fromEl === targetEl) return;
+
+        _busy = true;
+
+        // Phase 1 — flip current card out
+        fromEl.classList.add('auth-flipping-out');
+
+        setTimeout(function () {
+          fromEl.classList.remove('auth-flipping-out');
+          fromEl.classList.add('auth-slide-out');
+
+          // Phase 2 — flip new card in
+          targetEl.style.visibility = '';
+          targetEl.classList.remove('auth-slide-out');
+          targetEl.classList.add('auth-flipping-in');
+
+          setTimeout(function () {
+            targetEl.classList.remove('auth-flipping-in');
+            _busy = false;
+          }, 230);
+        }, 210);
+      };
+    })();
+  </script>
+  <script type="module" src="firebase-config.js?v=1771067140680"></script>
+  <script type="module" src="auth.js?v=1771067140680"></script>
 </body>
 </html>
