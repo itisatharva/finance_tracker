@@ -3192,6 +3192,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   align-items: center;
   gap: 12px;
   padding: 4px 0;
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 .add-tx-desktop-trigger {
   display: flex;
@@ -3221,8 +3223,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: nowrap;
-  margin-left: auto;
+  flex-wrap: wrap;
 }
 .quick-cat-pill {
   display: inline-flex;
