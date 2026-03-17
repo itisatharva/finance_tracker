@@ -27,6 +27,14 @@
   <link rel="stylesheet" href="styles.css?v=1771054095282" />
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
 <style>@keyframes loader-out{to{opacity:0;pointer-events:none;}}
+/* Hide app skeleton until Firebase confirms auth.
+   Only targets content elements — NOT #pageLoader, so the spinner is always visible. */
+body.auth-pending .container,
+body.auth-pending .sidebar,
+body.auth-pending .bottom-nav,
+body.auth-pending .btn-settings {
+  visibility: hidden;
+}
 /* ── NLP Smart Entry ── */
 .nlp-toggle-btn {
   display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
@@ -91,7 +99,7 @@
 .hidden{display:none!important;}
 </style>
 </head>
-<body>
+<body class="auth-pending">
 
 <!-- Page loader -->
 <div id="pageLoader" style="position:fixed;inset:0;background:#F4F4F7;background:var(--bg-page);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;transition:opacity .3s;animation:loader-out 0.4s linear 6s forwards;">
