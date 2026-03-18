@@ -2969,6 +2969,22 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
       inset 0 1px 0 rgba(255,255,255,0.06);
   }
 
+  /* ── Ambient glow behind the nav pill ── */
+  .bottom-nav::before {
+    content: '';
+    position: absolute;
+    inset: -20px -40px;
+    border-radius: 999px;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.55) 0%, transparent 70%);
+    filter: blur(18px);
+    z-index: -1;
+    pointer-events: none;
+  }
+  [data-theme="dark"] .bottom-nav::before {
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.10) 0%, transparent 70%);
+    filter: blur(22px);
+  }
+
   /* ── Settings drawer → bottom sheet on mobile ── */
 
   .settings-drawer {
