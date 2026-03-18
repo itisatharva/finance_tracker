@@ -2818,7 +2818,7 @@ function renderPendingList() {
   // On mobile: hide the pending card when 0 or 1 entries (stat card handles it)
   // On mobile with >1 entries: show the full card as normal
   if (isMobile && pendingCard) {
-    const hide = pendingAmounts.length <= 1;
+    const hide = pendingAmounts.length === 0;
     pendingCard.classList.toggle('pending-card-mobile-hidden', hide);
   }
 
