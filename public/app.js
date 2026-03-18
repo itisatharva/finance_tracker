@@ -2811,6 +2811,23 @@ function wireAddPending() {
 
 function renderPendingList() {
   const el = document.getElementById('pendingList');
+  const isMobile = window.innerWidth <= 768;
+  const pendingCard = document.querySelector('.pending-card');
+  const pendingStatAdd = document.getElementById('pendingStatAdd');
+
+  // On mobile: hide the pending card when 0 or 1 entries (stat card handles it)
+  // On mobile with >1 entries: show the full card as normal
+  if (isMobile && pendingCard) {
+    const hide = pendingAmounts.length <= 1;
+    pendingCard.classList.toggle('pending-card-mobile-hidden', hide);
+  }
+
+  // Show/hide the "add pending" subtle link on the stat card (mobile only)
+  if (pendingStatAdd) {
+    // Only show when there are 0 items (nothing to display in sPendingTop either)
+    pendingStatAdd.style.display = (isMobile && pendingAmounts.length === 0) ? '' : 'none';
+  }
+
   if (!pendingAmounts.length) { el.innerHTML = '<div class="empty">No pending amounts</div>'; return; }
   el.innerHTML = '';
 

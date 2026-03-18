@@ -790,6 +790,17 @@ input[type="color"] {
   border: 1.5px solid var(--border);
   border-radius: var(--r-md);
 }
+
+/* ── Pending stat card — mobile "add pending" subtle link ─────────────────── */
+.pending-stat-add {
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: .03em;
+  margin-top: 6px;
+  opacity: .75;
+  display: none; /* shown only on mobile via media query */
+}
 .pending-hint {
   font-size: .76rem;
   color: var(--text-3);
@@ -3137,6 +3148,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   /* Hide the desktop trigger card on mobile */
   .add-tx-desktop-card {
     display: none !important;
+  }
+
+  /* On mobile: hide pending-card when JS has ≤1 items (controlled by .pending-card-mobile-hidden) */
+  .pending-card-mobile-hidden {
+    display: none !important;
+  }
+
+  /* Show the subtle "add pending" link inside the stat card on mobile */
+  .pending-stat-add {
+    display: block;
   }
 
 } /* end @media max-width 768px */
