@@ -2945,12 +2945,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     width: auto;
     z-index: 950;
 
-    /* clean white pill with soft shadow */
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
-
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 999px;
     padding: 6px 10px;
     gap: 2px;
@@ -2961,34 +2957,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 
   [data-theme="dark"] .bottom-nav {
-    background: rgba(28, 28, 28, 0.72);
-    border-color: rgba(255, 255, 255, 0.10);
     box-shadow:
       0 8px 32px rgba(0, 0, 0, 0.55),
-      0 2px 8px  rgba(0, 0, 0, 0.40),
-      inset 0 1px 0 rgba(255,255,255,0.06);
-  }
-
-  /* ── Ambient glow behind the nav pill ── */
-  .bottom-nav::before {
-    content: '';
-    position: absolute;
-    inset: -40px -72px;
-    border-radius: 999px;
-    background: radial-gradient(ellipse at center,
-      rgba(255,255,255,0.82) 0%,
-      rgba(255,255,255,0.45) 35%,
-      transparent 70%);
-    filter: blur(32px);
-    z-index: -1;
-    pointer-events: none;
-  }
-  [data-theme="dark"] .bottom-nav::before {
-    background: radial-gradient(ellipse at center,
-      rgba(255,255,255,0.18) 0%,
-      rgba(255,255,255,0.08) 40%,
-      transparent 70%);
-    filter: blur(38px);
+      0 2px 8px  rgba(0, 0, 0, 0.40);
   }
 
   /* ── Settings drawer → bottom sheet on mobile ── */
