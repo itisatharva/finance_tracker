@@ -753,10 +753,7 @@ body.auth-pending .btn-settings {
       <div class="add-cat-row">
         <input type="text" id="newExpName" placeholder="Category name" />
         <input type="number" id="newExpBudget" placeholder="Budget" class="add-budget-input" min="0" step="0.01" />
-        <div class="add-cat-color-wrap" title="Pick color">
-          <input type="color" id="newExpColor" value="#E84545" oninput="syncSwatch('newExpColor','newExpSwatch')">
-          <span class="add-cat-color-swatch" id="newExpSwatch" style="background:#E84545"></span>
-        </div>
+        <div class="cat-add-palette" id="expAddPalette"></div>
         <button class="btn btn-secondary" onclick="addCat('expense')">Add</button>
       </div>
 
@@ -764,10 +761,7 @@ body.auth-pending .btn-settings {
       <div id="incomeList"></div>
       <div class="add-cat-row">
         <input type="text" id="newIncName" placeholder="Category name" />
-        <div class="add-cat-color-wrap" title="Pick color">
-          <input type="color" id="newIncColor" value="#0FA974" oninput="syncSwatch('newIncColor','newIncSwatch')">
-          <span class="add-cat-color-swatch" id="newIncSwatch" style="background:#0FA974"></span>
-        </div>
+        <div class="cat-add-palette" id="incAddPalette"></div>
         <button class="btn btn-secondary" onclick="addCat('income')">Add</button>
       </div>
     </div>

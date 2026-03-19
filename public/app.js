@@ -1015,6 +1015,14 @@ window.openCatsModal = function() {
   }
 })();
 window.closeCatsModal = function() {
+  // Close any open inline colour panel
+  if (_openCatPanel) {
+    const btn = _openCatPanel.parentElement &&
+                _openCatPanel.parentElement.querySelector('.cat-color-swatch-btn');
+    if (btn) btn.classList.remove('panel-open');
+    _openCatPanel.remove();
+    _openCatPanel = null;
+  }
   document.getElementById('catsModalBg').classList.remove('open');
   document.body.style.overflow = '';
   // Restore navbar
@@ -1179,17 +1187,16 @@ function parseCSV(csvText) {
   return results;
 }
 window.addCat = async function(type) {
-  const nameEl  = document.getElementById(type === 'income' ? 'newIncName'  : 'newExpName');
-  const colorEl = document.getElementById(type === 'income' ? 'newIncColor' : 'newExpColor');
+  const nameEl = document.getElementById(type === 'income' ? 'newIncName' : 'newExpName');
   const name = nameEl.value.trim();
   if (!name) { alert('Enter a category name'); return; }
-  
-  const newCat = { name, color: colorEl.value, budget: null };
+
+  const newCat = { name, color: _addPaletteColor[type], budget: null };
   if (type === 'expense') {
     const budgetEl = document.getElementById('newExpBudget');
     if (budgetEl && budgetEl.value) newCat.budget = parseFloat(budgetEl.value);
   }
-  
+
   categories[type].push(newCat);
   await saveCategories();
   renderCatLists();
@@ -1236,17 +1243,272 @@ window.showCatDeleteConfirm = function(btn, type, name) {
   row.appendChild(noBtn);
   btn.parentNode.appendChild(row);
 };
-window.syncSwatch = function(inputId, swatchId) {
-  document.getElementById(swatchId).style.background = document.getElementById(inputId).value;
+// ── Color palette ──────────────────────────────────────────────────────────
+const VIVID_COLORS = [
+  '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
+  '#14b8a6','#3b82f6','#06b6d4','#0FA974','#8b5cf6',
+  '#6366f1','#ef4444','#22c55e','#eab308','#64748b',
+];
+const PASTEL_COLORS = [
+  '#fca5a5','#fdba74','#f9a8d4','#fde68a','#e9d5ff',
+  '#99f6e4','#bfdbfe','#a5f3fc','#bbf7d0','#c7d2fe',
+  '#ddd6fe','#fecaca','#d9f99d','#fef08a','#e2e8f0',
+];
+
+// Currently open inline cat-color panel element
+let _openCatPanel = null;
+
+/**
+ * Build a reusable inline color panel DOM node.
+ * onPick(color) is called whenever the user selects a color.
+ */
+function _buildColorPanel(initialColor, onPick) {
+  const panel = document.createElement('div');
+  panel.className = 'cat-color-panel';
+
+  function applyColor(c, swatches) {
+    onPick(c);
+    swatches.forEach(s => s.classList.toggle('active', s.dataset.color === c));
+    hexInput.value = c;
+    hexInput.classList.remove('invalid');
+    nativeInput.value = c;
+  }
+
+  // Vivid row
+  const vividLabel = document.createElement('p');
+  vividLabel.className = 'cat-color-panel-row-label';
+  vividLabel.textContent = 'Vivid';
+  panel.appendChild(vividLabel);
+
+  const vividRow = document.createElement('div');
+  vividRow.className = 'cat-color-panel-row';
+  VIVID_COLORS.forEach(c => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cat-palette-dot' + (c === initialColor ? ' active' : '');
+    btn.style.background = c;
+    btn.dataset.color = c;
+    btn.title = c;
+    btn.addEventListener('click', () => applyColor(c, allDots()));
+    vividRow.appendChild(btn);
+  });
+  panel.appendChild(vividRow);
+
+  // Pastel row
+  const pastelLabel = document.createElement('p');
+  pastelLabel.className = 'cat-color-panel-row-label';
+  pastelLabel.textContent = 'Pastel';
+  panel.appendChild(pastelLabel);
+
+  const pastelRow = document.createElement('div');
+  pastelRow.className = 'cat-color-panel-row';
+  PASTEL_COLORS.forEach(c => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cat-palette-dot' + (c === initialColor ? ' active' : '');
+    btn.style.background = c;
+    btn.dataset.color = c;
+    btn.title = c;
+    btn.addEventListener('click', () => applyColor(c, allDots()));
+    pastelRow.appendChild(btn);
+  });
+  panel.appendChild(pastelRow);
+
+  // Footer: hex input + native picker
+  const footer = document.createElement('div');
+  footer.className = 'cat-color-panel-footer';
+
+  const hexInput = document.createElement('input');
+  hexInput.type = 'text';
+  hexInput.className = 'cat-color-hex-input';
+  hexInput.placeholder = '#000000';
+  hexInput.maxLength = 7;
+  hexInput.value = initialColor;
+  hexInput.addEventListener('input', () => {
+    const v = hexInput.value.trim();
+    const valid = /^#[0-9a-fA-F]{6}$/.test(v);
+    hexInput.classList.toggle('invalid', !valid && v.length >= 2);
+    if (valid) {
+      onPick(v);
+      allDots().forEach(s => s.classList.toggle('active', s.dataset.color === v));
+      nativeInput.value = v;
+    }
+  });
+  footer.appendChild(hexInput);
+
+  const nativeWrap = document.createElement('div');
+  nativeWrap.className = 'cat-color-native-wrap';
+  nativeWrap.title = 'Custom colour';
+  const nativeInput = document.createElement('input');
+  nativeInput.type = 'color';
+  nativeInput.value = initialColor;
+  nativeInput.addEventListener('input', () => {
+    const c = nativeInput.value;
+    onPick(c);
+    hexInput.value = c;
+    hexInput.classList.remove('invalid');
+    allDots().forEach(s => s.classList.toggle('active', s.dataset.color === c));
+  });
+  const nativeCircle = document.createElement('span');
+  nativeCircle.className = 'cat-color-native-circle';
+  nativeWrap.appendChild(nativeInput);
+  nativeWrap.appendChild(nativeCircle);
+  footer.appendChild(nativeWrap);
+  panel.appendChild(footer);
+
+  function allDots() { return Array.from(panel.querySelectorAll('.cat-palette-dot')); }
+  return panel;
+}
+
+/** Toggle the inline color panel on a cat-item swatch button. */
+window._toggleCatColorPanel = function(swatchBtn, type, name) {
+  const item = swatchBtn.closest('.cat-item');
+  if (!item) return;
+
+  // Read live color from state — not from a stale onclick attribute
+  const catObj  = (categories[type] || []).find(c => catName(c) === name);
+  const liveColor = catObj ? catColor(catObj) : (swatchBtn.style.background || '#999');
+
+  // If a panel is already open on THIS item — close it (toggle off)
+  if (_openCatPanel && _openCatPanel.parentElement === item) {
+    _openCatPanel.remove();
+    _openCatPanel = null;
+    swatchBtn.classList.remove('panel-open');
+    return;
+  }
+
+  // Close any other open panel
+  if (_openCatPanel) {
+    const prevBtn = _openCatPanel.parentElement &&
+                    _openCatPanel.parentElement.querySelector('.cat-color-swatch-btn');
+    if (prevBtn) prevBtn.classList.remove('panel-open');
+    _openCatPanel.remove();
+    _openCatPanel = null;
+  }
+
+  // Build and attach panel
+  const panel = _buildColorPanel(liveColor, (newColor) => {
+    swatchBtn.style.background = newColor;
+    window.updateCatColor(type, name, newColor);
+  });
+  item.appendChild(panel);
+  _openCatPanel = panel;
+  swatchBtn.classList.add('panel-open');
 };
+
+// Close panel when clicking outside
+document.addEventListener('pointerdown', e => {
+  if (!_openCatPanel) return;
+  const item = _openCatPanel.parentElement;
+  if (item && !item.contains(e.target)) {
+    const btn = item.querySelector('.cat-color-swatch-btn');
+    if (btn) btn.classList.remove('panel-open');
+    _openCatPanel.remove();
+    _openCatPanel = null;
+  }
+}, true);
+
+// Tracks chosen color for each "add new" palette
+const _addPaletteColor = { expense: '#E84545', income: '#0FA974' };
+
+/** Render the always-visible add-new palette strip. */
+function renderAddPalette(type) {
+  const id = type === 'expense' ? 'expAddPalette' : 'incAddPalette';
+  const wrap = document.getElementById(id);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  const current = _addPaletteColor[type];
+  // Hidden sync input so addCat() can still just read #newExpColor / #newIncColor
+  const inputId = type === 'expense' ? 'newExpColor' : 'newIncColor';
+
+  function applyColor(c) {
+    _addPaletteColor[type] = c;
+    const inp = document.getElementById(inputId);
+    if (inp) inp.value = c;
+    wrap.querySelectorAll('.cat-palette-dot').forEach(s =>
+      s.classList.toggle('active', s.dataset.color === c));
+    const hex = wrap.querySelector('.cat-color-hex-input');
+    if (hex) { hex.value = c; hex.classList.remove('invalid'); }
+    const nat = wrap.querySelector('input[type="color"]');
+    if (nat) nat.value = c;
+  }
+
+  // Vivid row
+  const vividLabel = document.createElement('p');
+  vividLabel.className = 'cat-color-panel-row-label';
+  vividLabel.textContent = 'Vivid';
+  wrap.appendChild(vividLabel);
+  const vividRow = document.createElement('div');
+  vividRow.className = 'cat-color-panel-row';
+  VIVID_COLORS.forEach(c => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cat-palette-dot' + (c === current ? ' active' : '');
+    btn.style.background = c; btn.dataset.color = c; btn.title = c;
+    btn.addEventListener('click', () => applyColor(c));
+    vividRow.appendChild(btn);
+  });
+  wrap.appendChild(vividRow);
+
+  // Pastel row
+  const pastelLabel = document.createElement('p');
+  pastelLabel.className = 'cat-color-panel-row-label';
+  pastelLabel.textContent = 'Pastel';
+  wrap.appendChild(pastelLabel);
+  const pastelRow = document.createElement('div');
+  pastelRow.className = 'cat-color-panel-row';
+  PASTEL_COLORS.forEach(c => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cat-palette-dot' + (c === current ? ' active' : '');
+    btn.style.background = c; btn.dataset.color = c; btn.title = c;
+    btn.addEventListener('click', () => applyColor(c));
+    pastelRow.appendChild(btn);
+  });
+  wrap.appendChild(pastelRow);
+
+  // Footer
+  const footer = document.createElement('div');
+  footer.className = 'cat-color-panel-footer';
+
+  const hexInput = document.createElement('input');
+  hexInput.type = 'text';
+  hexInput.className = 'cat-color-hex-input';
+  hexInput.placeholder = '#000000';
+  hexInput.maxLength = 7;
+  hexInput.value = current;
+  hexInput.addEventListener('input', () => {
+    const v = hexInput.value.trim();
+    const valid = /^#[0-9a-fA-F]{6}$/.test(v);
+    hexInput.classList.toggle('invalid', !valid && v.length >= 2);
+    if (valid) applyColor(v);
+  });
+  footer.appendChild(hexInput);
+
+  const nativeWrap = document.createElement('div');
+  nativeWrap.className = 'cat-color-native-wrap';
+  nativeWrap.title = 'Custom colour';
+  const nativeInput = document.createElement('input');
+  nativeInput.type = 'color';
+  nativeInput.id = inputId; // keep the ID so addCat() fallback still works
+  nativeInput.value = current;
+  nativeInput.addEventListener('input', () => applyColor(nativeInput.value));
+  const circle = document.createElement('span');
+  circle.className = 'cat-color-native-circle';
+  nativeWrap.appendChild(nativeInput);
+  nativeWrap.appendChild(circle);
+  footer.appendChild(nativeWrap);
+  wrap.appendChild(footer);
+}
+
+window.syncSwatch = function() {}; // no-op, kept for safety
+
 window.updateCatColor = async function(type, name, color) {
   const idx = categories[type].findIndex(c => catName(c) === name);
   if (idx === -1) return;
   if (typeof categories[type][idx] === 'string') categories[type][idx] = { name: categories[type][idx], color };
   else categories[type][idx].color = color;
-  const listEl = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
-  const item = listEl.querySelector(`[data-cat-name="${CSS.escape(name)}"] .cat-color-swatch`);
-  if (item) item.style.background = color;
   await saveCategories();
 };
 
@@ -1265,10 +1527,10 @@ function renderCatLists() {
     const el = document.getElementById(type === 'income' ? 'incomeList' : 'expenseList');
     el.innerHTML = '';
     categories[type].forEach((c) => {
-      const color = catColor(c);
-      const name  = catName(c);
+      const color  = catColor(c);
+      const name   = catName(c);
       const budget = typeof c === 'object' ? c.budget : null;
-      const div = document.createElement('div');
+      const div    = document.createElement('div');
       div.className = 'cat-item';
       div.dataset.catName = name;
 
@@ -1278,10 +1540,9 @@ function renderCatLists() {
         : '';
 
       div.innerHTML = `
-        <div class="cat-color-wrap" title="Click to change color">
-          <input type="color" value="${color}" onchange="updateCatColor('${type}','${safeName}',this.value)">
-          <span class="cat-color-swatch" style="background:${color}"></span>
-        </div>
+        <button type="button" class="cat-color-swatch-btn" style="background:${color}"
+                title="Change colour"
+                onclick="_toggleCatColorPanel(this,'${type}','${safeName}')"></button>
         <div class="cat-info">
           <span class="cat-name">${esc(name)}</span>
           ${budgetInput}
@@ -1291,6 +1552,9 @@ function renderCatLists() {
       el.appendChild(div);
     });
   });
+  // Re-render the add-new palette strips
+  renderAddPalette('expense');
+  renderAddPalette('income');
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────

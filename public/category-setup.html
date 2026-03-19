@@ -41,8 +41,11 @@
   .setup-section-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
   .setup-section-head h3 { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--text-3); }
   .setup-cat-list { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; min-height:8px; }
-  .setup-add-row { display:flex; gap:8px; align-items:center; margin-top:8px; }
-  .setup-add-row input[type="text"] { flex:1; }
+  .setup-add-row { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+  .setup-add-row input[type="text"] { flex:1 1 140px; }
+  .setup-add-row input[type="number"] { max-width:140px; flex:1 1 80px; }
+  .setup-add-row .cat-add-palette { flex:1 1 100%; order:10; }
+  .setup-add-row .btn { order:11; }
   .setup-footer { display:flex; gap:12px; margin-top:32px; padding-top:24px; border-top:1.5px solid var(--border); }
   .setup-footer button { flex:1; }
   @media (max-width:520px) { .setup-card { padding:28px 18px 24px; } }
@@ -94,65 +97,5 @@
 
 <script type="module" src="firebase-config.js?v=1771054095282"></script>
 <script type="module" src="category-setup.js?v=1771054095282"></script>
-
-<!-- Inline color palette for category-setup page (app.js not loaded here) -->
-<script>
-(function() {
-  const COLORS = [
-    '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
-    '#14b8a6','#3b82f6','#06b6d4','#0FA974','#8b5cf6',
-    '#fca5a5','#fdba74','#f9a8d4','#fde68a','#e9d5ff',
-    '#99f6e4','#bfdbfe','#a5f3fc','#bbf7d0','#c7d2fe',
-  ];
-  const state = { expense: '#E84545', income: '#0FA974' };
-
-  function pickColor(type, color) {
-    state[type] = color;
-    // Keep the hidden <input type="color"> in sync so category-setup.js can read it
-    const inp = document.getElementById(type === 'expense' ? 'newExpColor' : 'newIncColor');
-    if (inp) inp.value = color;
-    const id = type === 'expense' ? 'expAddPalette' : 'incAddPalette';
-    document.querySelectorAll('#' + id + ' .cat-add-swatch').forEach(s => {
-      s.classList.toggle('active', s.dataset.color === color);
-    });
-  }
-
-  function buildPalette(type) {
-    const id = type === 'expense' ? 'expAddPalette' : 'incAddPalette';
-    const inputId = type === 'expense' ? 'newExpColor' : 'newIncColor';
-    const wrap = document.getElementById(id);
-    if (!wrap) return;
-    const current = state[type];
-    wrap.innerHTML =
-      COLORS.map(c =>
-        `<button type="button" class="cat-add-swatch${c === current ? ' active' : ''}"
-                 data-color="${c}" style="background:${c}" title="${c}"></button>`
-      ).join('') +
-      `<div class="cat-add-custom-wrap" title="Custom colour">
-         <input type="color" id="${inputId}" value="${current}">
-         <span class="cat-add-custom-circle"></span>
-       </div>`;
-
-    wrap.querySelectorAll('.cat-add-swatch').forEach(btn => {
-      btn.addEventListener('click', () => pickColor(type, btn.dataset.color));
-    });
-    const custom = document.getElementById(inputId);
-    if (custom) {
-      custom.addEventListener('input', () => {
-        state[type] = custom.value;
-        wrap.querySelectorAll('.cat-add-swatch').forEach(s => s.classList.remove('active'));
-      });
-    }
-  }
-
-  // Init after DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => { buildPalette('expense'); buildPalette('income'); });
-  } else {
-    buildPalette('expense');
-    buildPalette('income');
-  }
-})();
-</script>
 </body>
 </html>

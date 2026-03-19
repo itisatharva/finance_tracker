@@ -1204,9 +1204,11 @@ input[type="color"] {
   margin-top: 10px;
   flex-wrap: wrap;
 }
-.add-cat-row input[type="text"] { flex: 1 1 100%; }
+.add-cat-row input[type="text"] { flex: 1 1 140px; }
 .add-cat-row input[type="number"],
-.add-budget-input { flex: 1 1 80px; min-width: 0; }
+.add-budget-input { flex: 1 1 80px; min-width: 0; max-width: 140px; }
+.add-cat-row .cat-add-palette { flex: 1 1 100%; order: 10; }
+.add-cat-row .btn { order: 11; }
 
 /* New cat color picker circle */
 .add-cat-color-wrap {
@@ -3887,4 +3889,174 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .cat-suggest-title { font-size: 1rem; }
   .cat-suggest-presets { gap: 6px; }
   .cat-suggest-preset { width: 22px; height: 22px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ── Inline Color Palette System
+   Used in: Manage Categories modal, Category Setup page
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── The swatch circle button on each existing cat-item ─────────────────── */
+.cat-color-swatch-btn {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: block;
+  background: #999;
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--border);
+  transition: box-shadow .15s, transform .15s;
+  align-self: center;
+}
+.cat-color-swatch-btn:hover {
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--ink);
+  transform: scale(1.13);
+}
+.cat-color-swatch-btn.panel-open {
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--ink);
+  transform: scale(1.08);
+}
+
+/* cat-item must wrap so the panel can sit on its own row */
+.cat-item { flex-wrap: wrap; align-items: center; }
+
+/* ── Inline expandable panel ─────────────────────────────────────────────── */
+.cat-color-panel {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--border);
+  animation: cat-panel-in .14s ease;
+}
+@keyframes cat-panel-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.cat-color-panel-row-label {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--text-3);
+  margin-bottom: 6px;
+}
+
+.cat-color-panel-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+/* Individual dot — used in both panel and add-new strip */
+.cat-palette-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: transform .12s, box-shadow .12s, border-color .12s;
+  outline: none;
+  background-clip: padding-box;
+}
+.cat-palette-dot:hover { transform: scale(1.22); }
+.cat-palette-dot.active {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--ink);
+  transform: scale(1.15);
+}
+[data-theme="dark"] .cat-palette-dot.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px #ffffff;
+}
+
+/* ── Footer row: hex input + rainbow native picker ──────────────────────── */
+.cat-color-panel-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-color-hex-input {
+  flex: 1;
+  font-size: .85rem;
+  font-family: 'SF Mono', 'Fira Mono', 'Cascadia Code', monospace, inherit;
+  letter-spacing: .04em;
+  padding: 7px 11px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--bg-page);
+  color: var(--text-1);
+  min-width: 0;
+  transition: border-color .15s, box-shadow .15s;
+}
+.cat-color-hex-input:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.06);
+}
+[data-theme="dark"] .cat-color-hex-input:focus {
+  box-shadow: 0 0 0 3px rgba(255,255,255,.07);
+}
+.cat-color-hex-input.invalid {
+  border-color: var(--red);
+}
+
+/* Rainbow native color picker */
+.cat-color-native-wrap {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.cat-color-native-wrap input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+}
+.cat-color-native-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    hsl(0,90%,60%), hsl(36,90%,60%), hsl(72,85%,55%),
+    hsl(108,80%,52%), hsl(144,80%,50%), hsl(180,80%,50%),
+    hsl(216,85%,58%), hsl(252,80%,62%), hsl(288,80%,60%),
+    hsl(324,85%,60%), hsl(360,90%,60%)
+  );
+  border: 2px solid var(--border);
+  transition: transform .13s, border-color .13s;
+}
+.cat-color-native-wrap:hover .cat-color-native-circle {
+  transform: scale(1.15);
+  border-color: var(--ink);
+}
+
+/* ── Always-visible add-new palette (below name/budget inputs) ───────────── */
+.cat-add-palette {
+  width: 100%;
+  padding: 10px 0 4px;
+}
+.cat-add-palette .cat-color-panel-row { margin-bottom: 8px; }
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .cat-palette-dot { width: 22px; height: 22px; gap: 6px; }
+  .cat-color-hex-input { font-size: .8rem; }
 }
