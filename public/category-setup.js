@@ -27,6 +27,109 @@ const cats = {
   income:  DEFAULTS.income.map(c => ({ ...c })),
 };
 
+// ── Color palette (mirrors app.js palette, self-contained for this page) ──
+const _SETUP_COLORS = [
+  '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
+  '#14b8a6','#3b82f6','#06b6d4','#0FA974','#8b5cf6',
+  '#fca5a5','#fdba74','#f9a8d4','#fde68a','#e9d5ff',
+  '#99f6e4','#bfdbfe','#a5f3fc','#bbf7d0','#c7d2fe',
+];
+
+// ── Singleton popover for existing cat items ──────────────────────────────
+let _setupPopoverTarget = null; // { type, idx }
+
+function _initSetupPopover() {
+  if (document.getElementById('catColorPalette')) return;
+  const div = document.createElement('div');
+  div.id = 'catColorPalette';
+  div.setAttribute('role', 'dialog');
+  div.setAttribute('aria-label', 'Pick a colour');
+  div.innerHTML =
+    _SETUP_COLORS.map(c =>
+      `<button type="button" class="cat-palette-swatch" data-color="${c}"
+               style="background:${c}" title="${c}"></button>`
+    ).join('') +
+    `<div class="cat-palette-custom-wrap" title="Custom colour">
+       <input type="color" id="catPaletteCustom">
+       <span class="cat-palette-custom-circle"></span>
+     </div>`;
+  document.body.appendChild(div);
+
+  div.querySelectorAll('.cat-palette-swatch').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (_setupPopoverTarget !== null) {
+        const { type, idx } = _setupPopoverTarget;
+        cats[type][idx].color = btn.dataset.color;
+        _refreshSwatchBtn(type, idx, btn.dataset.color);
+      }
+      _closeSetupPopover();
+    });
+  });
+
+  const custom = div.querySelector('#catPaletteCustom');
+  if (custom) {
+    custom.addEventListener('input', () => {
+      if (_setupPopoverTarget !== null) {
+        const { type, idx } = _setupPopoverTarget;
+        cats[type][idx].color = custom.value;
+        _refreshSwatchBtn(type, idx, custom.value);
+        div.querySelectorAll('.cat-palette-swatch').forEach(s => s.classList.remove('active'));
+      }
+    });
+    custom.addEventListener('change', _closeSetupPopover);
+  }
+
+  document.addEventListener('pointerdown', e => {
+    const pal = document.getElementById('catColorPalette');
+    if (!pal || !pal.classList.contains('open')) return;
+    if (!pal.contains(e.target) && !e.target.closest('.cat-color-swatch-btn')) {
+      _closeSetupPopover();
+    }
+  }, true);
+}
+
+function _refreshSwatchBtn(type, idx, color) {
+  const list = document.getElementById(type === 'expense' ? 'expenseList' : 'incomeList');
+  const btns = list && list.querySelectorAll('.cat-color-swatch-btn');
+  if (btns && btns[idx]) btns[idx].style.background = color;
+}
+
+function _popoverMarkActive(color) {
+  const pal = document.getElementById('catColorPalette');
+  if (!pal) return;
+  pal.querySelectorAll('.cat-palette-swatch').forEach(s => {
+    s.classList.toggle('active', color !== null && s.dataset.color === color);
+  });
+}
+
+window._openSetupColorPopover = function(btnEl, type, idx, currentColor) {
+  _initSetupPopover();
+  _setupPopoverTarget = { type, idx };
+  const pal = document.getElementById('catColorPalette');
+  if (!pal) return;
+
+  const r = btnEl.getBoundingClientRect();
+  const PAL_W = 236, PAL_H = 110;
+  let top  = r.bottom + 8;
+  let left = r.left - 10;
+  if (top  + PAL_H > window.innerHeight - 12) top  = r.top - PAL_H - 8;
+  if (left + PAL_W > window.innerWidth  - 8)  left = window.innerWidth - PAL_W - 8;
+  if (left < 8) left = 8;
+  pal.style.top  = top  + 'px';
+  pal.style.left = left + 'px';
+  pal.classList.add('open');
+
+  _popoverMarkActive(currentColor);
+  const custom = document.getElementById('catPaletteCustom');
+  if (custom) custom.value = currentColor;
+};
+
+function _closeSetupPopover() {
+  const pal = document.getElementById('catColorPalette');
+  if (pal) pal.classList.remove('open');
+  _setupPopoverTarget = null;
+}
+
 function renderLists() {
   ['expense', 'income'].forEach(type => {
     const el = document.getElementById(type === 'expense' ? 'expenseList' : 'incomeList');
@@ -38,10 +141,9 @@ function renderLists() {
         ? `<input type="number" value="${cat.budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" oninput="updateBudget('${type}',${i},this.value)">`
         : '';
       div.innerHTML = `
-        <div class="cat-color-wrap" title="Click to change colour">
-          <input type="color" value="${cat.color}" oninput="updateColor('${type}',${i},this.value)">
-          <span class="cat-color-swatch" style="background:${cat.color}"></span>
-        </div>
+        <button type="button" class="cat-color-swatch-btn" style="background:${cat.color}"
+                title="Change colour"
+                onclick="_openSetupColorPopover(this,'${type}',${i},'${cat.color}')"></button>
         <div class="cat-info">
           <span class="cat-name">${cat.name}</span>
           ${budgetInput}
@@ -55,9 +157,7 @@ function renderLists() {
 
 window.updateColor = function(type, idx, color) {
   cats[type][idx].color = color;
-  const list = document.getElementById(type === 'expense' ? 'expenseList' : 'incomeList');
-  const swatches = list.querySelectorAll('.cat-color-swatch');
-  if (swatches[idx]) swatches[idx].style.background = color;
+  _refreshSwatchBtn(type, idx, color);
 };
 
 window.updateBudget = function(type, idx, budget) {
@@ -70,18 +170,20 @@ window.removeCat = function(type, idx) {
 };
 
 window.addCat = function(type) {
-  const nameId  = type === 'expense' ? 'newExpName'  : 'newIncName';
+  const nameId  = type === 'expense' ? 'newExpName' : 'newIncName';
   const colorId = type === 'expense' ? 'newExpColor' : 'newIncColor';
   const name    = document.getElementById(nameId).value.trim();
-  const color   = document.getElementById(colorId).value;
+  // Read color from the hidden sync input (kept in sync by the palette script below)
+  const colorEl = document.getElementById(colorId);
+  const color   = colorEl ? colorEl.value : _SETUP_COLORS[0];
   if (!name) { document.getElementById(nameId).focus(); return; }
-  
+
   const newCat = { name, color, budget: null };
   if (type === 'expense') {
     const budgetVal = document.getElementById('newExpBudget').value;
     if (budgetVal) newCat.budget = parseFloat(budgetVal);
   }
-  
+
   cats[type].push(newCat);
   renderLists();
   document.getElementById(nameId).value = '';
