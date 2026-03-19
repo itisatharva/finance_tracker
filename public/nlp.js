@@ -235,7 +235,8 @@ window.NLP = (() => {
   }
 
   // ── Classify a single short segment ──────────────────────────────────────────
-  function classifySegment(seg, m, date) {
+  // date is passed as fallback; segment gets its own date if it contains one
+  function classifySegment(seg, m, fallbackDate) {
     const vec        = tfidfVector(seg, m.vocabulary, m.idf, m.sublinear_tf);
     const probs      = predict(vec, m.coef, m.intercept);
     const maxProb    = Math.max(...probs);
@@ -244,6 +245,8 @@ window.NLP = (() => {
     const amounts    = extractAmounts(seg);
     const type       = detectType(seg, category);
     const note       = extractNote(seg);
+    // Each segment extracts its own date so "yesterday and today" splits correctly
+    const date       = extractDate(seg) || fallbackDate;
     return { amount: amounts[0] || null, category, type, date, note, confidence };
   }
 
@@ -253,9 +256,12 @@ window.NLP = (() => {
     const date = extractDate(text);
 
     // Split comma/"and"-separated items and classify each independently
+    // Each segment extracts its own date; today is the fallback
     const segments = splitItems(text);
     if (segments.length > 1) {
-      return segments.map(seg => classifySegment(seg, m, date));
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todayFmt = String(today.getFullYear()) + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+      return segments.map(seg => classifySegment(seg, m, todayFmt));
     }
 
     // Single-item path

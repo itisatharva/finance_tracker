@@ -3555,14 +3555,22 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .sheet-nlp-input {
   flex: 1;
-  background: none;
-  border: none;
-  outline: none;
+  background: none !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   font-family: inherit;
   font-size: .9rem;
   color: var(--text-1);
   padding: 8px 0;
   min-width: 0;
+  width: auto;
+}
+/* Prevent global input:focus from adding border/shadow inside the row */
+.sheet-nlp-input:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 .sheet-nlp-input::placeholder {
   color: var(--text-3);

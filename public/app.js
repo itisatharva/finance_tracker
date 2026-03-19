@@ -1373,6 +1373,9 @@ function wireAddTxForm() {
   function openAddTxSheet() {
     bg.classList.add('open');
     if (fab) fab.classList.add('open');
+    // Clear NLP input on every open so previous text doesn't linger
+    const sni = document.getElementById('sheetNlpInput');
+    if (sni) sni.value = '';
     // Defer overflow=hidden until after the slide-up animation (≈400ms).
     // Setting it synchronously forces a layout recalculation on frame 1
     // of the translateY transition, stealing compositor budget and causing
