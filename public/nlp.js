@@ -74,11 +74,25 @@ window.NLP = (() => {
   }
 
   // ── Amount extractor ──────────────────────────────────────────────────────
+  function stripDateTokens(text) {
+    // Remove date-like tokens so their digits aren't picked up as amounts
+    // dd/mm/yy, dd/mm/yyyy, dd-mm-yy etc.
+    let t = text.replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g, ' ');
+    // dd/mm or mm/dd without year — only strip if surrounded by non-digit
+    t = t.replace(/\b\d{1,2}[\/-]\d{1,2}\b/g, ' ');
+    // "16th feb", "feb 16", month name patterns
+    const MON = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+    t = t.replace(new RegExp('\\d{1,2}(?:st|nd|rd|th)?\\s+(?:' + MON + ')', 'gi'), ' ');
+    t = t.replace(new RegExp('(?:' + MON + ')\\s+\\d{1,2}(?:st|nd|rd|th)?', 'gi'), ' ');
+    return t;
+  }
+
   function extractAmounts(text) {
+    const cleaned = stripDateTokens(text);
     const pattern = /(?<![.\d])(?:₹|rs\.?|inr\s*)?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)(?!\d)/gi;
     const results = [];
     let m;
-    while ((m = pattern.exec(text)) !== null) {
+    while ((m = pattern.exec(cleaned)) !== null) {
       const val = parseFloat(m[1].replace(/,/g, ''));
       if (val > 0) results.push(val);
     }
@@ -191,6 +205,13 @@ window.NLP = (() => {
   // ── Note extractor ────────────────────────────────────────────────────────
   function extractNote(text) {
     let note = text;
+    // Strip date tokens first (dd/mm/yy, 16th feb, feb 16, etc.)
+    note = note.replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g, ' ');
+    note = note.replace(/\b\d{1,2}[\/-]\d{1,2}\b/g, ' ');
+    const MON = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+    note = note.replace(new RegExp('\\d{1,2}(?:st|nd|rd|th)?\\s+(?:' + MON + ')', 'gi'), ' ');
+    note = note.replace(new RegExp('(?:' + MON + ')\\s+\\d{1,2}(?:st|nd|rd|th)?', 'gi'), ' ');
+    // Strip amounts
     note = note.replace(/(?<![.\d])(?:₹|rs\.?|inr\s*)?\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?(?!\d)/gi, ' ');
     note = note.replace(/^\s*(paid|spent|bought|received|got|credited|earned|ordered|charged|swiped)\s+/i, '');
     const timePatterns = [
@@ -202,7 +223,7 @@ window.NLP = (() => {
       /\bon\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi,
     ];
     timePatterns.forEach(p => { note = note.replace(p, ' '); });
-    note = note.replace(/\s+/g, ' ').trim().replace(/^(for|on|at|from|to|and)\s+/i, '').trim().replace(/[,. ]+$/, '');
+    note = note.replace(/\brs\.?\b/gi, ' ').replace(/\s+/g, ' ').trim().replace(/^(for|on|at|from|to|and)\s+/i, '').trim().replace(/[,. ]+$/, '');
     return note.length > 2 ? note : '';
   }
 
