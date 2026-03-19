@@ -119,8 +119,26 @@ function _buildPopoverContent(popover, initialColor, onPick) {
   };
   nativeInput.addEventListener('input', _applyNative);
   nativeInput.addEventListener('change', _applyNative);
-  const circle = document.createElement('span'); circle.className = 'cat-color-native-circle';
-  nativeWrap.appendChild(nativeInput); nativeWrap.appendChild(circle);
+  // Dropper SVG icon (visible, pointer-events:none so click passes to input)
+  const nativeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  nativeIcon.setAttribute('viewBox', '0 0 24 24');
+  nativeIcon.setAttribute('fill', 'none');
+  nativeIcon.setAttribute('stroke', 'currentColor');
+  nativeIcon.setAttribute('stroke-width', '2');
+  nativeIcon.setAttribute('stroke-linecap', 'round');
+  nativeIcon.setAttribute('stroke-linejoin', 'round');
+  nativeIcon.classList.add('cat-color-native-icon');
+  // Eyedropper path
+  const dp1 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  dp1.setAttribute('d', 'M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5L7 16H4v-3l6.5-6.5A4 4 0 0 1 12 2z');
+  const dp2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  dp2.setAttribute('cx', '3.5'); dp2.setAttribute('cy', '20.5'); dp2.setAttribute('r', '1.5');
+  const dp3 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  dp3.setAttribute('x1', '4'); dp3.setAttribute('y1', '19'); dp3.setAttribute('x2', '7'); dp3.setAttribute('y2', '16');
+  nativeIcon.appendChild(dp1); nativeIcon.appendChild(dp2); nativeIcon.appendChild(dp3);
+  nativeWrap.removeAttribute('title');
+  nativeWrap.appendChild(nativeInput);
+  nativeWrap.appendChild(nativeIcon);
   hexRow.appendChild(nativeWrap);
   footer.appendChild(hexRow);
 

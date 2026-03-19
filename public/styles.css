@@ -3976,6 +3976,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   display: flex;
   align-items: center;
   gap: 6px;
+  /* prevent overflow — hex input flexes to fill remaining space */
+}
+.color-pick-hex-row .cat-color-hex-input {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
 }
 /* Small colour preview circle beside the hex input */
 .color-pick-hex-preview {
@@ -4033,15 +4039,26 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-color: var(--red);
 }
 
-/* Rainbow native color picker */
+/* Dropper / colour-wheel icon button */
 .cat-color-native-wrap {
   position: relative;
   width: 32px;
   height: 32px;
   min-width: 32px;
   flex-shrink: 0;
-  border-radius: 50%;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--bg-page);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color .13s, background .13s;
   overflow: hidden;
+}
+.cat-color-native-wrap:hover {
+  border-color: var(--ink);
+  background: var(--bg-card);
 }
 .cat-color-native-wrap input[type="color"] {
   position: absolute;
@@ -4053,23 +4070,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   padding: 0;
   border: none;
 }
-.cat-color-native-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+/* The dropper SVG icon — pointer-events:none so clicks pass through to the input */
+.cat-color-native-icon {
+  width: 16px;
+  height: 16px;
   pointer-events: none;
-  background: conic-gradient(
-    hsl(0,90%,60%), hsl(36,90%,60%), hsl(72,85%,55%),
-    hsl(108,80%,52%), hsl(144,80%,50%), hsl(180,80%,50%),
-    hsl(216,85%,58%), hsl(252,80%,62%), hsl(288,80%,60%),
-    hsl(324,85%,60%), hsl(360,90%,60%)
-  );
-  border: 2px solid var(--border);
-  transition: transform .13s, border-color .13s;
-}
-.cat-color-native-wrap:hover .cat-color-native-circle {
-  transform: scale(1.15);
-  border-color: var(--ink);
+  flex-shrink: 0;
+  color: var(--text-2);
+  display: block;
 }
 
 /* ── Add-new colour button mount ─────────────────────────────────────────── */
