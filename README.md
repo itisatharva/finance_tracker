@@ -1,21 +1,95 @@
 # Finance Tracker
 
-A personal finance web app for tracking income, expenses, cash flow, and spending patterns — with full offline support and real-time sync.
+A personal finance web app for tracking income, expenses, cash flow, and spending patterns — built with a custom on-device NLP engine, real-time Firestore sync, and full offline support.
 
 **Live:** [https://itisatharva-ft.web.app](https://itisatharva-ft.web.app)
 
 ---
 
+## What Makes This Different
+
+Most finance apps require you to fill out forms. Finance Tracker lets you just describe what happened in plain English:
+
+> *"paid 450 for lunch and bought groceries for 1200"*
+
+The app parses that sentence, extracts two separate transactions, classifies each to the right category, and logs both — no dropdowns, no type selection, no fuss. The NLP model runs entirely in the browser, with zero server calls, zero latency, and full offline support.
+
+---
+
+## NLP Engine
+
+### Architecture
+
+The natural language transaction parser is a fully custom pipeline built from scratch and trained on personal spending data. It runs entirely client-side via a compact model loaded as `model.json` and interpreted by `nlp.js`.
+
+**Pipeline stages:**
+
+1. **Sentence splitting** — multi-item inputs like *"rent 15000 and dinner 600"* are split into individual transaction candidates before processing, preserving context across conjunctions and delimiters.
+
+2. **Tokenisation & currency extraction** — amounts are extracted with support for Indian number formatting (lakhs, k-suffixes), decimal values, and currency symbols. Orphaned currency tokens are cleaned to prevent misclassification.
+
+3. **Intent classification** — each candidate sentence is classified as `income`, `expense`, or `unknown` using a bag-of-words model with TF-IDF weighting trained on labelled personal transaction data.
+
+4. **Category classification** — a second classifier maps the sentence to one of 15 personal spending categories using the same training corpus. This is where most of the model's personality comes from — it has been trained specifically on the user's vocabulary, shorthand, and recurring descriptions rather than generic financial corpora.
+
+5. **Confidence thresholding** — predictions below a confidence threshold surface a **New Category Detected** prompt instead of silently misfiling the transaction. The user can confirm, rename, recolour, and save the new category — which is then immediately available for future predictions.
+
+### Training
+
+The model is retrained from a personal CSV export using `retrain_from_csv.py`. The training set is built from real historical transactions, giving the classifier strong priors for recurring merchants, payment methods, and description patterns that generic models cannot replicate.
+
+**Current model stats:**
+- ~97% classification accuracy across 15 personal categories
+- Trained on hundreds of real transactions
+- Weights serialised to `model.json` and loaded synchronously on first use
+
+### Why On-Device
+
+Running inference in the browser rather than calling a cloud API means:
+
+- **No latency** — classification is instant, even mid-sentence
+- **No privacy leakage** — transaction descriptions never leave the device
+- **Offline capable** — the model is part of the service worker cache and works with no network
+- **No API costs** — zero marginal cost per classification
+
+---
+
 ## Features
 
-- **Real-time sync** via Firebase Firestore — changes appear instantly across devices
-- **Offline-first PWA** — add transactions with no internet connection; they queue locally and sync automatically when you reconnect
-- **Installable** — add to your home screen and launch like a native app, with no browser chrome
-- **Analytics** — daily, monthly, yearly, and cash flow views with interactive Plotly charts
-- **Monthly insights** — automatic analysis of spending trends, savings rate, top categories, and budget utilisation
-- **Per-category budgets** — set monthly budget limits and track progress with visual bars and alerts
-- **CSV import / export** — bulk import transactions from a spreadsheet or export your full history
-- **Dark mode** — system-aware theme that persists across sessions
+### Core
+
+- **Natural language entry** — type a description in plain English; the NLP engine extracts amount, category, and type automatically
+- **Multi-item parsing** — a single input can describe multiple transactions separated by conjunctions or punctuation
+- **Real-time sync** via Firebase Firestore — changes propagate instantly across devices
+- **Offline-first PWA** — transactions added with no connection are queued locally and synced automatically on reconnect
+- **Installable** — add to home screen and launch as a standalone app with no browser chrome
+
+### Analytics
+
+- **Daily view** — compare a selected day against the previous day, with category breakdown
+- **Monthly view** — income/expense summary, category breakdown with budget bars, daily spending chart, and automatic insights (savings rate, top category, biggest jump, budget utilisation, daily average)
+- **Yearly view** — full category × month matrix with row totals and monthly averages
+- **Cash Flow** — month-by-month income, expense, net, and running balance for any year
+
+### Categories & Budgets
+
+- **Per-category budgets** — set monthly limits on expense categories and track progress with visual bars
+- **Custom colour picker** — compact circle button per category that opens a floating popover with vivid swatches, pastel swatches, hex input with live preview, and a native OS colour wheel — all without leaving the page
+- **Category suggestions** — when the NLP model detects a category that doesn't exist yet, a modal prompts the user to add it with a suggested name, type, colour, and optional budget, then immediately uses it for the current transaction
+
+### Data Management
+
+- **CSV import** — bulk import from a spreadsheet (`Date, Type, Category, Amount, Description`); preview the first 10 rows before committing; imports run in batches of 500
+- **CSV export** — full transaction history as a downloadable file
+- **Pending amounts** — track unsettled money (loans, split bills) that is deducted from the balance until cleared
+
+### UX
+
+- **Description autocomplete** — the note field suggests previous descriptions for the same category as you type
+- **Undo delete** — a 4-second snackbar window lets you recover a deleted transaction before it is removed from Firestore
+- **Sync status pills** — each transaction shows a live indicator (Pending → Synced) reflecting Firestore write state
+- **Dark mode** — system-aware theme persisted to localStorage
+- **Drag to dismiss** — bottom sheets on mobile support a swipe-down gesture
 
 ---
 
@@ -23,12 +97,15 @@ A personal finance web app for tracking income, expenses, cash flow, and spendin
 
 | Layer | Technology |
 |---|---|
-| Frontend | Vanilla JavaScript, HTML, CSS |
-| Auth | Firebase Authentication (email + Google) |
-| Database | Firebase Firestore (offline persistence enabled) |
+| Frontend | Vanilla JavaScript, HTML, CSS — no framework, no build step |
+| NLP | Custom bag-of-words classifier — `nlp.js` + `model.json` |
+| Auth | Firebase Authentication (email + Google OAuth) |
+| Database | Firebase Firestore with offline persistence |
 | Hosting | Firebase Hosting |
 | Charts | Plotly.js |
 | Offline / PWA | Service Worker, Web App Manifest |
+
+The deliberate choice of zero frontend dependencies keeps the bundle small, the service worker cache efficient, and the codebase straightforward to audit and extend.
 
 ---
 
@@ -36,108 +113,31 @@ A personal finance web app for tracking income, expenses, cash flow, and spendin
 
 ### Sign Up
 
-Visit the app URL and create an account with either:
+Visit the app and create an account with either:
 
 - **Email and password** — minimum 6 characters
 - **Google** — one-click sign-in via popup
 
-New users are taken to a one-time **category setup screen** to review and customise default income and expense categories. This can be edited at any time from Settings.
+New users land on a **category setup screen** to review and customise the default income and expense categories, assign colours, and set optional monthly budgets. This can be revisited at any time from Settings.
 
-### Sign In
+### Adding a Transaction
 
-Returning users land directly on the dashboard after authenticating.
+**Natural language (recommended)**
 
----
+Type a description in the input field:
 
-## Dashboard
+```
+coffee 80
+paid rent 15000
+groceries 1200 and petrol 500
+received salary 85000
+```
 
-The main screen, divided into four sections.
+The NLP engine fills in category, type, and amount automatically. Review the parsed result, adjust if needed, and hit **Add**.
 
-### Stats Row
+**Manual form**
 
-| Card | What it shows |
-|---|---|
-| **Income** | Total income for the current calendar month |
-| **Expenses** | Total expenses for the current calendar month |
-| **Balance** | Starting balance + all-time income − all-time expenses − pending amounts |
-| **Pending** | Sum of all uncleared pending amounts |
-
-### Add Transaction
-
-1. Pick a date (defaults to today)
-2. Select a category — the app infers income vs. expense automatically
-3. Enter the amount (decimals supported)
-4. Optionally add a note — the field suggests previous descriptions for the same category as you type
-5. Click **Add Transaction**
-
-When offline, the button shows an amber **"Saved offline — will sync"** state. Once reconnected, the transaction syncs automatically and the pill updates to **Synced**.
-
-### Pending Amounts
-
-Pending amounts represent unsettled money (e.g. a loan or split bill). They are deducted from your balance so it always reflects what is actually available. Check the checkbox next to a pending item to clear it once settled.
-
-### Recent Transactions
-
-The 5 most recent transactions, sorted by date. Each item shows category, optional note, date, and amount. Tap any row to open the **Transaction Detail panel** with full metadata. Edit and delete are available inline or from the detail panel.
-
-**Deleting** shows an inline confirmation row. Check *"Don't ask again"* to skip confirmations for the rest of the session — this preference resets on sign-out.
-
----
-
-## Transactions Tab
-
-Every transaction ever recorded, sorted newest first. Supports:
-
-- **Search** — filters by description or category (debounced for performance)
-- **Category filter** — dropdown of all categories present in your data
-- **Type filter** — income or expense only
-
-The header shows a live count of results vs. total.
-
----
-
-## Analytics
-
-Four views, selectable from the tab bar.
-
-### Daily
-
-Pick any date to compare that day's expenses against the previous day. Includes a category breakdown pie chart.
-
-### Monthly
-
-Pick a month to see:
-
-- Total income and expense summary with month-over-month comparison
-- Category breakdown list sorted by spend, with optional budget progress bars
-- Daily spending line chart for the selected month
-- **Monthly Insights panel** — automatic cards covering total spending, net savings, income change, top category, biggest category jump, budget utilisation, daily average, and transaction count
-
-Toggle between **Expense** and **Income** views.
-
-### Yearly
-
-Enter a year to see a table of all categories × months with totals and monthly averages per row. Toggle between expense and income.
-
-### Cash Flow
-
-Enter a year to see a month-by-month table: income, expenses, net, and a running balance carried forward from your starting balance. The opening balance for the selected year accounts for all prior transactions automatically.
-
----
-
-## Settings
-
-Accessible via the ⚙ icon (top right) or the bottom nav on mobile.
-
-| Setting | Description |
-|---|---|
-| **Starting Balance** | Your account balance before you started tracking. Used as the base for Balance and Cash Flow. |
-| **Categories** | Add, recolour, or remove income and expense categories. Set optional monthly budgets on expense categories. |
-| **Profile Name** | Display name shown in the greeting header. Stored locally. |
-| **Import CSV** | Bulk-import transactions. Expected format: `Date (MM/DD/YYYY), Type, Category, Amount, Description`. A preview step shows the first 10 rows before committing. Imports run in batches of 500 for reliability. |
-| **Export CSV** | Downloads all transactions as a CSV file. |
-| **Dark Mode** | Toggle light/dark theme. Saved to localStorage. |
-| **Sign Out** | Ends the session and returns to the login page. |
+Pick a date, select a category from the dropdown, enter an amount, and optionally add a note.
 
 ---
 
@@ -145,41 +145,43 @@ Accessible via the ⚙ icon (top right) or the bottom nav on mobile.
 
 Finance Tracker is a Progressive Web App with a service worker that:
 
-- Caches all app shell assets on first load
-- Serves the full app from cache when offline
-- Queues Firestore writes locally (via Firestore's offline persistence)
-- Syncs queued transactions automatically on reconnect
-- Shows an offline indicator badge and per-transaction sync status pills
+- Caches all app shell assets (HTML, CSS, JS, model weights) on first load
+- Serves the full app — including the NLP model — from cache when offline
+- Queues Firestore writes locally via Firestore's built-in offline persistence
+- Syncs queued transactions automatically on reconnect with per-transaction status feedback
+- Shows an offline badge and an in-app update toast after deploys
 
-A versioned cache (stamped at build time by CI) ensures users always get the latest assets after a deploy, with an in-app update toast prompting a reload.
+The service worker cache is versioned by build timestamp via a GitHub Actions CI step, ensuring users always receive fresh assets after a deploy without manual cache busting.
 
 ---
 
 ## CSV Import Format
 
-```
+```csv
 Date,Type,Category,Amount,Description
-03/15/2025,expense,Food & Dining,450,Lunch at Smoke House
+03/15/2025,expense,Food & Dining,450,Lunch
 03/16/2025,income,Salary,85000,March salary
 ```
 
-- **Date** — MM/DD/YYYY
-- **Type** — `income` or `expense` (case-insensitive)
-- **Category** — must match an existing category name
-- **Amount** — positive number
-- **Description** — optional; wrap in quotes if it contains commas
+| Column | Format |
+|---|---|
+| Date | MM/DD/YYYY |
+| Type | `income` or `expense` (case-insensitive) |
+| Category | Must match an existing category name exactly |
+| Amount | Positive number |
+| Description | Optional; quote if it contains commas |
 
 ---
 
 ## Privacy & Data
 
-All data lives in your own Firebase Firestore project, partitioned by user ID. Firestore security rules prevent any user from reading or writing another user's data. No analytics, no ads, no third-party data sharing.
+All data lives in your own Firebase Firestore project, partitioned by user ID. Firestore security rules ensure no user can read or write another user's data. The NLP model runs entirely on-device — transaction descriptions are never sent to any server. No analytics, no ads, no third-party data sharing.
 
 ---
 
 ## Development & Deployment
 
-The project is plain HTML/CSS/JS with no build step required.
+No build step required. The project is plain HTML/CSS/JS.
 
 ```bash
 # Install Firebase CLI
@@ -190,23 +192,34 @@ firebase login
 firebase deploy
 ```
 
-A GitHub Actions workflow automatically deploys on push to `main`. It also stamps the service worker cache version with the build timestamp so users always receive the latest assets.
+A GitHub Actions workflow automatically deploys on push to `main` and stamps the service worker cache version with the build timestamp.
 
-### Folder structure
+### Project Structure
 
 ```
 public/
-├── index.html          # Main app shell
-├── landing.html        # Marketing / landing page
-├── login.html          # Auth page
-├── category-setup.html # First-run category setup
+├── index.html            # Main app shell
+├── landing.html          # Landing / marketing page
+├── login.html            # Authentication page
+├── category-setup.html   # First-run category setup
 ├── 404.html
-├── app.js              # Core application logic
-├── auth.js             # Authentication handlers
-├── category-setup.js   # Category setup logic
-├── theme.js            # Theme initialisation
-├── pwa.js              # Service worker registration, offline pill, install banner
-├── sw.js               # Service worker (cache strategy)
-├── styles.css          # All styles
-├── manifest.json       # PWA manifest
-└── icons/              # App icons (all sizes + maskable variants)
+├── app.js                # Core application logic, NLP integration, UI
+├── auth.js               # Authentication flow handlers
+├── category-setup.js     # Category setup page logic
+├── nlp.js                # On-device NLP inference engine
+├── model.json            # Trained classifier weights
+├── theme.js              # Theme initialisation (runs before paint)
+├── pwa.js                # SW registration, offline pill, install banner
+├── sw.js                 # Service worker — cache strategy and asset list
+├── styles.css            # All styles (CSS custom properties, dark mode)
+├── manifest.json         # PWA manifest
+└── icons/                # App icons — all sizes, any + maskable variants
+```
+
+### Retraining the NLP Model
+
+```bash
+python retrain_from_csv.py --input transactions.csv --output public/model.json
+```
+
+The script reads a labelled CSV of historical transactions, computes TF-IDF weights per category, and writes the updated model weights to `model.json`. Deploy as normal after retraining — the service worker will serve the updated model on next load.
