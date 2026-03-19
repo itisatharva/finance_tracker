@@ -53,6 +53,7 @@ function _buildPopoverContent(popover, initialColor, onPick) {
     popover.querySelectorAll('.cat-palette-dot').forEach(d =>
       d.classList.toggle('active', d.dataset.color === c));
     hexInput.value = c;
+    hexPreview.style.background = c;
     hexInput.classList.remove('invalid');
     nativeInput.value = c;
   }
@@ -173,16 +174,30 @@ function _makeSetupColorBtn(initialColor, onPick) {
     _openPopover = popover;
 
     function _position() {
-      const br = btn.getBoundingClientRect();
-      const pw = popover.offsetWidth;
-      const ph = popover.offsetHeight;
       const margin = 8;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const br = btn.getBoundingClientRect();
+
+      popover.style.maxHeight = (vh - 2 * margin) + 'px';
+
+      const pw = popover.offsetWidth  || 280;
+      const ph = popover.offsetHeight || 260;
+
       let left = br.left;
-      if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+      if (left + pw > vw - margin) left = vw - pw - margin;
       left = Math.max(margin, left);
-      let top = br.bottom + 6;
-      if (top + ph > window.innerHeight - margin) top = br.top - ph - 6;
-      top = Math.max(margin, top);
+
+      const spaceBelow = vh - br.bottom - margin;
+      const spaceAbove = br.top - margin;
+      let top;
+      if (spaceBelow >= ph || spaceBelow >= spaceAbove) {
+        top = br.bottom + 6;
+      } else {
+        top = br.top - ph - 6;
+      }
+      top = Math.max(margin, Math.min(top, vh - ph - margin));
+
       popover.style.left = left + 'px';
       popover.style.top  = top  + 'px';
     }

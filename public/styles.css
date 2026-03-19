@@ -3900,7 +3900,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* ── Floating colour popover ────────────────────────────────────────────────── */
 .color-pick-popover {
   position: fixed;
-  z-index: 2200;
+  z-index: 10200;
   background: var(--bg-card);
   border: 1.5px solid var(--border);
   border-radius: var(--r-xl);
