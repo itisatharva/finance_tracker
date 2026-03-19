@@ -1370,9 +1370,12 @@ function wireAddTxForm() {
 
   let _openOverflowTimer = null; // tracks the deferred overflow=hidden
 
-  function openAddTxSheet() {
+  function openAddTxSheet(confirmMode = false) {
     bg.classList.add('open');
     if (fab) fab.classList.add('open');
+    // In confirm mode (NLP single-result prefill), hide the AI input section
+    const panel = document.getElementById('addTxSheet');
+    if (panel) panel.classList.toggle('confirm-mode', !!confirmMode);
     // Clear NLP input on every open so previous text doesn't linger
     const sni = document.getElementById('sheetNlpInput');
     if (sni) sni.value = '';
@@ -1398,6 +1401,7 @@ function wireAddTxForm() {
     _autoCloseTimer = null;
     _txSuccessMode  = false;
     bg.classList.remove('open');
+    document.getElementById('addTxSheet')?.classList.remove('confirm-mode');
     if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
     // Restore nav tab for active view
@@ -1535,10 +1539,10 @@ function wireAddTxForm() {
         });
 
         if (valid.length === 1) {
-          // Single tx → prefill sheet
+          // Single tx → prefill sheet (confirm-mode hides the NLP input section)
           hideStatus();
           const tx = valid[0];
-          openAddTxSheet();
+          openAddTxSheet(true);
           setTimeout(() => {
             const sel  = document.getElementById('txCategory');
             const amt  = document.getElementById('txAmount');

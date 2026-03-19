@@ -3620,6 +3620,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   background: var(--border);
 }
 
+/* ── Confirm mode: hide AI input section when NLP has pre-filled the form ── */
+.addtx-panel.confirm-mode .sheet-nlp-wrap,
+.addtx-panel.confirm-mode .sheet-nlp-divider { display: none; }
+
 /* ── Sheet NLP inline status + preview ────────────────────────────────────── */
 .sheet-nlp-status {
   font-size: .8rem;
