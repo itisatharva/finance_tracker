@@ -1,7 +1,5 @@
 // ── Finance Tracker NLP Engine ────────────────────────────────────────────────
 // Runs TF-IDF + Logistic Regression entirely in the browser.
-// No API key. No server. Works offline.
-
 window.NLP = (() => {
 
   let model = null;
