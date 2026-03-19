@@ -3966,12 +3966,46 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px #ffffff;
 }
 
-/* ── Footer row: hex input + rainbow native picker ──────────────────────── */
+/* ── Footer: hex row + done button ──────────────────────────────────────── */
 .cat-color-panel-footer {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
 }
+.color-pick-hex-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Small colour preview circle beside the hex input */
+.color-pick-hex-preview {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  display: block;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(0,0,0,.15);
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+/* Done button row */
+.color-pick-done-row {
+  display: flex;
+  justify-content: flex-end;
+}
+.color-pick-done-btn {
+  padding: 5px 14px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--ink);
+  color: var(--ink-fg);
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity .12s;
+}
+.color-pick-done-btn:hover { opacity: .85; }
 
 .cat-color-hex-input {
   width: 90px;

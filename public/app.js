@@ -1294,9 +1294,19 @@ function _buildPickerContent(popover, initialColor, onPick) {
   makeRow(VIVID,  'Vivid');
   makeRow(PASTEL, 'Pastel');
 
-  // Footer: hex input + native wheel
+  // Footer: hex row (preview + input + wheel) + done button
   const footer = document.createElement('div');
   footer.className = 'cat-color-panel-footer';
+
+  // Hex row
+  const hexRow = document.createElement('div');
+  hexRow.className = 'color-pick-hex-row';
+
+  // Live colour preview swatch
+  const hexPreview = document.createElement('span');
+  hexPreview.className = 'color-pick-hex-preview';
+  hexPreview.style.background = initialColor;
+  hexRow.appendChild(hexPreview);
 
   const hexInput = document.createElement('input');
   hexInput.type = 'text';
@@ -1311,33 +1321,53 @@ function _buildPickerContent(popover, initialColor, onPick) {
     if (ok) {
       currentColor = v;
       onPick(v);
+      hexPreview.style.background = v;
       popover.querySelectorAll('.cat-palette-dot').forEach(d =>
         d.classList.toggle('active', d.dataset.color === v));
       nativeInput.value = v;
     }
   });
-  footer.appendChild(hexInput);
+  hexRow.appendChild(hexInput);
 
   const nativeWrap = document.createElement('div');
   nativeWrap.className = 'cat-color-native-wrap';
   nativeWrap.title = 'Custom colour';
+  // Stop propagation so native OS picker doesn't close the popover on mobile
+  nativeWrap.addEventListener('pointerdown', e => e.stopPropagation());
   const nativeInput = document.createElement('input');
   nativeInput.type = 'color';
   nativeInput.value = initialColor;
-  nativeInput.addEventListener('input', () => {
-    const c = nativeInput.value;
-    currentColor = c;
-    onPick(c);
-    hexInput.value = c;
+  nativeInput.addEventListener('pointerdown', e => e.stopPropagation());
+  const _applyNative = () => {
+    const nc = nativeInput.value;
+    currentColor = nc;
+    onPick(nc);
+    hexInput.value = nc;
+    hexPreview.style.background = nc;
     hexInput.classList.remove('invalid');
     popover.querySelectorAll('.cat-palette-dot').forEach(d =>
-      d.classList.toggle('active', d.dataset.color === c));
-  });
+      d.classList.toggle('active', d.dataset.color === nc));
+  };
+  nativeInput.addEventListener('input', _applyNative);
+  nativeInput.addEventListener('change', _applyNative);
   const nativeCircle = document.createElement('span');
   nativeCircle.className = 'cat-color-native-circle';
   nativeWrap.appendChild(nativeInput);
   nativeWrap.appendChild(nativeCircle);
-  footer.appendChild(nativeWrap);
+  hexRow.appendChild(nativeWrap);
+  footer.appendChild(hexRow);
+
+  // Done button
+  const doneRow = document.createElement('div');
+  doneRow.className = 'color-pick-done-row';
+  const doneBtn = document.createElement('button');
+  doneBtn.type = 'button';
+  doneBtn.className = 'color-pick-done-btn';
+  doneBtn.textContent = 'Done';
+  doneBtn.addEventListener('click', e => { e.stopPropagation(); _closeColorPicker(); });
+  doneRow.appendChild(doneBtn);
+  footer.appendChild(doneRow);
+
   popover.appendChild(footer);
 }
 
@@ -1439,8 +1469,11 @@ document.addEventListener('pointerdown', e => {
   if (e.target.closest('.color-pick-btn')) return;
   _closeColorPicker();
 }, true);
-// Close on scroll/resize
-window.addEventListener('scroll', _closeColorPicker, true);
+// Close on scroll/resize — but NOT while the native OS colour picker is open
+window.addEventListener('scroll', (e) => {
+  if (document.activeElement && document.activeElement.type === 'color') return;
+  _closeColorPicker();
+}, true);
 window.addEventListener('resize', _closeColorPicker);
 
 // ── Tracks chosen color for each "add new" palette ─────────────────────────

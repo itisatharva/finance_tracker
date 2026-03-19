@@ -81,6 +81,14 @@ function _buildPopoverContent(popover, initialColor, onPick) {
   const footer = document.createElement('div');
   footer.className = 'cat-color-panel-footer';
 
+  const hexRow = document.createElement('div');
+  hexRow.className = 'color-pick-hex-row';
+
+  const hexPreview = document.createElement('span');
+  hexPreview.className = 'color-pick-hex-preview';
+  hexPreview.style.background = initialColor;
+  hexRow.appendChild(hexPreview);
+
   const hexInput = document.createElement('input');
   hexInput.type = 'text'; hexInput.className = 'cat-color-hex-input';
   hexInput.placeholder = '#000000'; hexInput.maxLength = 7; hexInput.value = initialColor;
@@ -88,21 +96,41 @@ function _buildPopoverContent(popover, initialColor, onPick) {
     const v = hexInput.value.trim();
     const ok = /^#[0-9a-fA-F]{6}$/.test(v);
     hexInput.classList.toggle('invalid', !ok && v.length >= 2);
-    if (ok) { onPick(v); popover.querySelectorAll('.cat-palette-dot').forEach(d => d.classList.toggle('active', d.dataset.color === v)); nativeInput.value = v; }
+    if (ok) {
+      onPick(v);
+      hexPreview.style.background = v;
+      popover.querySelectorAll('.cat-palette-dot').forEach(d => d.classList.toggle('active', d.dataset.color === v));
+      nativeInput.value = v;
+    }
   });
-  footer.appendChild(hexInput);
+  hexRow.appendChild(hexInput);
 
   const nativeWrap = document.createElement('div');
   nativeWrap.className = 'cat-color-native-wrap'; nativeWrap.title = 'Custom colour';
+  nativeWrap.addEventListener('pointerdown', e => e.stopPropagation());
   const nativeInput = document.createElement('input');
   nativeInput.type = 'color'; nativeInput.value = initialColor;
-  nativeInput.addEventListener('input', () => {
-    const c = nativeInput.value; onPick(c); hexInput.value = c; hexInput.classList.remove('invalid');
-    popover.querySelectorAll('.cat-palette-dot').forEach(d => d.classList.toggle('active', d.dataset.color === c));
-  });
+  nativeInput.addEventListener('pointerdown', e => e.stopPropagation());
+  const _applyNative = () => {
+    const nc = nativeInput.value; onPick(nc);
+    hexInput.value = nc; hexPreview.style.background = nc; hexInput.classList.remove('invalid');
+    popover.querySelectorAll('.cat-palette-dot').forEach(d => d.classList.toggle('active', d.dataset.color === nc));
+  };
+  nativeInput.addEventListener('input', _applyNative);
+  nativeInput.addEventListener('change', _applyNative);
   const circle = document.createElement('span'); circle.className = 'cat-color-native-circle';
   nativeWrap.appendChild(nativeInput); nativeWrap.appendChild(circle);
-  footer.appendChild(nativeWrap);
+  hexRow.appendChild(nativeWrap);
+  footer.appendChild(hexRow);
+
+  const doneRow = document.createElement('div');
+  doneRow.className = 'color-pick-done-row';
+  const doneBtn = document.createElement('button');
+  doneBtn.type = 'button'; doneBtn.className = 'color-pick-done-btn'; doneBtn.textContent = 'Done';
+  doneBtn.addEventListener('click', e => { e.stopPropagation(); _closeSetupPicker(); });
+  doneRow.appendChild(doneBtn);
+  footer.appendChild(doneRow);
+
   popover.appendChild(footer);
 }
 
@@ -170,7 +198,10 @@ document.addEventListener('pointerdown', e => {
   if (e.target.closest('.color-pick-btn')) return;
   _closeSetupPicker();
 }, true);
-window.addEventListener('scroll', _closeSetupPicker, true);
+window.addEventListener('scroll', (e) => {
+  if (document.activeElement && document.activeElement.type === 'color') return;
+  _closeSetupPicker();
+}, true);
 window.addEventListener('resize', _closeSetupPicker);
 
 // Tracks chosen "add new" color per type (color-pick button nodes stored here)
