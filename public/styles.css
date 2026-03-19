@@ -3515,3 +3515,100 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 #renameAccountModal.open {
   display: flex !important;
 }
+
+/* ── Sheet NLP input ──────────────────────────────────────────────────────── */
+.sheet-nlp-wrap {
+  margin-bottom: 4px;
+}
+.sheet-nlp-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 8px;
+}
+.sheet-nlp-spark {
+  font-size: .85rem;
+  animation: sparkPulse 2s ease-in-out infinite;
+}
+@keyframes sparkPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .6; transform: scale(.85); }
+}
+.sheet-nlp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-input);
+  border: 1.5px solid rgba(15,169,116,.45);
+  border-radius: var(--r-lg);
+  padding: 4px 4px 4px 14px;
+  box-shadow: 0 0 0 0 rgba(15,169,116,0);
+  transition: border-color .2s, box-shadow .2s;
+}
+.sheet-nlp-row:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(15,169,116,.18), 0 0 16px rgba(15,169,116,.12);
+}
+.sheet-nlp-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: .9rem;
+  color: var(--text-1);
+  padding: 8px 0;
+  min-width: 0;
+}
+.sheet-nlp-input::placeholder {
+  color: var(--text-3);
+  font-size: .84rem;
+}
+.sheet-nlp-send {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  border-radius: var(--r-md);
+  background: var(--green);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity .15s, transform .1s;
+}
+.sheet-nlp-send:hover  { opacity: .88; transform: scale(1.05); }
+.sheet-nlp-send:active { transform: scale(.95); }
+.sheet-nlp-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 7px;
+  font-size: .72rem;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+.sheet-nlp-examples span { white-space: nowrap; }
+.sheet-nlp-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 14px;
+  color: var(--text-3);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.sheet-nlp-divider::before,
+.sheet-nlp-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}

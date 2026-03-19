@@ -1444,6 +1444,8 @@ function wireAddTxForm() {
     const mobileWrap       = document.getElementById('mobileNlpWrap');
     const mobileInput      = document.getElementById('mobileNlpInput');
     const mobileSendBtn    = document.getElementById('mobileNlpSendBtn');
+    const sheetNlpInput    = document.getElementById('sheetNlpInput');
+    const sheetNlpSend     = document.getElementById('sheetNlpSend');
 
     let nlpOn = localStorage.getItem('nlpEnabled') === 'true';
     let pendingTxns = [];
@@ -1540,6 +1542,7 @@ function wireAddTxForm() {
             if (date) date.value = tx.date;
             if (nlpInput)    nlpInput.value    = '';
             if (mobileInput) mobileInput.value = '';
+            if (sheetNlpInput) sheetNlpInput.value = '';
           }, 120);
         } else {
           // Multiple → preview list
@@ -1589,6 +1592,8 @@ function wireAddTxForm() {
     if (mobileSendBtn)    mobileSendBtn.addEventListener('click', () => doNlpParse(mobileInput.value));
     if (nlpInput)         nlpInput.addEventListener('keydown', e => { if (e.key==='Enter') doNlpParse(nlpInput.value); });
     if (mobileInput)      mobileInput.addEventListener('keydown', e => { if (e.key==='Enter') doNlpParse(mobileInput.value); });
+    if (sheetNlpSend)     sheetNlpSend.addEventListener('click', () => doNlpParse(sheetNlpInput.value));
+    if (sheetNlpInput)    sheetNlpInput.addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); doNlpParse(sheetNlpInput.value); } });
 
     setNlpMode(nlpOn); // restore saved state
   })();
