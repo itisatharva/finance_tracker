@@ -1446,6 +1446,11 @@ function wireAddTxForm() {
     const mobileSendBtn    = document.getElementById('mobileNlpSendBtn');
     const sheetNlpInput    = document.getElementById('sheetNlpInput');
     const sheetNlpSend     = document.getElementById('sheetNlpSend');
+    const sheetNlpStatus   = document.getElementById('sheetNlpStatus');
+    const sheetNlpPreview  = document.getElementById('sheetNlpPreview');
+    const sheetNlpPrevList = document.getElementById('sheetNlpPreviewList');
+    const sheetNlpCancel   = document.getElementById('sheetNlpCancel');
+    const sheetNlpLogAll   = document.getElementById('sheetNlpLogAll');
 
     let nlpOn = localStorage.getItem('nlpEnabled') === 'true';
     let pendingTxns = [];
@@ -1592,8 +1597,123 @@ function wireAddTxForm() {
     if (mobileSendBtn)    mobileSendBtn.addEventListener('click', () => doNlpParse(mobileInput.value));
     if (nlpInput)         nlpInput.addEventListener('keydown', e => { if (e.key==='Enter') doNlpParse(nlpInput.value); });
     if (mobileInput)      mobileInput.addEventListener('keydown', e => { if (e.key==='Enter') doNlpParse(mobileInput.value); });
-    if (sheetNlpSend)     sheetNlpSend.addEventListener('click', () => doNlpParse(sheetNlpInput.value));
-    if (sheetNlpInput)    sheetNlpInput.addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); doNlpParse(sheetNlpInput.value); } });
+    // ── Sheet-specific status/preview helpers ──────────────────────────────
+    function showSheetStatus(msg, isError = false) {
+      if (!sheetNlpStatus) return;
+      sheetNlpStatus.textContent = msg;
+      sheetNlpStatus.className = 'sheet-nlp-status' + (isError ? ' sheet-nlp-status-error' : '');
+      sheetNlpStatus.classList.remove('hidden');
+    }
+    function hideSheetStatus() { if (sheetNlpStatus) sheetNlpStatus.classList.add('hidden'); }
+
+    function showSheetPreview(txns) {
+      if (!sheetNlpPreview || !sheetNlpPrevList) return;
+      pendingTxns = txns;
+      sheetNlpPrevList.innerHTML = '';
+      txns.forEach((tx, i) => {
+        const row = document.createElement('div');
+        row.className = 'nlp-preview-row';
+        const col = tx.type === 'income' ? 'var(--green)' : 'var(--red)';
+        row.innerHTML = `
+          <span class="nlp-preview-cat">\${tx.category}</span>
+          <span class="nlp-preview-amt" style="color:\${col}">₹\${tx.amount}</span>
+          <span class="nlp-preview-note">\${tx.note || ''}</span>
+          <span class="nlp-preview-date">\${tx.date}</span>
+          <span class="nlp-preview-conf">\${tx.confidence}%</span>
+          <button type="button" class="nlp-preview-remove" data-idx="\${i}" aria-label="Remove">×</button>`;
+        sheetNlpPrevList.appendChild(row);
+      });
+      sheetNlpPrevList.querySelectorAll('.nlp-preview-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          pendingTxns.splice(parseInt(btn.dataset.idx), 1);
+          pendingTxns.length === 0 ? hideSheetPreview() : showSheetPreview(pendingTxns);
+        });
+      });
+      sheetNlpPreview.classList.remove('hidden');
+    }
+    function hideSheetPreview() {
+      if (sheetNlpPreview) sheetNlpPreview.classList.add('hidden');
+      pendingTxns = [];
+    }
+
+    async function doSheetNlpParse(text) {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      if (!window.NLP) { showSheetStatus('AI model not loaded — refresh.', true); return; }
+      showSheetStatus('Parsing…');
+      hideSheetPreview();
+      try {
+        const results = await NLP.parse(trimmed);
+        const valid = results.filter(r => r.amount && r.amount > 0);
+        if (!valid.length) {
+          showSheetStatus('No amount found. Try: "paid 350 for groceries"', true);
+          return;
+        }
+        const allCatNames = [
+          ...(categories.expense || []).map(c => typeof c === 'string' ? c : c.name),
+          ...(categories.income  || []).map(c => typeof c === 'string' ? c : c.name),
+        ];
+        valid.forEach(tx => {
+          if (!allCatNames.includes(tx.category)) {
+            const fallbacks = tx.type === 'income' ? categories.income : categories.expense;
+            if (fallbacks && fallbacks.length) {
+              tx.category = typeof fallbacks[0] === 'string' ? fallbacks[0] : fallbacks[0].name;
+            }
+            tx.confidence = Math.max(20, tx.confidence - 20);
+          }
+        });
+        hideSheetStatus();
+        if (valid.length === 1) {
+          const tx = valid[0];
+          setTimeout(() => {
+            const sel  = document.getElementById('txCategory');
+            const amt  = document.getElementById('txAmount');
+            const note = document.getElementById('txNote');
+            const date = document.getElementById('txDate');
+            if (sel)  sel.value  = tx.category;
+            if (amt)  amt.value  = tx.amount;
+            if (note) note.value = tx.note || '';
+            if (date) date.value = tx.date;
+            if (sheetNlpInput) sheetNlpInput.value = '';
+          }, 80);
+        } else {
+          showSheetPreview(valid);
+          if (sheetNlpInput) sheetNlpInput.value = '';
+        }
+      } catch (err) {
+        showSheetStatus('Parse failed — try again.', true);
+        console.error('Sheet NLP error:', err);
+      }
+    }
+
+    if (sheetNlpCancel)  sheetNlpCancel.addEventListener('click', hideSheetPreview);
+    if (sheetNlpLogAll)  sheetNlpLogAll.addEventListener('click', async () => {
+      if (!pendingTxns.length) return;
+      sheetNlpLogAll.disabled = true;
+      sheetNlpLogAll.textContent = 'Logging…';
+      let logged = 0;
+      for (const tx of pendingTxns) {
+        const type = catType(tx.category) || tx.type;
+        if (!type) continue;
+        try {
+          await window.addDoc(txCol(), {
+            type, category: tx.category, amount: tx.amount,
+            description: tx.note || '',
+            selectedDate: new Date(tx.date + 'T00:00:00'),
+            createdAt: window.serverTimestamp()
+          });
+          logged++;
+        } catch(e) { console.error('Sheet NLP log failed:', e); }
+      }
+      hideSheetPreview();
+      showSheetStatus(`✓ Logged \${logged} transaction\${logged !== 1 ? 's' : ''}!`);
+      setTimeout(hideSheetStatus, 3000);
+      if (window.vibrate) vibrate();
+      sheetNlpLogAll.disabled = false;
+      sheetNlpLogAll.textContent = 'Log All';
+    });
+    if (sheetNlpSend)     sheetNlpSend.addEventListener('click', () => doSheetNlpParse(sheetNlpInput.value));
+    if (sheetNlpInput)    sheetNlpInput.addEventListener('keydown', e => { if (e.key==='Enter') { e.preventDefault(); doSheetNlpParse(sheetNlpInput.value); } });
 
     setNlpMode(nlpOn); // restore saved state
   })();

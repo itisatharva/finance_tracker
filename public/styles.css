@@ -3612,3 +3612,28 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   height: 1px;
   background: var(--border);
 }
+
+/* ── Sheet NLP inline status + preview ────────────────────────────────────── */
+.sheet-nlp-status {
+  font-size: .8rem;
+  font-weight: 500;
+  color: var(--green);
+  padding: 6px 2px 0;
+}
+.sheet-nlp-status-error { color: var(--red); }
+.sheet-nlp-preview {
+  margin-top: 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+}
+.sheet-nlp-preview-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.sheet-nlp-preview-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+
+/* ── Sheet NLP status & success ──────────────────────────────────────────── */
+.sheet-nlp-success .sheet-nlp-row {
+  border-color: var(--green) !important;
+  box-shadow: 0 0 0 3px rgba(15,169,116,.22), 0 0 18px rgba(15,169,116,.14) !important;
+}
