@@ -283,5 +283,112 @@ window.NLP = (() => {
   // ── Preload model in background ───────────────────────────────────────────
   function preload() { loadModel().catch(() => {}); }
 
-  return { parse, preload, loadModel };
+  // ── Category matcher ──────────────────────────────────────────────────────
+  // Maps each of the model's 15 trained classes to a broad set of synonyms,
+  // merchant keywords, and related words that users put in custom category names.
+  const SEMANTIC_GROUPS = {
+    'Food & Dining':     ['food','dining','eat','eating','restaurant','meal','lunch','dinner','breakfast','cafe','snack','grocery','groceries','kitchen','canteen','tiffin','dhaba','chai','coffee','tea','bakery','sweets','mithai','dabba','hotel','mess','bhojan','thali'],
+    'Transport':         ['transport','travel','uber','ola','taxi','bus','auto','cab','fuel','petrol','diesel','metro','train','commute','vehicle','bike','rickshaw','ticket','fare','rapido','parking','toll','shuttle','carpool','bsnl'],
+    'Shopping':          ['shop','shopping','clothes','clothing','amazon','flipkart','buy','purchase','mall','market','fashion','apparel','shoes','accessories','gadget','electronics','myntra','meesho','ajio','nykaa','boutique','retail','store'],
+    'Bills & Utilities': ['bill','utility','electricity','water','gas','internet','wifi','phone','mobile','recharge','subscription','rent','emi','insurance','maintenance','society','broadband','postpaid','prepaid','netflix','prime','hotstar','jio','airtel','bsnl','dth','cable'],
+    'Entertainment':     ['entertainment','movie','film','netflix','prime','hotstar','zee5','game','gaming','fun','outing','party','music','concert','sport','cricket','match','event','theatre','books','kindle','sports','pub','bar','drinks'],
+    'Healthcare':        ['health','medical','doctor','medicine','pharmacy','hospital','clinic','dentist','lab','test','prescription','wellness','gym','fitness','yoga','tablet','capsule','healthcare','physiotherapy','ayurveda','blood','diagnostic'],
+    'Education':         ['education','school','college','course','book','tuition','fee','study','learn','class','coaching','training','online','udemy','coursera','certification','exam','workshop','degree','semester','library','stationery'],
+    'Travel':            ['travel','trip','vacation','hotel','flight','tour','holiday','airbnb','oyo','booking','passport','visa','itinerary','resort','beach','hill','station','airport','bus stand','tour','sightseeing'],
+    'Other Expenses':    ['other','misc','miscellaneous','expense','sundry','general','random','unknown'],
+    'Salary':            ['salary','wage','wages','pay','paycheck','stipend','ctc','hike','monthly pay','basic','in-hand','payday','payroll','compensation'],
+    'Freelance':         ['freelance','freelancing','contract','gig','project','consulting','client','invoice','side income','fiverr','upwork','toptal','remote'],
+    'Business':          ['business','profit','revenue','sales','shop income','commission','trader','vendor','wholesale','enterprise','startup'],
+    'Investment':        ['investment','dividend','return','stock','mutual','fund','interest','sip','equity','trading','nifty','sensex','crypto','bitcoin','fd','fixed deposit','ppf','nps','zerodha','groww'],
+    'Gift':              ['gift','gifted','present','bonus','reward','cashback','refund','lucky','win','prize','diwali','birthday','festival','rakhi','voucher','coupon'],
+    'Other Income':      ['other income','misc income','extra income','side','random','extra','additional','miscellaneous income'],
+  };
+
+  function _wordSet(str) {
+    return new Set(str.toLowerCase().split(/[\s&_\-\/,.()+]+/).filter(w => w.length > 1));
+  }
+
+  function _jaccardWords(a, b) {
+    const wa = _wordSet(a), wb = _wordSet(b);
+    let inter = 0;
+    wa.forEach(w => { if (wb.has(w)) inter++; });
+    const union = new Set([...wa, ...wb]).size;
+    return union === 0 ? 0 : inter / union;
+  }
+
+  function _semanticScore(predicted, catName) {
+    let score = _jaccardWords(predicted, catName);
+
+    const pl = predicted.toLowerCase();
+    const cl = catName.toLowerCase();
+
+    // Substring containment gives a strong signal
+    if (cl.includes(pl) || pl.includes(cl)) score = Math.max(score, 0.72);
+
+    // Shared individual word (length > 3 to avoid noise)
+    const predWords = _wordSet(predicted);
+    const catWords  = _wordSet(catName);
+    predWords.forEach(pw => {
+      if (pw.length > 3 && catWords.has(pw)) score = Math.max(score, 0.60);
+    });
+
+    // Semantic keyword lookup: does any word in the user category name
+    // appear in the synonym list for the predicted model class?
+    const keywords = SEMANTIC_GROUPS[predicted] || [];
+    catWords.forEach(w => {
+      if (keywords.includes(w)) score = Math.max(score, 0.62);
+    });
+
+    // Reverse: does any word of the predicted class appear in the user cat name?
+    predWords.forEach(pw => {
+      if (catWords.has(pw) && pw.length > 2) score = Math.max(score, 0.55);
+    });
+
+    return Math.min(1, score);
+  }
+
+  /**
+   * Match a model-predicted class name against a user's actual category lists.
+   *
+   * @param {string}   predicted    - e.g. "Food & Dining" (model output)
+   * @param {string}   type         - 'expense' | 'income' (model's guess)
+   * @param {Array}    expenseCats  - user's expense categories (string or {name,...})
+   * @param {Array}    incomeCats   - user's income categories
+   * @returns {{matched, category, categoryName, categoryType, score, suggestedName, suggestedType}}
+   */
+  function matchToUserCategories(predicted, type, expenseCats, incomeCats) {
+    const expPool = (expenseCats || []).map(c => ({
+      name: typeof c === 'string' ? c : c.name,
+      type: 'expense',
+      raw: c,
+    }));
+    const incPool = (incomeCats || []).map(c => ({
+      name: typeof c === 'string' ? c : c.name,
+      type: 'income',
+      raw: c,
+    }));
+
+    // Search type-appropriate pool first, then the other
+    const ordered = type === 'income'
+      ? [...incPool, ...expPool]
+      : [...expPool, ...incPool];
+
+    let best = null, bestScore = 0;
+    for (const item of ordered) {
+      const s = _semanticScore(predicted, item.name);
+      if (s > bestScore) { bestScore = s; best = item; }
+    }
+
+    return {
+      matched:       bestScore >= 0.51,
+      category:      best ? best.raw : null,
+      categoryName:  best ? best.name : null,
+      categoryType:  best ? best.type : type,
+      score:         bestScore,
+      suggestedName: predicted,
+      suggestedType: type,
+    };
+  }
+
+  return { parse, preload, loadModel, matchToUserCategories };
 })();

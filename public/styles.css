@@ -3656,3 +3656,235 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   100% { box-shadow: none; }
 }
 .nlp-filled { animation: nlpFillPulse .75s ease forwards; border-radius: var(--r-md); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ── NLP Category Suggestion Modal ──────────────────────────────────────────
+   Shown when NLP detects a category that isn't in the user's list.
+   Injected into <body> once by app.js; toggled via opacity + display.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Backdrop */
+#catSuggestionModal {
+  position: fixed;
+  inset: 0;
+  z-index: 10100;
+  background: rgba(0, 0, 0, .52);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: none;           /* shown via JS: style.display = 'flex' */
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+
+/* Card */
+.cat-suggest-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 32px 28px 26px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  transform: translateY(14px);
+  transition: transform .2s cubic-bezier(.34,1.28,.64,1);
+}
+
+/* When modal is shown, card slides up */
+#catSuggestionModal[style*="flex"] .cat-suggest-card {
+  transform: translateY(0);
+}
+
+/* ── Header icon circle ─────────────────────────────────────────────────── */
+.cat-suggest-icon-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: 13px;
+  transition: background .2s, color .2s;
+  background: rgba(232, 69, 69, .12);
+  color: #E84545;
+}
+
+/* Pulsing ring on the icon — draws attention without being obnoxious */
+@keyframes cat-suggest-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(232, 69, 69, .35); }
+  70%  { box-shadow: 0 0 0 8px rgba(232, 69, 69, 0); }
+  100% { box-shadow: none; }
+}
+.cat-suggest-icon-circle { animation: cat-suggest-ring 1.6s ease 0.2s; }
+
+/* ── Title & subtitle ───────────────────────────────────────────────────── */
+.cat-suggest-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -.022em;
+  margin-bottom: 5px;
+}
+.cat-suggest-subtitle {
+  font-size: .85rem;
+  color: var(--text-3);
+  line-height: 1.55;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+/* ── Field label shared style ──────────────────────────────────────────── */
+.cat-suggest-label {
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--text-2);
+  display: block;
+  margin-bottom: 6px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.cat-suggest-label span {
+  font-weight: 400;
+  color: var(--text-3);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ── Name input ─────────────────────────────────────────────────────────── */
+#catSuggestName {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: .95rem;
+  transition: border-color .15s, box-shadow .15s;
+}
+#catSuggestName:focus {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.07);
+}
+#catSuggestName.input-error {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 3px rgba(232, 69, 69, .18) !important;
+}
+
+/* ── Type toggle row ────────────────────────────────────────────────────── */
+.cat-suggest-type-row {
+  display: flex;
+  gap: 8px;
+}
+.cat-suggest-type-row .btn {
+  flex: 1;
+  font-size: .85rem;
+  padding: 10px 16px;
+}
+
+/* ── Color preset swatches ──────────────────────────────────────────────── */
+.cat-suggest-presets {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.cat-suggest-preset {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform .12s, outline .1s;
+  outline: 2.5px solid transparent;
+  outline-offset: 2px;
+}
+.cat-suggest-preset:hover { transform: scale(1.15); }
+.cat-suggest-preset.active {
+  outline-color: var(--ink);
+  transform: scale(1.2);
+}
+
+/* Custom color picker row inside modal */
+.cat-suggest-color-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.cat-suggest-color-custom .add-cat-color-wrap {
+  width: 32px;
+  height: 32px;
+}
+.cat-suggest-color-custom .add-cat-color-swatch {
+  width: 32px;
+  height: 32px;
+  border-color: var(--border);
+}
+.cat-suggest-color-custom-label {
+  font-size: .8rem;
+  color: var(--text-3);
+}
+
+/* ── Budget input ───────────────────────────────────────────────────────── */
+#catSuggestBudget {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Footer actions ─────────────────────────────────────────────────────── */
+.cat-suggest-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.cat-suggest-actions .btn {
+  flex: 1;
+}
+
+/* ── Fallback hint below actions ────────────────────────────────────────── */
+.cat-suggest-fallback {
+  text-align: center;
+  margin-top: 11px;
+  font-size: .78rem;
+  color: var(--text-3);
+  line-height: 1.45;
+}
+.cat-suggest-fallback strong {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+/* ── Section spacing within card ────────────────────────────────────────── */
+.cat-suggest-field {
+  margin-bottom: 16px;
+}
+.cat-suggest-field:last-of-type { margin-bottom: 0; }
+
+/* ── Divider ────────────────────────────────────────────────────────────── */
+.cat-suggest-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 18px 0 20px;
+}
+
+/* ── Dark mode tweaks ───────────────────────────────────────────────────── */
+[data-theme="dark"] #catSuggestionModal {
+  background: rgba(0, 0, 0, .68);
+}
+[data-theme="dark"] .cat-suggest-preset.active {
+  outline-color: #ffffff;
+}
+[data-theme="dark"] #catSuggestName:focus {
+  box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .cat-suggest-card {
+    padding: 26px 20px 22px;
+    border-radius: var(--r-lg);
+  }
+  .cat-suggest-title { font-size: 1rem; }
+  .cat-suggest-presets { gap: 6px; }
+  .cat-suggest-preset { width: 22px; height: 22px; }
+}

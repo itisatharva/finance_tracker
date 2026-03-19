@@ -1436,6 +1436,246 @@ function wireAddTxForm() {
   window.openAddTxSheet  = openAddTxSheet;
   window.closeAddTxSheet = closeAddTxSheet;
 
+  // ── NLP Category Suggestion Popup ─────────────────────────────────────────
+  // Injected once into the DOM, shown/hidden via Promise-based API.
+  const CAT_SUGGEST_PRESET_COLORS = [
+    '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
+    '#14b8a6','#3b82f6','#06b6d4','#10b981','#0FA974',
+    '#8b5cf6','#6366f1','#6b7280','#d97706','#ef4444',
+  ];
+
+  let _catSuggestColor = '#E84545';
+  let _catSuggestType  = 'expense';
+
+  window._catSuggestSetType = function(type) {
+    _catSuggestType = type;
+    const expBtn = document.getElementById('catSuggestTypeExp');
+    const incBtn = document.getElementById('catSuggestTypeInc');
+    const budRow = document.getElementById('catSuggestBudgetRow');
+    if (expBtn) expBtn.className = type === 'expense' ? 'btn btn-primary' : 'btn btn-secondary';
+    if (incBtn) incBtn.className = type === 'income'  ? 'btn btn-primary' : 'btn btn-secondary';
+    if (budRow) budRow.style.display = type === 'expense' ? '' : 'none';
+  };
+
+  window._catSuggestPickColor = function(color, swatchEl) {
+    _catSuggestColor = color;
+    const picker = document.getElementById('catSuggestColorPicker');
+    const mainSw = document.getElementById('catSuggestSwatch');
+    const icon   = document.getElementById('catSuggestIconCircle');
+    if (picker) picker.value = color;
+    if (mainSw) mainSw.style.background = color;
+    if (icon)   { icon.style.background = color + '22'; icon.style.color = color; }
+    // Mark active preset via CSS class
+    document.querySelectorAll('.cat-suggest-preset').forEach(s => {
+      s.classList.toggle('active', s.dataset.color === color);
+    });
+  };
+
+  function _initCatSuggestionModal() {
+    if (document.getElementById('catSuggestionModal')) return;
+
+    const presetHTML = CAT_SUGGEST_PRESET_COLORS.map(c =>
+      `<div class="cat-suggest-preset" data-color="${c}"
+            style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;flex-shrink:0;transition:transform .12s,outline .12s;"
+            onclick="_catSuggestPickColor('${c}', this)" title="${c}"></div>`
+    ).join('');
+
+    const html = `
+<div id="catSuggestionModal" role="dialog" aria-modal="true" aria-label="New category detected">
+  <div class="cat-suggest-card">
+
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:22px;">
+      <div id="catSuggestIconCircle" class="cat-suggest-icon-circle">✦</div>
+      <h2 class="cat-suggest-title">New Category Detected</h2>
+      <p id="catSuggestSubtitle" class="cat-suggest-subtitle"></p>
+    </div>
+
+    <div class="cat-suggest-divider"></div>
+
+    <!-- Name -->
+    <div class="cat-suggest-field">
+      <label class="cat-suggest-label" for="catSuggestName">Category Name</label>
+      <input type="text" id="catSuggestName" placeholder="Category name…" autocomplete="off" />
+    </div>
+
+    <!-- Type toggle -->
+    <div class="cat-suggest-field">
+      <label class="cat-suggest-label">Type</label>
+      <div class="cat-suggest-type-row">
+        <button id="catSuggestTypeExp" class="btn btn-primary"
+                onclick="_catSuggestSetType('expense')">💸 Expense</button>
+        <button id="catSuggestTypeInc" class="btn btn-secondary"
+                onclick="_catSuggestSetType('income')">💰 Income</button>
+      </div>
+    </div>
+
+    <!-- Color -->
+    <div class="cat-suggest-field">
+      <label class="cat-suggest-label">Color</label>
+      <div class="cat-suggest-presets">${presetHTML}</div>
+      <div class="cat-suggest-color-custom">
+        <div class="add-cat-color-wrap">
+          <input type="color" id="catSuggestColorPicker"
+                 oninput="_catSuggestPickColor(this.value,this)" />
+          <span class="add-cat-color-swatch" id="catSuggestSwatch"></span>
+        </div>
+        <span class="cat-suggest-color-custom-label">Custom colour</span>
+      </div>
+    </div>
+
+    <!-- Budget (expense only) -->
+    <div id="catSuggestBudgetRow" class="cat-suggest-field">
+      <label class="cat-suggest-label" for="catSuggestBudget">
+        Monthly Budget <span>(optional)</span>
+      </label>
+      <input type="number" id="catSuggestBudget" placeholder="e.g. 5000" min="0" step="0.01" />
+    </div>
+
+    <!-- Actions -->
+    <div class="cat-suggest-actions">
+      <button class="btn btn-secondary" id="catSuggestSkipBtn">Skip</button>
+      <button class="btn btn-primary"   id="catSuggestAddBtn">Add &amp; Use →</button>
+    </div>
+
+    <!-- Fallback hint -->
+    <p id="catSuggestFallbackHint" class="cat-suggest-fallback"></p>
+  </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  /**
+   * Show the "New Category Detected" popup.
+   * Returns a Promise that resolves with {name, color, type, budget}
+   * when user clicks "Add & Use", or null when they click "Skip".
+   */
+  function _showCatSuggestionPopup(match) {
+    _initCatSuggestionModal();
+    return new Promise(resolve => {
+      const modal    = document.getElementById('catSuggestionModal');
+      const nameIn   = document.getElementById('catSuggestName');
+      const subtitle = document.getElementById('catSuggestSubtitle');
+      const addBtn   = document.getElementById('catSuggestAddBtn');
+      const skipBtn  = document.getElementById('catSuggestSkipBtn');
+      const fallback = document.getElementById('catSuggestFallbackHint');
+
+      // Pre-fill fields
+      nameIn.value = match.suggestedName;
+      subtitle.textContent =
+        `"${match.suggestedName}" wasn't found in your categories. Want to add it?`;
+
+      // Set type and color
+      _catSuggestSetType(match.suggestedType);
+      const defaultColor = match.suggestedType === 'income' ? '#0FA974' : '#E84545';
+      _catSuggestPickColor(defaultColor, null);
+      document.getElementById('catSuggestBudget').value = '';
+
+      // Fallback hint
+      if (match.categoryName) {
+        fallback.innerHTML = `Skip → will use <strong>"${match.categoryName}"</strong> instead`;
+        fallback.style.display = '';
+      } else {
+        fallback.innerHTML = '';
+        fallback.style.display = 'none';
+      }
+
+      // Show with animation
+      modal.style.display = 'flex';
+      requestAnimationFrame(() => {
+        modal.style.opacity = '1';
+        const card = modal.firstElementChild;
+        if (card) card.style.transform = 'translateY(0)';
+      });
+      setTimeout(() => nameIn && (nameIn.focus(), nameIn.select()), 80);
+
+      // Close helper
+      function _close() {
+        modal.style.opacity = '0';
+        const card = modal.firstElementChild;
+        if (card) card.style.transform = 'translateY(12px)';
+        setTimeout(() => { modal.style.display = 'none'; }, 180);
+        addBtn.removeEventListener('click', onAdd);
+        skipBtn.removeEventListener('click', onSkip);
+      }
+
+      async function onAdd() {
+        const name = nameIn.value.trim();
+        if (!name) { nameIn.focus(); nameIn.classList.add('input-error'); return; }
+        nameIn.classList.remove('input-error');
+        const type   = _catSuggestType;
+        const color  = _catSuggestColor;
+        const budgetEl = document.getElementById('catSuggestBudget');
+        const budget = (type === 'expense' && budgetEl && budgetEl.value)
+          ? parseFloat(budgetEl.value) : null;
+
+        const newCat = { name, color, budget };
+        categories[type].push(newCat);
+        try {
+          await saveCategories();
+          renderCatLists();
+          populateCategoryDropdowns();
+        } catch (e) { console.error('catSuggest save failed', e); }
+
+        _close();
+        resolve({ name, color, type, budget });
+      }
+
+      function onSkip() { _close(); resolve(null); }
+
+      addBtn.addEventListener('click', onAdd);
+      skipBtn.addEventListener('click', onSkip);
+    });
+  }
+
+  /**
+   * For each transaction whose category didn't match (or matched poorly),
+   * show a suggestion popup and let the user decide.
+   * Deduplicates by predicted name so identical categories get one popup.
+   */
+  async function _processCatSuggestionQueue(items) {
+    // items: [{tx, match}, ...]
+    // Build a map: suggestedName → resolved {name,type} or null
+    const resolved = new Map();
+
+    // Get unique predicted names that need popups
+    const uniqueMatches = [];
+    for (const { match } of items) {
+      if (!resolved.has(match.suggestedName)) {
+        resolved.set(match.suggestedName, undefined); // placeholder
+        uniqueMatches.push(match);
+      }
+    }
+
+    // Show popup for each unique unmatched category
+    for (const match of uniqueMatches) {
+      const result = await _showCatSuggestionPopup(match);
+      resolved.set(match.suggestedName, result); // {name,color,type,budget} or null
+    }
+
+    // Apply results back to transactions
+    for (const { tx, match } of items) {
+      const added = resolved.get(match.suggestedName);
+      if (added) {
+        // User added it — use the new category
+        tx.category = added.name;
+        tx.type     = added.type;
+      } else if (match.categoryName) {
+        // User skipped but there's a close-enough match
+        tx.category = match.categoryName;
+        tx.type     = match.categoryType;
+        tx.confidence = Math.max(20, tx.confidence - 15);
+      } else {
+        // Absolute fallback — first available category of the right type
+        const pool = tx.type === 'income' ? categories.income : categories.expense;
+        if (pool && pool.length) {
+          tx.category = catName(pool[0]);
+        }
+        tx.confidence = Math.max(10, tx.confidence - 25);
+      }
+    }
+  }
+
   // ── NLP Smart Entry ────────────────────────────────────────────────────────
   (function initNLP() {
     const toggleBtn        = document.getElementById('nlpToggleBtn');
@@ -1523,24 +1763,37 @@ function wireAddTxForm() {
           showStatus('No amount found. Try: "paid 350 for groceries"', true);
           return;
         }
-        // Validate categories against user's actual list
-        const allCatNames = [
-          ...(categories.expense || []).map(c => typeof c === 'string' ? c : c.name),
-          ...(categories.income  || []).map(c => typeof c === 'string' ? c : c.name),
-        ];
-        valid.forEach(tx => {
-          if (!allCatNames.includes(tx.category)) {
-            const fallbacks = tx.type === 'income' ? categories.income : categories.expense;
-            if (fallbacks && fallbacks.length) {
-              tx.category = typeof fallbacks[0] === 'string' ? fallbacks[0] : fallbacks[0].name;
-            }
-            tx.confidence = Math.max(20, tx.confidence - 20);
+
+        // ── Smart category matching against user's actual category lists ──────
+        const matchResults = valid.map(tx => {
+          const match = NLP.matchToUserCategories(
+            tx.category, tx.type,
+            categories.expense || [],
+            categories.income  || []
+          );
+          return { tx, match };
+        });
+
+        // Apply high-confidence matches immediately
+        const needsSuggestion = [];
+        matchResults.forEach(({ tx, match }) => {
+          if (match.matched) {
+            tx.category = match.categoryName;
+            tx.type     = match.categoryType;
+          } else {
+            needsSuggestion.push({ tx, match });
           }
         });
 
-        if (valid.length === 1) {
-          // Single tx → prefill sheet (confirm-mode hides the NLP input section)
+        // Show popup(s) for unrecognised categories, then proceed
+        if (needsSuggestion.length > 0) {
           hideStatus();
+          await _processCatSuggestionQueue(needsSuggestion);
+        }
+
+        // ── Proceed with resolved transactions ────────────────────────────────
+        hideStatus();
+        if (valid.length === 1) {
           const tx = valid[0];
           openAddTxSheet(true);
           setTimeout(() => {
@@ -1552,13 +1805,11 @@ function wireAddTxForm() {
             if (amt)  amt.value  = tx.amount;
             if (note) note.value = tx.note || '';
             if (date) date.value = tx.date;
-            if (nlpInput)    nlpInput.value    = '';
-            if (mobileInput) mobileInput.value = '';
+            if (nlpInput)      nlpInput.value      = '';
+            if (mobileInput)   mobileInput.value   = '';
             if (sheetNlpInput) sheetNlpInput.value = '';
           }, 120);
         } else {
-          // Multiple → preview list
-          hideStatus();
           showPreview(valid);
         }
       } catch (err) {
@@ -1656,19 +1907,31 @@ function wireAddTxForm() {
           showSheetStatus('No amount found. Try: "paid 350 for groceries"', true);
           return;
         }
-        const allCatNames = [
-          ...(categories.expense || []).map(c => typeof c === 'string' ? c : c.name),
-          ...(categories.income  || []).map(c => typeof c === 'string' ? c : c.name),
-        ];
-        valid.forEach(tx => {
-          if (!allCatNames.includes(tx.category)) {
-            const fallbacks = tx.type === 'income' ? categories.income : categories.expense;
-            if (fallbacks && fallbacks.length) {
-              tx.category = typeof fallbacks[0] === 'string' ? fallbacks[0] : fallbacks[0].name;
-            }
-            tx.confidence = Math.max(20, tx.confidence - 20);
+        const allCatNames_unused = null; // replaced by smart matching below
+        const sheetMatchResults = valid.map(tx => {
+          const match = NLP.matchToUserCategories(
+            tx.category, tx.type,
+            categories.expense || [],
+            categories.income  || []
+          );
+          return { tx, match };
+        });
+
+        const sheetNeedsSuggestion = [];
+        sheetMatchResults.forEach(({ tx, match }) => {
+          if (match.matched) {
+            tx.category = match.categoryName;
+            tx.type     = match.categoryType;
+          } else {
+            sheetNeedsSuggestion.push({ tx, match });
           }
         });
+
+        if (sheetNeedsSuggestion.length > 0) {
+          hideSheetStatus();
+          await _processCatSuggestionQueue(sheetNeedsSuggestion);
+        }
+
         hideSheetStatus();
         if (valid.length === 1) {
           const tx = valid[0];
