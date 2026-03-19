@@ -122,16 +122,7 @@ function _makeSetupColorBtn(initialColor, onPick) {
   const dot = document.createElement('span');
   dot.className = 'color-pick-dot'; dot.style.background = initialColor;
 
-  const txt = document.createElement('span'); txt.textContent = 'Colour';
-
-  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none');
-  svg.setAttribute('stroke','currentColor'); svg.setAttribute('stroke-width','2.5');
-  svg.setAttribute('stroke-linecap','round'); svg.classList.add('color-pick-chevron');
-  const poly = document.createElementNS('http://www.w3.org/2000/svg','polyline');
-  poly.setAttribute('points','6 9 12 15 18 9'); svg.appendChild(poly);
-
-  btn.appendChild(dot); btn.appendChild(txt); btn.appendChild(svg);
+  btn.appendChild(dot);
   wrap.appendChild(btn);
 
   function _updateDot(c) {

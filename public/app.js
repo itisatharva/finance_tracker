@@ -1356,7 +1356,7 @@ function _closeColorPicker() {
  * @param {string}   [label]        — button label (default "Colour")
  * @returns {HTMLElement} the .color-pick-wrap wrapper
  */
-function _makeColorPickBtn(initialColor, onPick, label = 'Colour') {
+function _makeColorPickBtn(initialColor, onPick) {
   let currentColor = initialColor;
 
   const wrap = document.createElement('div');
@@ -1371,23 +1371,7 @@ function _makeColorPickBtn(initialColor, onPick, label = 'Colour') {
   dot.className = 'color-pick-dot';
   dot.style.background = initialColor;
 
-  const txt = document.createElement('span');
-  txt.textContent = label;
-
-  const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  chevron.setAttribute('viewBox', '0 0 24 24');
-  chevron.setAttribute('fill', 'none');
-  chevron.setAttribute('stroke', 'currentColor');
-  chevron.setAttribute('stroke-width', '2.5');
-  chevron.setAttribute('stroke-linecap', 'round');
-  chevron.classList.add('color-pick-chevron');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-  path.setAttribute('points', '6 9 12 15 18 9');
-  chevron.appendChild(path);
-
   btn.appendChild(dot);
-  btn.appendChild(txt);
-  btn.appendChild(chevron);
   wrap.appendChild(btn);
 
   function _updateDot(c) {

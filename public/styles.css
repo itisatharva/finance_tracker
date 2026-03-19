@@ -3855,23 +3855,21 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   align-items: center;
   flex-shrink: 0;
 }
+/* Circle button — height matches a standard input field (~36px) */
 .color-pick-btn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 10px 5px 7px;
-  border-radius: var(--r-md);
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
   border: 1.5px solid var(--border);
   background: var(--bg-page);
-  color: var(--text-2);
-  font-size: .8rem;
-  font-weight: 600;
   cursor: pointer;
   transition: border-color .15s, background .15s, box-shadow .15s;
-  white-space: nowrap;
   user-select: none;
-  font-family: inherit;
-  line-height: 1;
+  flex-shrink: 0;
 }
 .color-pick-btn:hover {
   border-color: var(--ink);
@@ -3884,9 +3882,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 [data-theme="dark"] .color-pick-btn.open {
   box-shadow: 0 0 0 3px rgba(255,255,255,.08);
 }
+/* Dot fills most of the circle button */
 .color-pick-dot {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   flex-shrink: 0;
   display: block;
@@ -3894,18 +3893,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   box-shadow: 0 1px 3px rgba(0,0,0,.18);
   transition: transform .13s;
 }
-.color-pick-btn:hover .color-pick-dot { transform: scale(1.15); }
-.color-pick-chevron {
-  width: 11px;
-  height: 11px;
-  opacity: .45;
-  flex-shrink: 0;
-  transition: transform .15s, opacity .15s;
-}
-.color-pick-btn.open .color-pick-chevron {
-  transform: rotate(180deg);
-  opacity: .7;
-}
+.color-pick-btn:hover .color-pick-dot { transform: scale(1.08); }
+/* Hide chevron — not needed on circle button */
+.color-pick-chevron { display: none; }
 
 /* ── Floating colour popover ────────────────────────────────────────────────── */
 .color-pick-popover {
@@ -3914,10 +3904,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   background: var(--bg-card);
   border: 1.5px solid var(--border);
   border-radius: var(--r-xl);
-  padding: 14px 14px 12px;
+  padding: 12px 12px 10px;
   box-shadow: 0 8px 40px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.1);
-  min-width: 292px;
-  max-width: 320px;
+  width: 252px;
   animation: color-pop-in .15s cubic-bezier(.2,.8,.4,1);
 }
 @keyframes color-pop-in {
@@ -3925,10 +3914,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .color-pick-popover .cat-color-panel-row-label { margin-top: 0; }
-.color-pick-popover .cat-color-panel-row       { margin-bottom: 10px; }
+.color-pick-popover .cat-color-panel-row       { margin-bottom: 8px; }
 .color-pick-popover .cat-color-panel-footer {
   margin-top: 6px;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid var(--border);
 }
 
@@ -3983,11 +3972,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 .cat-color-hex-input {
-  flex: 1;
-  font-size: .85rem;
+  width: 90px;
+  flex: 0 0 90px;
+  font-size: .82rem;
   font-family: 'SF Mono', 'Fira Mono', 'Cascadia Code', monospace, inherit;
-  letter-spacing: .04em;
-  padding: 7px 11px;
+  letter-spacing: .03em;
+  padding: 6px 8px;
   border-radius: var(--r-md);
   border: 1.5px solid var(--border);
   background: var(--bg-page);
@@ -4055,6 +4045,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* ── Mobile ─────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .cat-palette-dot { width: 22px; height: 22px; gap: 6px; }
-  .cat-color-hex-input { font-size: .8rem; }
-  .color-pick-popover { min-width: 270px; max-width: calc(100vw - 24px); }
+  .cat-color-hex-input { font-size: .78rem; width: 80px; flex: 0 0 80px; }
+  .color-pick-popover { width: calc(100vw - 32px); max-width: 252px; }
 }
