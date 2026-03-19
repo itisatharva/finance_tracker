@@ -89,6 +89,11 @@ window.NLP = (() => {
 
   // ── Date extractor ────────────────────────────────────────────────────────
   const WEEKDAYS = {monday:1,tuesday:2,wednesday:3,thursday:4,friday:5,saturday:6,sunday:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6,sun:0};
+  const MONTHS = {
+    jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,
+    jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,september:9,
+    oct:10,october:10,nov:11,november:11,dec:12,december:12
+  };
 
   function extractDate(text) {
     const t = text.toLowerCase();
@@ -102,6 +107,13 @@ window.NLP = (() => {
       return `${y}-${mo}-${dy}`;
     };
 
+    const tryDate = (yr, mon, day) => {
+      const d = new Date(yr, mon-1, day);
+      if (d.getMonth() !== mon-1) return null; // invalid date
+      return d;
+    };
+
+    // Relative keywords
     if (/today|just now|right now/.test(t)) return fmt(today);
     if (/yesterday|last night/.test(t)) { const d = new Date(today); d.setDate(d.getDate()-1); return fmt(d); }
     if (/day before yesterday/.test(t)) { const d = new Date(today); d.setDate(d.getDate()-2); return fmt(d); }
@@ -109,34 +121,58 @@ window.NLP = (() => {
     let m;
     m = t.match(/(\d+)\s+days?\s+ago/);
     if (m) { const d = new Date(today); d.setDate(d.getDate()-parseInt(m[1])); return fmt(d); }
-
     m = t.match(/(\d+)\s+weeks?\s+ago/);
     if (m) { const d = new Date(today); d.setDate(d.getDate()-parseInt(m[1])*7); return fmt(d); }
 
-    m = t.match(/last\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)/);
-    if (m) {
-      const target = WEEKDAYS[m[1]];
-      const d = new Date(today);
-      let diff = (today.getDay() - target + 7) % 7 || 7;
-      d.setDate(d.getDate() - diff);
-      return fmt(d);
-    }
-
-    m = t.match(/on\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)/);
-    if (m) {
-      const target = WEEKDAYS[m[1]];
-      const d = new Date(today);
-      let diff = (today.getDay() - target + 7) % 7 || 7;
-      d.setDate(d.getDate() - diff);
-      return fmt(d);
-    }
-
     if (/this morning|this evening|this afternoon|tonight/.test(t)) return fmt(today);
     if (/last week/.test(t)) { const d = new Date(today); d.setDate(d.getDate()-7); return fmt(d); }
-    if (/last month/.test(t)) {
+    if (/last month/.test(t)) { const d = new Date(today); d.setMonth(d.getMonth()-1); return fmt(d); }
+
+    // Weekday names: "last friday", "on monday"
+    m = t.match(/(?:last|on)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)/);
+    if (m) {
+      const target = WEEKDAYS[m[1]];
       const d = new Date(today);
-      d.setMonth(d.getMonth()-1);
+      const diff = (today.getDay() - target + 7) % 7 || 7;
+      d.setDate(d.getDate() - diff);
       return fmt(d);
+    }
+
+    const MON_PAT = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+
+    // "16th feb", "3rd march"
+    m = t.match(new RegExp('(\\d{1,2})(?:st|nd|rd|th)?\\s+' + MON_PAT));
+    if (m) {
+      const day = parseInt(m[1]);
+      const mon = MONTHS[m[2].slice(0,3)];
+      if (mon) {
+        let d = tryDate(today.getFullYear(), mon, day);
+        if (d && d > today) d = tryDate(today.getFullYear()-1, mon, day);
+        if (d) return fmt(d);
+      }
+    }
+
+    // "feb 16", "march 5th"
+    m = t.match(new RegExp(MON_PAT + '\\s+(\\d{1,2})(?:st|nd|rd|th)?'));
+    if (m) {
+      const mon = MONTHS[m[1].slice(0,3)];
+      const day = parseInt(m[2]);
+      if (mon) {
+        let d = tryDate(today.getFullYear(), mon, day);
+        if (d && d > today) d = tryDate(today.getFullYear()-1, mon, day);
+        if (d) return fmt(d);
+      }
+    }
+
+    // "16/2", "16-02", optionally with year
+    m = t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+    if (m) {
+      const a = parseInt(m[1]), b = parseInt(m[2]);
+      let yr = today.getFullYear();
+      if (m[3]) { yr = parseInt(m[3]); if (yr < 100) yr += 2000; }
+      let d = tryDate(yr, b, a); // dd/mm
+      if (!d) d = tryDate(yr, a, b); // mm/dd
+      if (d) return fmt(d);
     }
 
     return fmt(today);
