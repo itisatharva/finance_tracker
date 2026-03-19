@@ -4072,12 +4072,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 /* The dropper SVG icon — pointer-events:none so clicks pass through to the input */
 .cat-color-native-icon {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   pointer-events: none;
   flex-shrink: 0;
   color: var(--text-2);
   display: block;
+  fill: currentColor;
 }
 
 /* ── Add-new colour button mount ─────────────────────────────────────────── */
