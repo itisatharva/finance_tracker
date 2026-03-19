@@ -3636,3 +3636,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-color: var(--green) !important;
   box-shadow: 0 0 0 3px rgba(15,169,116,.22), 0 0 18px rgba(15,169,116,.14) !important;
 }
+
+/* ── Form fill flash ─────────────────────────────────────────────────────── */
+@keyframes nlpFillPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(15,169,116,.4); }
+  70%  { box-shadow: 0 0 0 8px rgba(15,169,116,0); }
+  100% { box-shadow: none; }
+}
+.nlp-filled { animation: nlpFillPulse .75s ease forwards; border-radius: var(--r-md); }

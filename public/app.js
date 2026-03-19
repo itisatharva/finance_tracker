@@ -1665,6 +1665,8 @@ function wireAddTxForm() {
         hideSheetStatus();
         if (valid.length === 1) {
           const tx = valid[0];
+          // Clear input immediately so user knows it was accepted
+          if (sheetNlpInput) sheetNlpInput.value = '';
           setTimeout(() => {
             const sel  = document.getElementById('txCategory');
             const amt  = document.getElementById('txAmount');
@@ -1674,11 +1676,21 @@ function wireAddTxForm() {
             if (amt)  amt.value  = tx.amount;
             if (note) note.value = tx.note || '';
             if (date) date.value = tx.date;
-            if (sheetNlpInput) sheetNlpInput.value = '';
-          }, 80);
+            // Visual confirmation — flash the form fields
+            const form = document.getElementById('addTxForm');
+            if (form) {
+              form.classList.add('nlp-filled');
+              setTimeout(() => form.classList.remove('nlp-filled'), 800);
+            }
+            // Show brief success status
+            showSheetStatus('✓ Filled! Check below and tap Add Transaction.');
+            setTimeout(hideSheetStatus, 3000);
+            // Scroll to amount so user can review
+            if (amt) setTimeout(() => amt.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+          }, 60);
         } else {
-          showSheetPreview(valid);
           if (sheetNlpInput) sheetNlpInput.value = '';
+          showSheetPreview(valid);
         }
       } catch (err) {
         showSheetStatus('Parse failed — try again.', true);
