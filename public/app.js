@@ -1615,12 +1615,12 @@ function wireAddTxForm() {
         row.className = 'nlp-preview-row';
         const col = tx.type === 'income' ? 'var(--green)' : 'var(--red)';
         row.innerHTML = `
-          <span class="nlp-preview-cat">\${tx.category}</span>
-          <span class="nlp-preview-amt" style="color:\${col}">₹\${tx.amount}</span>
-          <span class="nlp-preview-note">\${tx.note || ''}</span>
-          <span class="nlp-preview-date">\${tx.date}</span>
-          <span class="nlp-preview-conf">\${tx.confidence}%</span>
-          <button type="button" class="nlp-preview-remove" data-idx="\${i}" aria-label="Remove">×</button>`;
+          <span class="nlp-preview-cat">${tx.category}</span>
+          <span class="nlp-preview-amt" style="color:${col}">₹${tx.amount}</span>
+          <span class="nlp-preview-note">${tx.note || ''}</span>
+          <span class="nlp-preview-date">${tx.date}</span>
+          <span class="nlp-preview-conf">${tx.confidence}%</span>
+          <button type="button" class="nlp-preview-remove" data-idx="${i}" aria-label="Remove">×</button>`;
         sheetNlpPrevList.appendChild(row);
       });
       sheetNlpPrevList.querySelectorAll('.nlp-preview-remove').forEach(btn => {
@@ -1706,7 +1706,7 @@ function wireAddTxForm() {
         } catch(e) { console.error('Sheet NLP log failed:', e); }
       }
       hideSheetPreview();
-      showSheetStatus(`✓ Logged \${logged} transaction\${logged !== 1 ? 's' : ''}!`);
+      showSheetStatus(`✓ Logged ${logged} transaction${logged !== 1 ? 's' : ''}!`);
       setTimeout(hideSheetStatus, 3000);
       if (window.vibrate) vibrate();
       sheetNlpLogAll.disabled = false;
