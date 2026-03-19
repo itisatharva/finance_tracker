@@ -286,26 +286,125 @@ window.NLP = (() => {
   // ── Category matcher ──────────────────────────────────────────────────────
   // Maps each of the model's 15 trained classes to a broad set of synonyms,
   // merchant keywords, and related words that users put in custom category names.
+  // ── Semantic keyword map ──────────────────────────────────────────────────
+  // Each model class maps to keywords that may appear in:
+  //   (a) raw user input  e.g. "bought medicines" → Healthcare
+  //   (b) user-defined category names  e.g. "Medical Expenses" → Healthcare
+  // Keep these exhaustive — the raw-text path depends entirely on this map.
   const SEMANTIC_GROUPS = {
-    'Food & Dining':     ['food','dining','eat','eating','restaurant','meal','lunch','dinner','breakfast','cafe','snack','grocery','groceries','kitchen','canteen','tiffin','dhaba','chai','coffee','tea','bakery','sweets','mithai','dabba','hotel','mess','bhojan','thali'],
-    'Transport':         ['transport','travel','uber','ola','taxi','bus','auto','cab','fuel','petrol','diesel','metro','train','commute','vehicle','bike','rickshaw','ticket','fare','rapido','parking','toll','shuttle','carpool','bsnl'],
-    'Shopping':          ['shop','shopping','clothes','clothing','amazon','flipkart','buy','purchase','mall','market','fashion','apparel','shoes','accessories','gadget','electronics','myntra','meesho','ajio','nykaa','boutique','retail','store'],
-    'Bills & Utilities': ['bill','utility','electricity','water','gas','internet','wifi','phone','mobile','recharge','subscription','rent','emi','insurance','maintenance','society','broadband','postpaid','prepaid','netflix','prime','hotstar','jio','airtel','bsnl','dth','cable'],
-    'Entertainment':     ['entertainment','movie','film','netflix','prime','hotstar','zee5','game','gaming','fun','outing','party','music','concert','sport','cricket','match','event','theatre','books','kindle','sports','pub','bar','drinks'],
-    'Healthcare':        ['health','medical','doctor','medicine','pharmacy','hospital','clinic','dentist','lab','test','prescription','wellness','gym','fitness','yoga','tablet','capsule','healthcare','physiotherapy','ayurveda','blood','diagnostic'],
-    'Education':         ['education','school','college','course','book','tuition','fee','study','learn','class','coaching','training','online','udemy','coursera','certification','exam','workshop','degree','semester','library','stationery'],
-    'Travel':            ['travel','trip','vacation','hotel','flight','tour','holiday','airbnb','oyo','booking','passport','visa','itinerary','resort','beach','hill','station','airport','bus stand','tour','sightseeing'],
-    'Other Expenses':    ['other','misc','miscellaneous','expense','sundry','general','random','unknown'],
-    'Salary':            ['salary','wage','wages','pay','paycheck','stipend','ctc','hike','monthly pay','basic','in-hand','payday','payroll','compensation'],
-    'Freelance':         ['freelance','freelancing','contract','gig','project','consulting','client','invoice','side income','fiverr','upwork','toptal','remote'],
-    'Business':          ['business','profit','revenue','sales','shop income','commission','trader','vendor','wholesale','enterprise','startup'],
-    'Investment':        ['investment','dividend','return','stock','mutual','fund','interest','sip','equity','trading','nifty','sensex','crypto','bitcoin','fd','fixed deposit','ppf','nps','zerodha','groww'],
-    'Gift':              ['gift','gifted','present','bonus','reward','cashback','refund','lucky','win','prize','diwali','birthday','festival','rakhi','voucher','coupon'],
-    'Other Income':      ['other income','misc income','extra income','side','random','extra','additional','miscellaneous income'],
+    'Food & Dining':     [
+      'food','dining','eat','eating','ate','restaurant','meal','meals','lunch','dinner',
+      'breakfast','brunch','cafe','cafeteria','snack','snacks','grocery','groceries',
+      'kitchen','canteen','tiffin','dhaba','chai','coffee','tea','bakery','sweets',
+      'mithai','dabba','hotel','mess','bhojan','thali','biryani','pizza','burger',
+      'sandwich','noodles','pasta','juice','smoothie','icecream','dessert','zomato',
+      'swiggy','food delivery','ordering food','dominos','mcdonalds','kfc','subway',
+    ],
+    'Transport':         [
+      'transport','transportation','commute','commuting','uber','ola','taxi','cab',
+      'bus','auto','autorickshaw','rickshaw','metro','train','railway','fuel','petrol',
+      'diesel','cng','vehicle','bike','bicycle','cycle','scooter','car','parking',
+      'toll','fare','ticket','tickets','rapido','shuttle','carpool','ride','rides',
+      'irctc','redbus','vehicle service','service center',
+    ],
+    'Shopping':          [
+      'shop','shopping','shopped','bought','clothes','clothing','dress','shirt','pants',
+      'shoes','footwear','accessories','bag','bags','amazon','flipkart','purchase',
+      'purchased','mall','market','fashion','apparel','gadget','electronics','laptop',
+      'mobile','phone','myntra','meesho','ajio','nykaa','boutique','retail','store',
+      'online shopping','cloth','outfit','watch','jewellery','jewelry','sunglasses',
+    ],
+    'Bills & Utilities': [
+      'bill','bills','utility','utilities','electricity','electric','power','water',
+      'gas','lpg','cylinder','internet','broadband','wifi','wi-fi','phone bill',
+      'mobile bill','recharge','subscription','subscriptions','rent','emi','insurance',
+      'maintenance','society','postpaid','prepaid','netflix','prime','hotstar','jio',
+      'airtel','vodafone','vi','bsnl','dth','cable','piped gas','water bill',
+    ],
+    'Entertainment':     [
+      'entertainment','movie','movies','film','films','cinema','netflix','prime video',
+      'hotstar','disney','zee5','sonyliv','game','gaming','games','fun','outing',
+      'party','parties','music','concert','concerts','sport','sports','cricket','match',
+      'event','events','theatre','theater','pub','bar','drinks','bowling','arcade',
+      'amusement','theme park','standup','comedy',
+    ],
+    'Healthcare':        [
+      'health','healthcare','medical','medicine','medicines','medic','medication',
+      'medications','meds','drug','drugs','tablet','tablets','capsule','capsules',
+      'pill','pills','syrup','injection','doctor','doctors','doc','physician',
+      'specialist','dentist','dental','optician','ophthalmologist','hospital','clinic',
+      'lab','laboratory','test','tests','blood test','scan','xray','x-ray','mri',
+      'ultrasound','pharmacy','chemist','pharmacist','prescription','wellness','gym',
+      'fitness','yoga','physiotherapy','physio','ayurveda','homeopathy','diagnostic',
+      'diagnostics','health checkup','checkup','ambulance','nursing','nursing home',
+      'health insurance','mediclaim','first aid','bandage','thermometer',
+    ],
+    'Education':         [
+      'education','school','college','university','course','courses','book','books',
+      'tuition','fee','fees','study','studying','learn','learning','class','classes',
+      'coaching','training','online course','udemy','coursera','skillshare','unacademy',
+      'byjus','toppr','certification','exam','exams','workshop','degree','semester',
+      'library','stationery','pen','pencil','notebook','uniform','admission','hostel',
+      'college fee','school fee',
+    ],
+    'Travel':            [
+      'travel','travelling','traveling','trip','trips','vacation','holiday','holidays',
+      'tour','touring','flight','flights','airline','airport','hotel','resort','airbnb',
+      'oyo','makemytrip','yatra','goibibo','booking','passport','visa','itinerary',
+      'sightseeing','trekking','trek','hill station','beach','cruise','honeymoon',
+      'backpacking','train ticket','bus ticket','cab booking','travel insurance',
+    ],
+    'Other Expenses':    [
+      'other','misc','miscellaneous','expense','expenses','sundry','general','random',
+      'unknown','various','assorted',
+    ],
+    'Salary':            [
+      'salary','salaries','wage','wages','pay','paycheck','stipend','ctc','hike',
+      'increment','monthly pay','basic pay','in-hand','payday','payroll',
+      'compensation','remuneration','allowance','da','hra','ta',
+    ],
+    'Freelance':         [
+      'freelance','freelancing','freelanced','contract','gig','gigs','project',
+      'projects','consulting','consult','client','invoice','invoiced','side income',
+      'fiverr','upwork','toptal','remote work','part-time','part time','contract work',
+    ],
+    'Business':          [
+      'business','profit','revenue','sales','sale','shop income','commission',
+      'trader','trading','vendor','wholesale','enterprise','startup','b2b','b2c',
+      'turnover','gross income','business income','rental income',
+    ],
+    'Investment':        [
+      'investment','invest','invested','dividend','dividends','return','returns',
+      'stock','stocks','shares','mutual fund','mutual funds','interest','sip',
+      'equity','nifty','sensex','crypto','bitcoin','ethereum','fd','fixed deposit',
+      'ppf','nps','elss','zerodha','groww','kuvera','smallcase','portfolio','bond',
+      'bonds','gold','sovereign gold','sgb','nsc',
+    ],
+    'Gift':              [
+      'gift','gifts','gifted','present','presents','bonus','reward','rewards',
+      'cashback','refund','refunded','lucky','win','won','prize','prizes','diwali',
+      'birthday','festival','rakhi','voucher','vouchers','coupon','coupons',
+      'cash gift','money gift','hamper',
+    ],
+    'Other Income':      [
+      'other income','misc income','extra income','side income','additional income',
+      'miscellaneous income','random income','extra','additional','windfall',
+    ],
   };
 
+  // Build reverse lookup: keyword → canonical class name (for raw-text scanning)
+  const _KEYWORD_TO_CLASS = new Map();
+  for (const [cls, words] of Object.entries(SEMANTIC_GROUPS)) {
+    for (const w of words) _KEYWORD_TO_CLASS.set(w, cls);
+  }
+
   function _wordSet(str) {
-    return new Set(str.toLowerCase().split(/[\s&_\-\/,.()+]+/).filter(w => w.length > 1));
+    return new Set(
+      str.toLowerCase()
+         .replace(/[^a-z0-9\s]/g, ' ')
+         .split(/\s+/)
+         .filter(w => w.length > 1)
+    );
   }
 
   function _jaccardWords(a, b) {
@@ -316,30 +415,27 @@ window.NLP = (() => {
     return union === 0 ? 0 : inter / union;
   }
 
+  // Score how well a *predicted class name* maps to a *user category name*
   function _semanticScore(predicted, catName) {
     let score = _jaccardWords(predicted, catName);
 
     const pl = predicted.toLowerCase();
     const cl = catName.toLowerCase();
 
-    // Substring containment gives a strong signal
     if (cl.includes(pl) || pl.includes(cl)) score = Math.max(score, 0.72);
 
-    // Shared individual word (length > 3 to avoid noise)
     const predWords = _wordSet(predicted);
     const catWords  = _wordSet(catName);
+
     predWords.forEach(pw => {
       if (pw.length > 3 && catWords.has(pw)) score = Math.max(score, 0.60);
     });
 
-    // Semantic keyword lookup: does any word in the user category name
-    // appear in the synonym list for the predicted model class?
     const keywords = SEMANTIC_GROUPS[predicted] || [];
     catWords.forEach(w => {
       if (keywords.includes(w)) score = Math.max(score, 0.62);
     });
 
-    // Reverse: does any word of the predicted class appear in the user cat name?
     predWords.forEach(pw => {
       if (catWords.has(pw) && pw.length > 2) score = Math.max(score, 0.55);
     });
@@ -348,44 +444,122 @@ window.NLP = (() => {
   }
 
   /**
-   * Match a model-predicted class name against a user's actual category lists.
+   * Score how well the *raw user input text* maps to a *user category name*.
    *
-   * @param {string}   predicted    - e.g. "Food & Dining" (model output)
-   * @param {string}   type         - 'expense' | 'income' (model's guess)
-   * @param {Array}    expenseCats  - user's expense categories (string or {name,...})
-   * @param {Array}    incomeCats   - user's income categories
-   * @returns {{matched, category, categoryName, categoryType, score, suggestedName, suggestedType}}
+   * Strategy:
+   *   1. Extract words from the raw input.
+   *   2. For each word check the _KEYWORD_TO_CLASS reverse map → get canonical class.
+   *   3. Score that (canonical class → userCatName) pair via _semanticScore.
+   *   4. Also directly match input words against the user category name itself.
+   *
+   * This is the fix for "700 for medicines" → model says "Entertainment" but
+   * raw text contains "medicines" → _KEYWORD_TO_CLASS["medicines"] = "Healthcare"
+   * → _semanticScore("Healthcare", "Healthcare") = 1.0
    */
-  function matchToUserCategories(predicted, type, expenseCats, incomeCats) {
+  function _rawTextScore(rawText, catName) {
+    const inputWords = _wordSet(rawText);
+    let best = 0;
+
+    // 1. Bigrams from input (catches "blood test", "fixed deposit" etc.)
+    const wArr = Array.from(inputWords);
+    const allTokens = [...wArr];
+    for (let i = 0; i < wArr.length - 1; i++) allTokens.push(wArr[i] + ' ' + wArr[i+1]);
+
+    for (const token of allTokens) {
+      const cls = _KEYWORD_TO_CLASS.get(token);
+      if (cls) {
+        const s = _semanticScore(cls, catName);
+        if (s > best) best = s;
+      }
+    }
+
+    // 2. Direct word overlap between raw input and user category name
+    const catWords = _wordSet(catName);
+    inputWords.forEach(w => {
+      if (w.length > 3 && catWords.has(w)) best = Math.max(best, 0.68);
+    });
+    // Partial: input word is a substring of a cat word or vice versa
+    inputWords.forEach(iw => {
+      if (iw.length < 4) return;
+      catWords.forEach(cw => {
+        if (cw.length < 4) return;
+        if (cw.includes(iw) || iw.includes(cw)) best = Math.max(best, 0.60);
+      });
+    });
+
+    return Math.min(1, best);
+  }
+
+  /**
+   * Match NLP output against a user's actual category lists.
+   *
+   * Two independent signals, winner takes all:
+   *   A) Predicted class  → user cat  (via _semanticScore)
+   *   B) Raw input text   → user cat  (via _rawTextScore)   ← fixes mispredictions
+   *
+   * @param {string}  predicted   - model output class, e.g. "Entertainment"
+   * @param {string}  type        - 'expense' | 'income'
+   * @param {Array}   expenseCats - user expense categories
+   * @param {Array}   incomeCats  - user income categories
+   * @param {string}  [rawText]   - original user input, e.g. "700 for medicines"
+   */
+  function matchToUserCategories(predicted, type, expenseCats, incomeCats, rawText) {
     const expPool = (expenseCats || []).map(c => ({
       name: typeof c === 'string' ? c : c.name,
       type: 'expense',
-      raw: c,
+      raw:  c,
     }));
     const incPool = (incomeCats || []).map(c => ({
       name: typeof c === 'string' ? c : c.name,
       type: 'income',
-      raw: c,
+      raw:  c,
     }));
 
-    // Search type-appropriate pool first, then the other
+    // Search the type-appropriate pool first so ties break correctly
     const ordered = type === 'income'
       ? [...incPool, ...expPool]
       : [...expPool, ...incPool];
 
     let best = null, bestScore = 0;
+
     for (const item of ordered) {
-      const s = _semanticScore(predicted, item.name);
-      if (s > bestScore) { bestScore = s; best = item; }
+      // Signal A — predicted class vs category name
+      const scoreA = _semanticScore(predicted, item.name);
+      // Signal B — raw input text vs category name (higher weight: overrides bad predictions)
+      const scoreB = rawText ? _rawTextScore(rawText, item.name) : 0;
+      // Take the stronger signal; raw-text gets a 5% bonus to break ties vs mispredictions
+      const combined = Math.max(scoreA, scoreB > 0 ? scoreB + 0.05 : 0);
+
+      if (combined > bestScore) { bestScore = combined; best = item; }
+    }
+
+    // Derive the suggestedName from the raw text too — prefer the class that raw text
+    // actually implies rather than the (possibly wrong) model prediction
+    let suggestedName = predicted;
+    if (rawText) {
+      const inputWords = _wordSet(rawText);
+      const wArr = Array.from(inputWords);
+      const allTokens = [...wArr];
+      for (let i = 0; i < wArr.length - 1; i++) allTokens.push(wArr[i] + ' ' + wArr[i+1]);
+      let bestCls = null, bestClsCount = 0;
+      const clsCounts = {};
+      for (const token of allTokens) {
+        const cls = _KEYWORD_TO_CLASS.get(token);
+        if (cls) { clsCounts[cls] = (clsCounts[cls] || 0) + 1; }
+      }
+      for (const [cls, cnt] of Object.entries(clsCounts)) {
+        if (cnt > bestClsCount) { bestClsCount = cnt; bestCls = cls; }
+      }
+      if (bestCls) suggestedName = bestCls;
     }
 
     return {
       matched:       bestScore >= 0.51,
-      category:      best ? best.raw : null,
+      category:      best ? best.raw  : null,
       categoryName:  best ? best.name : null,
       categoryType:  best ? best.type : type,
-      score:         bestScore,
-      suggestedName: predicted,
+      score:         Math.min(1, bestScore),
+      suggestedName,
       suggestedType: type,
     };
   }

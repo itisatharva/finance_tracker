@@ -1769,7 +1769,8 @@ function wireAddTxForm() {
           const match = NLP.matchToUserCategories(
             tx.category, tx.type,
             categories.expense || [],
-            categories.income  || []
+            categories.income  || [],
+            trimmed              // raw input — overrides bad model predictions
           );
           return { tx, match };
         });
@@ -1912,7 +1913,8 @@ function wireAddTxForm() {
           const match = NLP.matchToUserCategories(
             tx.category, tx.type,
             categories.expense || [],
-            categories.income  || []
+            categories.income  || [],
+            trimmed              // raw input — overrides bad model predictions
           );
           return { tx, match };
         });
