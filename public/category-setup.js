@@ -27,7 +27,7 @@ const cats = {
   income:  DEFAULTS.income.map(c => ({ ...c })),
 };
 
-// ── Color palette ──────────────────────────────────────────────────────────
+// ── Compact colour-picker (shared singleton popover) ─────────────────────────
 const _VIVID = [
   '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
   '#14b8a6','#3b82f6','#06b6d4','#0FA974','#8b5cf6',
@@ -39,21 +39,19 @@ const _PASTEL = [
   '#ddd6fe','#fecaca','#d9f99d','#fef08a','#e2e8f0',
 ];
 
-// Tracks chosen "add new" color per type
-const _addColor = { expense: '#E84545', income: '#0FA974' };
+let _openPopover = null;
+let _openPickBtn = null;
 
-// Currently open inline panel
-let _openPanel = null;
+function _closeSetupPicker() {
+  if (_openPopover) { _openPopover.remove(); _openPopover = null; }
+  if (_openPickBtn) { _openPickBtn.classList.remove('open'); _openPickBtn = null; }
+}
 
-/** Build an inline color panel. onPick(color) fires on every change. */
-function _buildPanel(initialColor, onPick) {
-  const panel = document.createElement('div');
-  panel.className = 'cat-color-panel';
-
+function _buildPopoverContent(popover, initialColor, onPick) {
   function applyColor(c) {
     onPick(c);
-    panel.querySelectorAll('.cat-palette-dot').forEach(s =>
-      s.classList.toggle('active', s.dataset.color === c));
+    popover.querySelectorAll('.cat-palette-dot').forEach(d =>
+      d.classList.toggle('active', d.dataset.color === c));
     hexInput.value = c;
     hexInput.classList.remove('invalid');
     nativeInput.value = c;
@@ -63,148 +61,18 @@ function _buildPanel(initialColor, onPick) {
     const lbl = document.createElement('p');
     lbl.className = 'cat-color-panel-row-label';
     lbl.textContent = label;
-    panel.appendChild(lbl);
+    popover.appendChild(lbl);
     const row = document.createElement('div');
     row.className = 'cat-color-panel-row';
     colors.forEach(c => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'cat-palette-dot' + (c === initialColor ? ' active' : '');
-      btn.style.background = c;
-      btn.dataset.color = c;
-      btn.title = c;
-      btn.addEventListener('click', () => applyColor(c));
-      row.appendChild(btn);
-    });
-    panel.appendChild(row);
-  }
-
-  makeRow(_VIVID,  'Vivid');
-  makeRow(_PASTEL, 'Pastel');
-
-  const footer = document.createElement('div');
-  footer.className = 'cat-color-panel-footer';
-
-  const hexInput = document.createElement('input');
-  hexInput.type = 'text';
-  hexInput.className = 'cat-color-hex-input';
-  hexInput.placeholder = '#000000';
-  hexInput.maxLength = 7;
-  hexInput.value = initialColor;
-  hexInput.addEventListener('input', () => {
-    const v = hexInput.value.trim();
-    const ok = /^#[0-9a-fA-F]{6}$/.test(v);
-    hexInput.classList.toggle('invalid', !ok && v.length >= 2);
-    if (ok) {
-      onPick(v);
-      panel.querySelectorAll('.cat-palette-dot').forEach(s =>
-        s.classList.toggle('active', s.dataset.color === v));
-      nativeInput.value = v;
-    }
-  });
-  footer.appendChild(hexInput);
-
-  const nativeWrap = document.createElement('div');
-  nativeWrap.className = 'cat-color-native-wrap';
-  nativeWrap.title = 'Custom colour';
-  const nativeInput = document.createElement('input');
-  nativeInput.type = 'color';
-  nativeInput.value = initialColor;
-  nativeInput.addEventListener('input', () => {
-    onPick(nativeInput.value);
-    hexInput.value = nativeInput.value;
-    hexInput.classList.remove('invalid');
-    panel.querySelectorAll('.cat-palette-dot').forEach(s =>
-      s.classList.toggle('active', s.dataset.color === nativeInput.value));
-  });
-  const circle = document.createElement('span');
-  circle.className = 'cat-color-native-circle';
-  nativeWrap.appendChild(nativeInput);
-  nativeWrap.appendChild(circle);
-  footer.appendChild(nativeWrap);
-  panel.appendChild(footer);
-
-  return panel;
-}
-
-/** Toggle inline panel on an existing cat-item. */
-window._toggleSetupPanel = function(swatchBtn, type, idx) {
-  const item = swatchBtn.closest('.cat-item');
-  if (!item) return;
-
-  // Always read live color from state — not from a stale argument
-  const liveColor = cats[type][idx] ? cats[type][idx].color : '#999';
-
-  if (_openPanel && _openPanel.parentElement === item) {
-    _openPanel.remove(); _openPanel = null;
-    swatchBtn.classList.remove('panel-open');
-    return;
-  }
-  if (_openPanel) {
-    const prev = _openPanel.parentElement &&
-                 _openPanel.parentElement.querySelector('.cat-color-swatch-btn');
-    if (prev) prev.classList.remove('panel-open');
-    _openPanel.remove(); _openPanel = null;
-  }
-
-  const panel = _buildPanel(liveColor, (c) => {
-    cats[type][idx].color = c;
-    swatchBtn.style.background = c;
-  });
-  item.appendChild(panel);
-  _openPanel = panel;
-  swatchBtn.classList.add('panel-open');
-};
-
-// Close on outside click
-document.addEventListener('pointerdown', e => {
-  if (!_openPanel) return;
-  const item = _openPanel.parentElement;
-  if (item && !item.contains(e.target)) {
-    const btn = item.querySelector('.cat-color-swatch-btn');
-    if (btn) btn.classList.remove('panel-open');
-    _openPanel.remove(); _openPanel = null;
-  }
-}, true);
-
-/** Render the always-visible add-new palette. */
-function _renderAddPalette(type) {
-  const id   = type === 'expense' ? 'expAddPalette' : 'incAddPalette';
-  const wrap = document.getElementById(id);
-  if (!wrap) return;
-  wrap.innerHTML = '';
-
-  const current  = _addColor[type];
-  const inputId  = type === 'expense' ? 'newExpColor' : 'newIncColor';
-
-  function applyColor(c) {
-    _addColor[type] = c;
-    const inp = document.getElementById(inputId);
-    if (inp) inp.value = c;
-    wrap.querySelectorAll('.cat-palette-dot').forEach(s =>
-      s.classList.toggle('active', s.dataset.color === c));
-    const hex = wrap.querySelector('.cat-color-hex-input');
-    if (hex) { hex.value = c; hex.classList.remove('invalid'); }
-    const nat = wrap.querySelector('input[type="color"]');
-    if (nat) nat.value = c;
-  }
-
-  function makeRow(colors, label) {
-    const lbl = document.createElement('p');
-    lbl.className = 'cat-color-panel-row-label';
-    lbl.textContent = label;
-    wrap.appendChild(lbl);
-    const row = document.createElement('div');
-    row.className = 'cat-color-panel-row';
-    colors.forEach(c => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'cat-palette-dot' + (c === current ? ' active' : '');
       btn.style.background = c; btn.dataset.color = c; btn.title = c;
-      btn.addEventListener('click', () => applyColor(c));
+      btn.addEventListener('click', e => { e.stopPropagation(); applyColor(c); });
       row.appendChild(btn);
     });
-    wrap.appendChild(row);
+    popover.appendChild(row);
   }
 
   makeRow(_VIVID,  'Vivid');
@@ -214,34 +82,106 @@ function _renderAddPalette(type) {
   footer.className = 'cat-color-panel-footer';
 
   const hexInput = document.createElement('input');
-  hexInput.type = 'text';
-  hexInput.className = 'cat-color-hex-input';
-  hexInput.placeholder = '#000000';
-  hexInput.maxLength = 7;
-  hexInput.value = current;
+  hexInput.type = 'text'; hexInput.className = 'cat-color-hex-input';
+  hexInput.placeholder = '#000000'; hexInput.maxLength = 7; hexInput.value = initialColor;
   hexInput.addEventListener('input', () => {
     const v = hexInput.value.trim();
     const ok = /^#[0-9a-fA-F]{6}$/.test(v);
     hexInput.classList.toggle('invalid', !ok && v.length >= 2);
-    if (ok) applyColor(v);
+    if (ok) { onPick(v); popover.querySelectorAll('.cat-palette-dot').forEach(d => d.classList.toggle('active', d.dataset.color === v)); nativeInput.value = v; }
   });
   footer.appendChild(hexInput);
 
   const nativeWrap = document.createElement('div');
-  nativeWrap.className = 'cat-color-native-wrap';
-  nativeWrap.title = 'Custom colour';
+  nativeWrap.className = 'cat-color-native-wrap'; nativeWrap.title = 'Custom colour';
   const nativeInput = document.createElement('input');
-  nativeInput.type = 'color';
-  nativeInput.id = inputId; // addCat reads this as fallback
-  nativeInput.value = current;
-  nativeInput.addEventListener('input', () => applyColor(nativeInput.value));
-  const circle = document.createElement('span');
-  circle.className = 'cat-color-native-circle';
-  nativeWrap.appendChild(nativeInput);
-  nativeWrap.appendChild(circle);
+  nativeInput.type = 'color'; nativeInput.value = initialColor;
+  nativeInput.addEventListener('input', () => {
+    const c = nativeInput.value; onPick(c); hexInput.value = c; hexInput.classList.remove('invalid');
+    popover.querySelectorAll('.cat-palette-dot').forEach(d => d.classList.toggle('active', d.dataset.color === c));
+  });
+  const circle = document.createElement('span'); circle.className = 'cat-color-native-circle';
+  nativeWrap.appendChild(nativeInput); nativeWrap.appendChild(circle);
   footer.appendChild(nativeWrap);
-  wrap.appendChild(footer);
+  popover.appendChild(footer);
 }
+
+/**
+ * Make a compact colour-picker button.
+ * Returns { wrap, setColor(c) }.
+ */
+function _makeSetupColorBtn(initialColor, onPick) {
+  let currentColor = initialColor;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'color-pick-wrap';
+
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'color-pick-btn';
+
+  const dot = document.createElement('span');
+  dot.className = 'color-pick-dot'; dot.style.background = initialColor;
+
+  const txt = document.createElement('span'); txt.textContent = 'Colour';
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none');
+  svg.setAttribute('stroke','currentColor'); svg.setAttribute('stroke-width','2.5');
+  svg.setAttribute('stroke-linecap','round'); svg.classList.add('color-pick-chevron');
+  const poly = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+  poly.setAttribute('points','6 9 12 15 18 9'); svg.appendChild(poly);
+
+  btn.appendChild(dot); btn.appendChild(txt); btn.appendChild(svg);
+  wrap.appendChild(btn);
+
+  function _updateDot(c) {
+    currentColor = c; dot.style.background = c; onPick(c);
+  }
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = btn.classList.contains('open');
+    _closeSetupPicker();
+    if (isOpen) return;
+
+    btn.classList.add('open');
+    _openPickBtn = btn;
+
+    const popover = document.createElement('div');
+    popover.className = 'color-pick-popover';
+    _buildPopoverContent(popover, currentColor, c => { dot.style.background = c; currentColor = c; onPick(c); });
+    document.body.appendChild(popover);
+    _openPopover = popover;
+
+    function _position() {
+      const br  = btn.getBoundingClientRect();
+      const pw  = popover.offsetWidth  || 292;
+      const ph  = popover.offsetHeight || 260;
+      let left  = br.left;
+      let top   = br.bottom + 6;
+      if (left + pw > window.innerWidth  - 8) left = Math.max(8, window.innerWidth  - pw - 8);
+      if (top  + ph > window.innerHeight - 8) top  = br.top - ph - 6;
+      popover.style.left = left + 'px';
+      popover.style.top  = top  + 'px';
+    }
+    requestAnimationFrame(() => requestAnimationFrame(_position));
+  });
+
+  return { wrap, setColor: _updateDot };
+}
+
+document.addEventListener('pointerdown', e => {
+  if (!_openPopover) return;
+  if (_openPopover.contains(e.target)) return;
+  if (e.target.closest('.color-pick-btn')) return;
+  _closeSetupPicker();
+}, true);
+window.addEventListener('scroll', _closeSetupPicker, true);
+window.addEventListener('resize', _closeSetupPicker);
+
+// Tracks chosen "add new" color per type (color-pick button nodes stored here)
+const _addColorBtns = { expense: null, income: null };
+const _addColor     = { expense: '#E84545', income: '#0FA974' };
 
 function renderLists() {
   ['expense', 'income'].forEach(type => {
@@ -250,24 +190,48 @@ function renderLists() {
     cats[type].forEach((cat, i) => {
       const div = document.createElement('div');
       div.className = 'cat-item';
-      const budgetInput = type === 'expense'
-        ? `<input type="number" value="${cat.budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" oninput="updateBudget('${type}',${i},this.value)">`
-        : '';
-      div.innerHTML = `
-        <button type="button" class="cat-color-swatch-btn" style="background:${cat.color}"
-                title="Change colour"
-                onclick="_toggleSetupPanel(this,'${type}',${i})"></button>
-        <div class="cat-info">
-          <span class="cat-name">${cat.name}</span>
-          ${budgetInput}
-        </div>
-        <button class="btn-sm del" onclick="removeCat('${type}',${i})">Remove</button>
-      `;
+
+      // Compact colour-picker button
+      const { wrap: colorWrap } = _makeSetupColorBtn(cat.color, (newColor) => {
+        cats[type][i].color = newColor;
+      });
+      div.appendChild(colorWrap);
+
+      // Info + optional budget
+      const infoEl = document.createElement('div');
+      infoEl.className = 'cat-info';
+      if (type === 'expense') {
+        infoEl.innerHTML = `<span class="cat-name">${cat.name}</span>
+          <input type="number" value="${cat.budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01"
+                 oninput="updateBudget('${type}',${i},this.value)">`;
+      } else {
+        infoEl.innerHTML = `<span class="cat-name">${cat.name}</span>`;
+      }
+      div.appendChild(infoEl);
+
+      // Remove button
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn-sm del';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => window.removeCat(type, i));
+      div.appendChild(delBtn);
+
       el.appendChild(div);
     });
   });
-  _renderAddPalette('expense');
-  _renderAddPalette('income');
+
+  // Render the add-new palette buttons
+  ['expense', 'income'].forEach(type => {
+    const palId = type === 'expense' ? 'expAddPalette' : 'incAddPalette';
+    const pal   = document.getElementById(palId);
+    if (!pal) return;
+    pal.innerHTML = '';
+    const { wrap, setColor } = _makeSetupColorBtn(_addColor[type], (c) => {
+      _addColor[type] = c;
+    });
+    _addColorBtns[type] = { wrap, setColor };
+    pal.appendChild(wrap);
+  });
 }
 
 window.updateBudget = function(type, idx, budget) {

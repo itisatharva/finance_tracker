@@ -44,8 +44,7 @@
   .setup-add-row { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
   .setup-add-row input[type="text"] { flex:1 1 140px; }
   .setup-add-row input[type="number"] { max-width:140px; flex:1 1 80px; }
-  .setup-add-row .cat-add-palette { flex:1 1 100%; order:10; }
-  .setup-add-row .btn { order:11; }
+  .setup-add-row .cat-add-palette { flex-shrink:0; }
   .setup-footer { display:flex; gap:12px; margin-top:32px; padding-top:24px; border-top:1.5px solid var(--border); }
   .setup-footer button { flex:1; }
   @media (max-width:520px) { .setup-card { padding:28px 18px 24px; } }
@@ -69,7 +68,7 @@
       <div class="setup-add-row">
         <input type="text" id="newExpName" placeholder="New expense category…" />
         <input type="number" id="newExpBudget" placeholder="Budget" style="max-width:140px;" min="0" step="0.01" />
-        <div class="cat-add-palette" id="expAddPalette" data-section="expense"></div>
+        <div class="cat-add-palette" id="expAddPalette"></div>
         <button class="btn btn-secondary" onclick="addCat('expense')">Add</button>
       </div>
     </div>
@@ -82,7 +81,7 @@
       <div class="setup-cat-list" id="incomeList"></div>
       <div class="setup-add-row">
         <input type="text" id="newIncName" placeholder="New income category…" />
-        <div class="cat-add-palette" id="incAddPalette" data-section="income"></div>
+        <div class="cat-add-palette" id="incAddPalette"></div>
         <button class="btn btn-secondary" onclick="addCat('income')">Add</button>
       </div>
     </div>

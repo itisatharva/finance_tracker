@@ -1207,8 +1207,8 @@ input[type="color"] {
 .add-cat-row input[type="text"] { flex: 1 1 140px; }
 .add-cat-row input[type="number"],
 .add-budget-input { flex: 1 1 80px; min-width: 0; max-width: 140px; }
-.add-cat-row .cat-add-palette { flex: 1 1 100%; order: 10; }
-.add-cat-row .btn { order: 11; }
+.add-cat-row .cat-add-palette { flex-shrink: 0; }
+.add-cat-row .btn { flex-shrink: 0; }
 
 /* New cat color picker circle */
 .add-cat-color-wrap {
@@ -3783,50 +3783,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   padding: 10px 16px;
 }
 
-/* ── Color preset swatches ──────────────────────────────────────────────── */
-.cat-suggest-presets {
-  display: flex;
-  gap: 7px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-}
-.cat-suggest-preset {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: transform .12s, outline .1s;
-  outline: 2.5px solid transparent;
-  outline-offset: 2px;
-}
-.cat-suggest-preset:hover { transform: scale(1.15); }
-.cat-suggest-preset.active {
-  outline-color: var(--ink);
-  transform: scale(1.2);
-}
-
-/* Custom color picker row inside modal */
-.cat-suggest-color-custom {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-.cat-suggest-color-custom .add-cat-color-wrap {
-  width: 32px;
-  height: 32px;
-}
-.cat-suggest-color-custom .add-cat-color-swatch {
-  width: 32px;
-  height: 32px;
-  border-color: var(--border);
-}
-.cat-suggest-color-custom-label {
-  font-size: .8rem;
-  color: var(--text-3);
-}
-
 /* ── Budget input ───────────────────────────────────────────────────────── */
 #catSuggestBudget {
   width: 100%;
@@ -3873,9 +3829,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 [data-theme="dark"] #catSuggestionModal {
   background: rgba(0, 0, 0, .68);
 }
-[data-theme="dark"] .cat-suggest-preset.active {
-  outline-color: #ffffff;
-}
 [data-theme="dark"] #catSuggestName:focus {
   box-shadow: 0 0 0 3px rgba(255,255,255,.08);
 }
@@ -3887,8 +3840,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     border-radius: var(--r-lg);
   }
   .cat-suggest-title { font-size: 1rem; }
-  .cat-suggest-presets { gap: 6px; }
-  .cat-suggest-preset { width: 22px; height: 22px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -3897,45 +3848,92 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /* ── The swatch circle button on each existing cat-item ─────────────────── */
-.cat-color-swatch-btn {
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  padding: 0;
+/* ── Compact colour-picker button ──────────────────────────────────────────── */
+.color-pick-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.color-pick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 7px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--border);
+  background: var(--bg-page);
+  color: var(--text-2);
+  font-size: .8rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+  white-space: nowrap;
+  user-select: none;
+  font-family: inherit;
+  line-height: 1;
+}
+.color-pick-btn:hover {
+  border-color: var(--ink);
+  background: var(--bg-card);
+}
+.color-pick-btn.open {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.07);
+}
+[data-theme="dark"] .color-pick-btn.open {
+  box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+}
+.color-pick-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
   flex-shrink: 0;
   display: block;
-  background: #999;
-  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--border);
-  transition: box-shadow .15s, transform .15s;
-  align-self: center;
+  border: 1.5px solid rgba(0,0,0,.12);
+  box-shadow: 0 1px 3px rgba(0,0,0,.18);
+  transition: transform .13s;
 }
-.cat-color-swatch-btn:hover {
-  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--ink);
-  transform: scale(1.13);
+.color-pick-btn:hover .color-pick-dot { transform: scale(1.15); }
+.color-pick-chevron {
+  width: 11px;
+  height: 11px;
+  opacity: .45;
+  flex-shrink: 0;
+  transition: transform .15s, opacity .15s;
 }
-.cat-color-swatch-btn.panel-open {
-  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--ink);
-  transform: scale(1.08);
+.color-pick-btn.open .color-pick-chevron {
+  transform: rotate(180deg);
+  opacity: .7;
 }
 
-/* cat-item must wrap so the panel can sit on its own row */
-.cat-item { flex-wrap: wrap; align-items: center; }
-
-/* ── Inline expandable panel ─────────────────────────────────────────────── */
-.cat-color-panel {
-  width: 100%;
-  margin-top: 10px;
-  padding: 12px 0 2px;
+/* ── Floating colour popover ────────────────────────────────────────────────── */
+.color-pick-popover {
+  position: fixed;
+  z-index: 2200;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 14px 14px 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.1);
+  min-width: 292px;
+  max-width: 320px;
+  animation: color-pop-in .15s cubic-bezier(.2,.8,.4,1);
+}
+@keyframes color-pop-in {
+  from { opacity: 0; transform: translateY(-8px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.color-pick-popover .cat-color-panel-row-label { margin-top: 0; }
+.color-pick-popover .cat-color-panel-row       { margin-bottom: 10px; }
+.color-pick-popover .cat-color-panel-footer {
+  margin-top: 6px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
-  animation: cat-panel-in .14s ease;
 }
-@keyframes cat-panel-in {
-  from { opacity: 0; transform: translateY(-5px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+
+/* cat-item keeps wrap for tight screens but no inline panel needed */
+.cat-item { flex-wrap: wrap; align-items: center; }
 
 .cat-color-panel-row-label {
   font-size: .68rem;
@@ -4048,15 +4046,15 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-color: var(--ink);
 }
 
-/* ── Always-visible add-new palette (below name/budget inputs) ───────────── */
+/* ── Add-new colour button mount ─────────────────────────────────────────── */
 .cat-add-palette {
-  width: 100%;
-  padding: 10px 0 4px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
 }
-.cat-add-palette .cat-color-panel-row { margin-bottom: 8px; }
-
 /* ── Mobile ─────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .cat-palette-dot { width: 22px; height: 22px; gap: 6px; }
   .cat-color-hex-input { font-size: .8rem; }
+  .color-pick-popover { min-width: 270px; max-width: calc(100vw - 24px); }
 }

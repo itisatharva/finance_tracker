@@ -1015,14 +1015,8 @@ window.openCatsModal = function() {
   }
 })();
 window.closeCatsModal = function() {
-  // Close any open inline colour panel
-  if (_openCatPanel) {
-    const btn = _openCatPanel.parentElement &&
-                _openCatPanel.parentElement.querySelector('.cat-color-swatch-btn');
-    if (btn) btn.classList.remove('panel-open');
-    _openCatPanel.remove();
-    _openCatPanel = null;
-  }
+  // Close any open colour picker
+  _closeColorPicker();
   document.getElementById('catsModalBg').classList.remove('open');
   document.body.style.overflow = '';
   // Restore navbar
@@ -1243,78 +1237,64 @@ window.showCatDeleteConfirm = function(btn, type, name) {
   row.appendChild(noBtn);
   btn.parentNode.appendChild(row);
 };
-// ── Color palette ──────────────────────────────────────────────────────────
-const VIVID_COLORS = [
-  '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
-  '#14b8a6','#3b82f6','#06b6d4','#0FA974','#8b5cf6',
-  '#6366f1','#ef4444','#22c55e','#eab308','#64748b',
-];
-const PASTEL_COLORS = [
-  '#fca5a5','#fdba74','#f9a8d4','#fde68a','#e9d5ff',
-  '#99f6e4','#bfdbfe','#a5f3fc','#bbf7d0','#c7d2fe',
-  '#ddd6fe','#fecaca','#d9f99d','#fef08a','#e2e8f0',
-];
 
-// Currently open inline cat-color panel element
-let _openCatPanel = null;
+// ── Shared floating colour-picker popover ─────────────────────────────────
+// One singleton popover lives in document.body; repositioned per-button.
+let _colorPickerPopover = null;
+let _colorPickerCleanup = null;
 
 /**
- * Build a reusable inline color panel DOM node.
- * onPick(color) is called whenever the user selects a color.
+ * Build the inner DOM of the floating popover (swatches + hex + wheel).
+ * onPick(color) fires on every selection.
  */
-function _buildColorPanel(initialColor, onPick) {
-  const panel = document.createElement('div');
-  panel.className = 'cat-color-panel';
+function _buildPickerContent(popover, initialColor, onPick) {
+  const VIVID = [
+    '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
+    '#14b8a6','#3b82f6','#06b6d4','#0FA974','#8b5cf6',
+    '#6366f1','#ef4444','#22c55e','#eab308','#64748b',
+  ];
+  const PASTEL = [
+    '#fca5a5','#fdba74','#f9a8d4','#fde68a','#e9d5ff',
+    '#99f6e4','#bfdbfe','#a5f3fc','#bbf7d0','#c7d2fe',
+    '#ddd6fe','#fecaca','#d9f99d','#fef08a','#e2e8f0',
+  ];
 
-  function applyColor(c, swatches) {
+  let currentColor = initialColor;
+
+  function applyColor(c) {
+    currentColor = c;
     onPick(c);
-    swatches.forEach(s => s.classList.toggle('active', s.dataset.color === c));
+    popover.querySelectorAll('.cat-palette-dot').forEach(d =>
+      d.classList.toggle('active', d.dataset.color === c));
     hexInput.value = c;
     hexInput.classList.remove('invalid');
     nativeInput.value = c;
   }
 
-  // Vivid row
-  const vividLabel = document.createElement('p');
-  vividLabel.className = 'cat-color-panel-row-label';
-  vividLabel.textContent = 'Vivid';
-  panel.appendChild(vividLabel);
+  function makeRow(colors, label) {
+    const lbl = document.createElement('p');
+    lbl.className = 'cat-color-panel-row-label';
+    lbl.textContent = label;
+    popover.appendChild(lbl);
+    const row = document.createElement('div');
+    row.className = 'cat-color-panel-row';
+    colors.forEach(c => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cat-palette-dot' + (c === initialColor ? ' active' : '');
+      btn.style.background = c;
+      btn.dataset.color = c;
+      btn.title = c;
+      btn.addEventListener('click', e => { e.stopPropagation(); applyColor(c); });
+      row.appendChild(btn);
+    });
+    popover.appendChild(row);
+  }
 
-  const vividRow = document.createElement('div');
-  vividRow.className = 'cat-color-panel-row';
-  VIVID_COLORS.forEach(c => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'cat-palette-dot' + (c === initialColor ? ' active' : '');
-    btn.style.background = c;
-    btn.dataset.color = c;
-    btn.title = c;
-    btn.addEventListener('click', () => applyColor(c, allDots()));
-    vividRow.appendChild(btn);
-  });
-  panel.appendChild(vividRow);
+  makeRow(VIVID,  'Vivid');
+  makeRow(PASTEL, 'Pastel');
 
-  // Pastel row
-  const pastelLabel = document.createElement('p');
-  pastelLabel.className = 'cat-color-panel-row-label';
-  pastelLabel.textContent = 'Pastel';
-  panel.appendChild(pastelLabel);
-
-  const pastelRow = document.createElement('div');
-  pastelRow.className = 'cat-color-panel-row';
-  PASTEL_COLORS.forEach(c => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'cat-palette-dot' + (c === initialColor ? ' active' : '');
-    btn.style.background = c;
-    btn.dataset.color = c;
-    btn.title = c;
-    btn.addEventListener('click', () => applyColor(c, allDots()));
-    pastelRow.appendChild(btn);
-  });
-  panel.appendChild(pastelRow);
-
-  // Footer: hex input + native picker
+  // Footer: hex input + native wheel
   const footer = document.createElement('div');
   footer.className = 'cat-color-panel-footer';
 
@@ -1326,11 +1306,13 @@ function _buildColorPanel(initialColor, onPick) {
   hexInput.value = initialColor;
   hexInput.addEventListener('input', () => {
     const v = hexInput.value.trim();
-    const valid = /^#[0-9a-fA-F]{6}$/.test(v);
-    hexInput.classList.toggle('invalid', !valid && v.length >= 2);
-    if (valid) {
+    const ok = /^#[0-9a-fA-F]{6}$/.test(v);
+    hexInput.classList.toggle('invalid', !ok && v.length >= 2);
+    if (ok) {
+      currentColor = v;
       onPick(v);
-      allDots().forEach(s => s.classList.toggle('active', s.dataset.color === v));
+      popover.querySelectorAll('.cat-palette-dot').forEach(d =>
+        d.classList.toggle('active', d.dataset.color === v));
       nativeInput.value = v;
     }
   });
@@ -1344,164 +1326,154 @@ function _buildColorPanel(initialColor, onPick) {
   nativeInput.value = initialColor;
   nativeInput.addEventListener('input', () => {
     const c = nativeInput.value;
+    currentColor = c;
     onPick(c);
     hexInput.value = c;
     hexInput.classList.remove('invalid');
-    allDots().forEach(s => s.classList.toggle('active', s.dataset.color === c));
+    popover.querySelectorAll('.cat-palette-dot').forEach(d =>
+      d.classList.toggle('active', d.dataset.color === c));
   });
   const nativeCircle = document.createElement('span');
   nativeCircle.className = 'cat-color-native-circle';
   nativeWrap.appendChild(nativeInput);
   nativeWrap.appendChild(nativeCircle);
   footer.appendChild(nativeWrap);
-  panel.appendChild(footer);
-
-  function allDots() { return Array.from(panel.querySelectorAll('.cat-palette-dot')); }
-  return panel;
+  popover.appendChild(footer);
 }
 
-/** Toggle the inline color panel on a cat-item swatch button. */
-window._toggleCatColorPanel = function(swatchBtn, type, name) {
-  const item = swatchBtn.closest('.cat-item');
-  if (!item) return;
+/** Close any open colour popover. */
+function _closeColorPicker() {
+  if (_colorPickerCleanup) { _colorPickerCleanup(); _colorPickerCleanup = null; }
+  if (_colorPickerPopover) { _colorPickerPopover.remove(); _colorPickerPopover = null; }
+  document.querySelectorAll('.color-pick-btn.open').forEach(b => b.classList.remove('open'));
+}
 
-  // Read live color from state — not from a stale onclick attribute
-  const catObj  = (categories[type] || []).find(c => catName(c) === name);
-  const liveColor = catObj ? catColor(catObj) : (swatchBtn.style.background || '#999');
+/**
+ * Create a colour-picker button element.
+ *   btn.dataset.color  always reflects the current colour.
+ * @param {string}   initialColor
+ * @param {Function} onPick(color)  — called on each change
+ * @param {string}   [label]        — button label (default "Colour")
+ * @returns {HTMLElement} the .color-pick-wrap wrapper
+ */
+function _makeColorPickBtn(initialColor, onPick, label = 'Colour') {
+  let currentColor = initialColor;
 
-  // If a panel is already open on THIS item — close it (toggle off)
-  if (_openCatPanel && _openCatPanel.parentElement === item) {
-    _openCatPanel.remove();
-    _openCatPanel = null;
-    swatchBtn.classList.remove('panel-open');
-    return;
+  const wrap = document.createElement('div');
+  wrap.className = 'color-pick-wrap';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'color-pick-btn';
+  btn.dataset.color = initialColor;
+
+  const dot = document.createElement('span');
+  dot.className = 'color-pick-dot';
+  dot.style.background = initialColor;
+
+  const txt = document.createElement('span');
+  txt.textContent = label;
+
+  const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  chevron.setAttribute('viewBox', '0 0 24 24');
+  chevron.setAttribute('fill', 'none');
+  chevron.setAttribute('stroke', 'currentColor');
+  chevron.setAttribute('stroke-width', '2.5');
+  chevron.setAttribute('stroke-linecap', 'round');
+  chevron.classList.add('color-pick-chevron');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  path.setAttribute('points', '6 9 12 15 18 9');
+  chevron.appendChild(path);
+
+  btn.appendChild(dot);
+  btn.appendChild(txt);
+  btn.appendChild(chevron);
+  wrap.appendChild(btn);
+
+  function _updateDot(c) {
+    currentColor = c;
+    dot.style.background = c;
+    btn.dataset.color = c;
+    onPick(c);
   }
 
-  // Close any other open panel
-  if (_openCatPanel) {
-    const prevBtn = _openCatPanel.parentElement &&
-                    _openCatPanel.parentElement.querySelector('.cat-color-swatch-btn');
-    if (prevBtn) prevBtn.classList.remove('panel-open');
-    _openCatPanel.remove();
-    _openCatPanel = null;
-  }
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = btn.classList.contains('open');
 
-  // Build and attach panel
-  const panel = _buildColorPanel(liveColor, (newColor) => {
-    swatchBtn.style.background = newColor;
-    window.updateCatColor(type, name, newColor);
+    // Close any existing picker
+    _closeColorPicker();
+    if (isOpen) return;
+
+    // Open a new popover
+    btn.classList.add('open');
+    const popover = document.createElement('div');
+    popover.className = 'color-pick-popover';
+    _buildPickerContent(popover, currentColor, c => {
+      dot.style.background = c;
+      btn.dataset.color = c;
+      currentColor = c;
+      onPick(c);
+    });
+    document.body.appendChild(popover);
+    _colorPickerPopover = popover;
+
+    // Position below button
+    function _position() {
+      const br = btn.getBoundingClientRect();
+      const pw = popover.offsetWidth || 292;
+      const ph = popover.offsetHeight || 260;
+      let left = br.left;
+      let top  = br.bottom + 6;
+      if (left + pw > window.innerWidth - 8)  left = Math.max(8, window.innerWidth - pw - 8);
+      if (top  + ph > window.innerHeight - 8) top  = br.top - ph - 6;
+      popover.style.left = left + 'px';
+      popover.style.top  = top  + 'px';
+    }
+    // Two rAF to get the rendered size
+    requestAnimationFrame(() => requestAnimationFrame(_position));
+
+    _colorPickerCleanup = () => {};
   });
-  item.appendChild(panel);
-  _openCatPanel = panel;
-  swatchBtn.classList.add('panel-open');
-};
 
-// Close panel when clicking outside
+  // Expose a setter so the caller can push colours programmatically
+  wrap._setColor = _updateDot;
+  wrap._getColor = () => currentColor;
+
+  return wrap;
+}
+
+// Close picker when clicking outside
 document.addEventListener('pointerdown', e => {
-  if (!_openCatPanel) return;
-  const item = _openCatPanel.parentElement;
-  if (item && !item.contains(e.target)) {
-    const btn = item.querySelector('.cat-color-swatch-btn');
-    if (btn) btn.classList.remove('panel-open');
-    _openCatPanel.remove();
-    _openCatPanel = null;
-  }
+  if (!_colorPickerPopover) return;
+  if (_colorPickerPopover.contains(e.target)) return;
+  if (e.target.closest('.color-pick-btn')) return;
+  _closeColorPicker();
 }, true);
+// Close on scroll/resize
+window.addEventListener('scroll', _closeColorPicker, true);
+window.addEventListener('resize', _closeColorPicker);
 
-// Tracks chosen color for each "add new" palette
+// ── Tracks chosen color for each "add new" palette ─────────────────────────
 const _addPaletteColor = { expense: '#E84545', income: '#0FA974' };
 
-/** Render the always-visible add-new palette strip. */
+/** Render the colour-picker button in the add-new strip. */
 function renderAddPalette(type) {
   const id = type === 'expense' ? 'expAddPalette' : 'incAddPalette';
   const wrap = document.getElementById(id);
   if (!wrap) return;
   wrap.innerHTML = '';
 
-  const current = _addPaletteColor[type];
-  // Hidden sync input so addCat() can still just read #newExpColor / #newIncColor
-  const inputId = type === 'expense' ? 'newExpColor' : 'newIncColor';
-
-  function applyColor(c) {
+  const pickWrap = _makeColorPickBtn(_addPaletteColor[type], (c) => {
     _addPaletteColor[type] = c;
-    const inp = document.getElementById(inputId);
+    // Keep the hidden sync input up-to-date for addCat() compatibility
+    const syncId = type === 'expense' ? 'newExpColor' : 'newIncColor';
+    const inp = document.getElementById(syncId);
     if (inp) inp.value = c;
-    wrap.querySelectorAll('.cat-palette-dot').forEach(s =>
-      s.classList.toggle('active', s.dataset.color === c));
-    const hex = wrap.querySelector('.cat-color-hex-input');
-    if (hex) { hex.value = c; hex.classList.remove('invalid'); }
-    const nat = wrap.querySelector('input[type="color"]');
-    if (nat) nat.value = c;
-  }
+  }, 'Colour');
 
-  // Vivid row
-  const vividLabel = document.createElement('p');
-  vividLabel.className = 'cat-color-panel-row-label';
-  vividLabel.textContent = 'Vivid';
-  wrap.appendChild(vividLabel);
-  const vividRow = document.createElement('div');
-  vividRow.className = 'cat-color-panel-row';
-  VIVID_COLORS.forEach(c => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'cat-palette-dot' + (c === current ? ' active' : '');
-    btn.style.background = c; btn.dataset.color = c; btn.title = c;
-    btn.addEventListener('click', () => applyColor(c));
-    vividRow.appendChild(btn);
-  });
-  wrap.appendChild(vividRow);
-
-  // Pastel row
-  const pastelLabel = document.createElement('p');
-  pastelLabel.className = 'cat-color-panel-row-label';
-  pastelLabel.textContent = 'Pastel';
-  wrap.appendChild(pastelLabel);
-  const pastelRow = document.createElement('div');
-  pastelRow.className = 'cat-color-panel-row';
-  PASTEL_COLORS.forEach(c => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'cat-palette-dot' + (c === current ? ' active' : '');
-    btn.style.background = c; btn.dataset.color = c; btn.title = c;
-    btn.addEventListener('click', () => applyColor(c));
-    pastelRow.appendChild(btn);
-  });
-  wrap.appendChild(pastelRow);
-
-  // Footer
-  const footer = document.createElement('div');
-  footer.className = 'cat-color-panel-footer';
-
-  const hexInput = document.createElement('input');
-  hexInput.type = 'text';
-  hexInput.className = 'cat-color-hex-input';
-  hexInput.placeholder = '#000000';
-  hexInput.maxLength = 7;
-  hexInput.value = current;
-  hexInput.addEventListener('input', () => {
-    const v = hexInput.value.trim();
-    const valid = /^#[0-9a-fA-F]{6}$/.test(v);
-    hexInput.classList.toggle('invalid', !valid && v.length >= 2);
-    if (valid) applyColor(v);
-  });
-  footer.appendChild(hexInput);
-
-  const nativeWrap = document.createElement('div');
-  nativeWrap.className = 'cat-color-native-wrap';
-  nativeWrap.title = 'Custom colour';
-  const nativeInput = document.createElement('input');
-  nativeInput.type = 'color';
-  nativeInput.id = inputId; // keep the ID so addCat() fallback still works
-  nativeInput.value = current;
-  nativeInput.addEventListener('input', () => applyColor(nativeInput.value));
-  const circle = document.createElement('span');
-  circle.className = 'cat-color-native-circle';
-  nativeWrap.appendChild(nativeInput);
-  nativeWrap.appendChild(circle);
-  footer.appendChild(nativeWrap);
-  wrap.appendChild(footer);
+  wrap.appendChild(pickWrap);
 }
-
 window.syncSwatch = function() {}; // no-op, kept for safety
 
 window.updateCatColor = async function(type, name, color) {
@@ -1539,16 +1511,23 @@ function renderCatLists() {
         ? `<input type="number" value="${budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" onchange="updateCatBudget('${type}','${safeName}',this.value)">`
         : '';
 
-      div.innerHTML = `
-        <button type="button" class="cat-color-swatch-btn" style="background:${color}"
-                title="Change colour"
-                onclick="_toggleCatColorPanel(this,'${type}','${safeName}')"></button>
-        <div class="cat-info">
-          <span class="cat-name">${esc(name)}</span>
-          ${budgetInput}
-        </div>
-        <button class="btn-sm del" onclick="showCatDeleteConfirm(this,'${type}','${safeName}')">Remove</button>
-      `;
+      // Build info + remove
+      const infoEl = document.createElement('div');
+      infoEl.className = 'cat-info';
+      infoEl.innerHTML = `<span class="cat-name">${esc(name)}</span>${budgetInput}`;
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn-sm del';
+      delBtn.textContent = 'Remove';
+      delBtn.addEventListener('click', () => window.showCatDeleteConfirm(delBtn, type, name));
+
+      // Build compact colour picker button
+      const colorPickWrap = _makeColorPickBtn(color, (newColor) => {
+        window.updateCatColor(type, name, newColor);
+      }, 'Colour');
+
+      div.appendChild(colorPickWrap);
+      div.appendChild(infoEl);
+      div.appendChild(delBtn);
       el.appendChild(div);
     });
   });
@@ -1702,14 +1681,9 @@ function wireAddTxForm() {
 
   // ── NLP Category Suggestion Popup ─────────────────────────────────────────
   // Injected once into the DOM, shown/hidden via Promise-based API.
-  const CAT_SUGGEST_PRESET_COLORS = [
-    '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
-    '#14b8a6','#3b82f6','#06b6d4','#10b981','#0FA974',
-    '#8b5cf6','#6366f1','#6b7280','#d97706','#ef4444',
-  ];
-
   let _catSuggestColor = '#E84545';
   let _catSuggestType  = 'expense';
+  let _catSuggestPickerWrap = null; // the _makeColorPickBtn wrap node
 
   window._catSuggestSetType = function(type) {
     _catSuggestType = type;
@@ -1721,28 +1695,17 @@ function wireAddTxForm() {
     if (budRow) budRow.style.display = type === 'expense' ? '' : 'none';
   };
 
-  window._catSuggestPickColor = function(color, swatchEl) {
+  function _catSuggestSetColor(color) {
     _catSuggestColor = color;
-    const picker = document.getElementById('catSuggestColorPicker');
-    const mainSw = document.getElementById('catSuggestSwatch');
-    const icon   = document.getElementById('catSuggestIconCircle');
-    if (picker) picker.value = color;
-    if (mainSw) mainSw.style.background = color;
-    if (icon)   { icon.style.background = color + '22'; icon.style.color = color; }
-    // Mark active preset via CSS class
-    document.querySelectorAll('.cat-suggest-preset').forEach(s => {
-      s.classList.toggle('active', s.dataset.color === color);
-    });
-  };
+    const icon = document.getElementById('catSuggestIconCircle');
+    if (icon) { icon.style.background = color + '22'; icon.style.color = color; }
+    if (_catSuggestPickerWrap && _catSuggestPickerWrap._setColor) {
+      _catSuggestPickerWrap._setColor(color);
+    }
+  }
 
   function _initCatSuggestionModal() {
     if (document.getElementById('catSuggestionModal')) return;
-
-    const presetHTML = CAT_SUGGEST_PRESET_COLORS.map(c =>
-      `<div class="cat-suggest-preset" data-color="${c}"
-            style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;flex-shrink:0;transition:transform .12s,outline .12s;"
-            onclick="_catSuggestPickColor('${c}', this)" title="${c}"></div>`
-    ).join('');
 
     const html = `
 <div id="catSuggestionModal" role="dialog" aria-modal="true" aria-label="New category detected">
@@ -1777,15 +1740,7 @@ function wireAddTxForm() {
     <!-- Color -->
     <div class="cat-suggest-field">
       <label class="cat-suggest-label">Color</label>
-      <div class="cat-suggest-presets">${presetHTML}</div>
-      <div class="cat-suggest-color-custom">
-        <div class="add-cat-color-wrap">
-          <input type="color" id="catSuggestColorPicker"
-                 oninput="_catSuggestPickColor(this.value,this)" />
-          <span class="add-cat-color-swatch" id="catSuggestSwatch"></span>
-        </div>
-        <span class="cat-suggest-color-custom-label">Custom colour</span>
-      </div>
+      <div id="catSuggestColorMount"></div>
     </div>
 
     <!-- Budget (expense only) -->
@@ -1807,6 +1762,17 @@ function wireAddTxForm() {
   </div>
 </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+
+    // Mount compact colour-picker button into the modal
+    const colorMount = document.getElementById('catSuggestColorMount');
+    if (colorMount) {
+      _catSuggestPickerWrap = _makeColorPickBtn(_catSuggestColor, (c) => {
+        _catSuggestColor = c;
+        const icon = document.getElementById('catSuggestIconCircle');
+        if (icon) { icon.style.background = c + '22'; icon.style.color = c; }
+      }, 'Colour');
+      colorMount.appendChild(_catSuggestPickerWrap);
+    }
   }
 
   /**
@@ -1832,7 +1798,7 @@ function wireAddTxForm() {
       // Set type and color
       _catSuggestSetType(match.suggestedType);
       const defaultColor = match.suggestedType === 'income' ? '#0FA974' : '#E84545';
-      _catSuggestPickColor(defaultColor, null);
+      _catSuggestSetColor(defaultColor);
       document.getElementById('catSuggestBudget').value = '';
 
       // Fallback hint
