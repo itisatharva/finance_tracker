@@ -1405,17 +1405,22 @@ function _makeColorPickBtn(initialColor, onPick) {
     // Position below button
     function _position() {
       const br = btn.getBoundingClientRect();
-      const pw = popover.offsetWidth || 292;
-      const ph = popover.offsetHeight || 260;
+      const pw = popover.offsetWidth;
+      const ph = popover.offsetHeight;
+      const margin = 8;
+      // Horizontal: align to button left, clamp to viewport
       let left = br.left;
-      let top  = br.bottom + 6;
-      if (left + pw > window.innerWidth - 8)  left = Math.max(8, window.innerWidth - pw - 8);
-      if (top  + ph > window.innerHeight - 8) top  = br.top - ph - 6;
+      if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+      left = Math.max(margin, left);
+      // Vertical: prefer below button, flip above if not enough room
+      let top = br.bottom + 6;
+      if (top + ph > window.innerHeight - margin) top = br.top - ph - 6;
+      top = Math.max(margin, top);
       popover.style.left = left + 'px';
       popover.style.top  = top  + 'px';
     }
-    // Two rAF to get the rendered size
-    requestAnimationFrame(() => requestAnimationFrame(_position));
+    // Wait for layout paint before measuring height
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(_position, 0)));
 
     _colorPickerCleanup = () => {};
   });

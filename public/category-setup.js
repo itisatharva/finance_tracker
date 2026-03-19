@@ -145,17 +145,20 @@ function _makeSetupColorBtn(initialColor, onPick) {
     _openPopover = popover;
 
     function _position() {
-      const br  = btn.getBoundingClientRect();
-      const pw  = popover.offsetWidth  || 292;
-      const ph  = popover.offsetHeight || 260;
-      let left  = br.left;
-      let top   = br.bottom + 6;
-      if (left + pw > window.innerWidth  - 8) left = Math.max(8, window.innerWidth  - pw - 8);
-      if (top  + ph > window.innerHeight - 8) top  = br.top - ph - 6;
+      const br = btn.getBoundingClientRect();
+      const pw = popover.offsetWidth;
+      const ph = popover.offsetHeight;
+      const margin = 8;
+      let left = br.left;
+      if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+      left = Math.max(margin, left);
+      let top = br.bottom + 6;
+      if (top + ph > window.innerHeight - margin) top = br.top - ph - 6;
+      top = Math.max(margin, top);
       popover.style.left = left + 'px';
       popover.style.top  = top  + 'px';
     }
-    requestAnimationFrame(() => requestAnimationFrame(_position));
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(_position, 0)));
   });
 
   return { wrap, setColor: _updateDot };

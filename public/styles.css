@@ -3906,7 +3906,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-radius: var(--r-xl);
   padding: 12px 12px 10px;
   box-shadow: 0 8px 40px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.1);
-  width: 252px;
+  width: 280px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
   animation: color-pop-in .15s cubic-bezier(.2,.8,.4,1);
 }
 @keyframes color-pop-in {
@@ -3936,16 +3938,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .cat-color-panel-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 5px;
   margin-bottom: 10px;
 }
 
 /* Individual dot — used in both panel and add-new strip */
 .cat-palette-dot {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  border: 2.5px solid transparent;
+  border: 2px solid transparent;
   cursor: pointer;
   flex-shrink: 0;
   padding: 0;
@@ -4044,7 +4046,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 /* ── Mobile ─────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
-  .cat-palette-dot { width: 22px; height: 22px; gap: 6px; }
+  .cat-palette-dot { width: 20px; height: 20px; }
   .cat-color-hex-input { font-size: .78rem; width: 80px; flex: 0 0 80px; }
-  .color-pick-popover { width: calc(100vw - 32px); max-width: 252px; }
+  .color-pick-popover { width: calc(100vw - 32px); max-width: 280px; }
 }
