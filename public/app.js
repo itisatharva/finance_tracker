@@ -2050,7 +2050,7 @@ function wireAddTxForm() {
             tx.category, tx.type,
             categories.expense || [],
             categories.income  || [],
-            trimmed              // raw input — overrides bad model predictions
+            tx.segText || trimmed
           );
           return { tx, match };
         });
@@ -2188,13 +2188,12 @@ function wireAddTxForm() {
           showSheetStatus('No amount found. Try: "paid 350 for groceries"', true);
           return;
         }
-        const allCatNames_unused = null; // replaced by smart matching below
         const sheetMatchResults = valid.map(tx => {
           const match = NLP.matchToUserCategories(
             tx.category, tx.type,
             categories.expense || [],
             categories.income  || [],
-            trimmed              // raw input — overrides bad model predictions
+            tx.segText || trimmed
           );
           return { tx, match };
         });

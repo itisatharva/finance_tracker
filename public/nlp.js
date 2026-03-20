@@ -227,11 +227,43 @@ window.NLP = (() => {
     return note.length > 2 ? note : '';
   }
 
-  // ── Split comma/"and"-separated items into per-item segments ───────────────
   function splitItems(text) {
+    // 1. Newline-separated entries
+    const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    if (lines.length > 1) {
+      const valid = lines.filter(p => extractAmounts(p).length > 0);
+      if (valid.length > 1) return valid;
+    }
+
+    // 2. Comma / "and" separated entries
     const parts = text.split(/\s*,\s*|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
-    const valid = parts.filter(p => extractAmounts(p).length > 0);
-    return valid.length > 1 ? valid : [text];
+    const validParts = parts.filter(p => extractAmounts(p).length > 0);
+    if (validParts.length > 1) return validParts;
+
+    // 3. Space-only input with multiple amounts — split around each amount boundary
+    // e.g. "food 200 transport 300 shopping 400" → ["food 200", "transport 300", "shopping 400"]
+    const amtPattern = /(?<![.\d])(?:₹|rs\.?|inr\s*)?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)(?!\d)/gi;
+    const amtMatches = [];
+    let m;
+    const stripped = stripDateTokens(text);
+    while ((m = amtPattern.exec(stripped)) !== null) {
+      const val = parseFloat(m[1].replace(/,/g, ''));
+      if (val > 0) amtMatches.push({ start: m.index, end: m.index + m[0].length });
+    }
+    if (amtMatches.length > 1) {
+      const segs = [];
+      for (let i = 0; i < amtMatches.length; i++) {
+        const segStart = i === 0 ? 0 : amtMatches[i - 1].end;
+        const seg = text.slice(segStart, amtMatches[i].end).trim();
+        if (seg) segs.push(seg);
+      }
+      const trailing = text.slice(amtMatches[amtMatches.length - 1].end).trim();
+      if (trailing && segs.length > 0) segs[segs.length - 1] += ' ' + trailing;
+      const validSegs = segs.filter(s => extractAmounts(s).length > 0);
+      if (validSegs.length > 1) return validSegs;
+    }
+
+    return [text];
   }
 
   // ── Classify a single short segment ──────────────────────────────────────────
@@ -247,7 +279,7 @@ window.NLP = (() => {
     const note       = extractNote(seg);
     // Each segment extracts its own date so "yesterday and today" splits correctly
     const date       = extractDate(seg) || fallbackDate;
-    return { amount: amounts[0] || null, category, type, date, note, confidence };
+    return { amount: amounts[0] || null, category, type, date, note, confidence, segText: seg };
   }
 
   // ── Main parse function ───────────────────────────────────────────────────
@@ -275,9 +307,9 @@ window.NLP = (() => {
     const note       = extractNote(text);
 
     if (amounts.length > 1) {
-      return amounts.map(amount => ({ amount, category, type, date, note, confidence }));
+      return amounts.map(amount => ({ amount, category, type, date, note, confidence, segText: text }));
     }
-    return [{ amount: amounts[0] || null, category, type, date, note, confidence }];
+    return [{ amount: amounts[0] || null, category, type, date, note, confidence, segText: text }];
   }
 
   // ── Preload model in background ───────────────────────────────────────────
