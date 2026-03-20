@@ -8,6 +8,17 @@ let startingBalance = 0;
 let editTxId        = null;
 let activeView      = 'dashboard';
 
+// —— Pending-sync pill tracking —————————————————————————————
+let _pendingTxIds   = new Set(); // IDs currently hasPendingWrites
+let _justSyncedIds  = new Set(); // IDs that just confirmed — show green briefly
+const _syncTimers   = {};        // cleanup timers per txId
+
+// —— Multi-account state ————————————————————————————————————
+let activeAccountId    = null;  // currently selected bank account ID
+let accounts           = [];    // [{id, name, createdAt}]
+let _unsubTransactions = null;  // unsubscribe fn for transaction listener
+let _unsubPending      = null;  // unsubscribe fn for pending listener
+
 // —— Undo-delete state ——————————————————————————————————————
 let _undoPendingId   = null;  // ID currently held back from Firestore delete
 let _undoTimer       = null;  // 4s countdown before hard-delete fires
