@@ -1,39 +1,29 @@
-// ─── Finance Tracker — PWA client logic ─────────────────────────────────────
+// Finance Tracker — PWA client logic
 // Handles: SW registration, offline/online badge, install prompt (mobile).
-// Include as a plain <script> (not module) so it runs early on all pages.
 
 (function () {
   'use strict';
 
-  // ── 1. Register Service Worker ──────────────────────────────────────────────
-  // When a new SW version is found and ready, skip the waiting phase immediately
-  // and let the controllerchange handler below force-reload the page.
-  // No user-facing toast — updates are silent and automatic.
+  // ── 1. Service Worker ────────────────────────────────────────────────────────
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').then(reg => {
-        // Handle updates found after initial registration
         reg.addEventListener('updatefound', () => {
           const nw = reg.installing;
           if (!nw) return;
           nw.addEventListener('statechange', () => {
-            // New SW is installed and waiting — trigger it immediately.
-            // navigator.serviceWorker.controller being set means a previous
-            // version is active (i.e. this is an update, not a first install).
             if (nw.state === 'installed' && navigator.serviceWorker.controller) {
               reg.waiting.postMessage({ type: 'SKIP_WAITING' });
             }
           });
         });
 
-        // Also handle the case where a waiting SW already exists when the
-        // page loads (e.g. the tab was open across a deploy).
         if (reg.waiting && navigator.serviceWorker.controller) {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
       }).catch(err => console.warn('[SW] Registration failed:', err));
 
-      // Once the new SW takes control, reload once to serve fresh assets.
       let refreshing = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!refreshing) { refreshing = true; window.location.reload(); }
@@ -41,37 +31,27 @@
     });
   }
 
-  // ── 2. Offline / Online badge ───────────────────────────────────────────────
-  // Appears inline beside #dashGreetingName on both mobile + desktop.
-  // Uses opacity + max-width transitions only — never toggles display,
-  // so all states (in, idle, text-swap, out) are perfectly smooth.
+  // ── 2. Offline / Online badge ────────────────────────────────────────────────
+  // Sits inline beside #dashGreetingName. The wrapper animates max-width so the
+  // bank pill glides smoothly rather than teleporting when the badge appears.
 
   const BADGE_CSS = `
-    /*
-     * Only opacity + transform are GPU-composited.
-     * Layout properties (max-width, padding, margin) cause reflow on every
-     * frame and produce the choppiness. We avoid animating them entirely:
-     * badge always has its natural padding/width. Visibility is managed
-     * with a wrapper that instantly snaps between width:0 and width:auto,
-     * so layout shifts are instant (imperceptible) while the VISUAL fade
-     * runs at full GPU speed.
-     */
-
-    /* ── Wrapper: clips the badge to zero width when hidden ── */
     #__pwa_badge_wrap {
       display: inline-flex;
       align-items: center;
       overflow: hidden;
-      width: 0;
-      /* snap — no transition on the wrapper */
+      max-width: 0;
+      margin-left: 0;
       vertical-align: middle;
+      transition:
+        max-width   0.45s cubic-bezier(0.4, 0, 0.2, 1),
+        margin-left 0.45s cubic-bezier(0.4, 0, 0.2, 1);
     }
     #__pwa_badge_wrap.pwa-wrap-show {
-      width: auto;
+      max-width: 160px;
       margin-left: 7px;
     }
 
-    /* ── The badge itself — only opacity + transform animate ── */
     #__pwa_badge {
       display: inline-flex;
       align-items: center;
@@ -86,31 +66,24 @@
       user-select: none;
       flex-shrink: 0;
       will-change: opacity, transform;
-
-      /* Hidden: invisible + shifted left (slide-in origin) */
       opacity: 0;
       transform: translateX(-10px);
       pointer-events: none;
-
-      /* GPU-only transitions — silky 60fps */
       transition:
         opacity   0.45s cubic-bezier(0.16, 1, 0.3, 1),
         transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    /* Offline colours */
     #__pwa_badge.pwa-badge-offline {
       color: #92400e;
       background: rgba(245,158,11,.13);
       border: 1.5px solid rgba(245,158,11,.35);
     }
-    /* Back-online colours */
     #__pwa_badge.pwa-badge-online {
       color: #065f46;
       background: rgba(15,169,116,.1);
       border: 1.5px solid rgba(15,169,116,.3);
     }
-    /* Dark mode: brighter text so it pops on dark backgrounds */
     [data-theme="dark"] #__pwa_badge.pwa-badge-offline {
       color: #fbbf24;
       background: rgba(245,158,11,.18);
@@ -122,21 +95,17 @@
       border: 1.5px solid rgba(15,169,116,.35);
     }
 
-    /* Visible: full opacity, natural position */
     #__pwa_badge.pwa-badge-show {
       opacity: 1;
       transform: translateX(0);
       pointer-events: auto;
     }
-
-    /* Hiding: slide out to the right */
     #__pwa_badge.pwa-badge-hiding {
       opacity: 0;
       transform: translateX(10px);
       pointer-events: none;
     }
 
-    /* Dot */
     #__pwa_badge_dot {
       width: 6px; height: 6px;
       border-radius: 50%;
@@ -151,7 +120,6 @@
       box-shadow: 0 0 0 2px rgba(15,169,116,.25);
     }
 
-    /* Text crossfade — fade out, swap, fade in */
     #__pwa_badge_text {
       transition: opacity 0.45s ease;
     }
@@ -160,10 +128,10 @@
     }
   `;
 
-  let _badgeInjected = false;
-  let _isOffline     = false;
-  let _hideTimer     = null;
-  let _textTimer     = null;
+  let _badgeInjected   = false;
+  let _isOffline       = false;
+  let _hideTimer       = null;
+  let _textTimer       = null;
   let _offlineDebounce = null;
   let _onlineDebounce  = null;
 
@@ -175,7 +143,6 @@
     s.textContent = BADGE_CSS;
     document.head.appendChild(s);
 
-    // Wrapper clips badge to zero-width when hidden (instant snap, no layout reflow animation)
     const wrap = document.createElement('span');
     wrap.id = '__pwa_badge_wrap';
 
@@ -188,13 +155,11 @@
     document.body.appendChild(wrap);
   }
 
-  function _wrap()    { return document.getElementById('__pwa_badge_wrap'); }
-  function _badge()   { return document.getElementById('__pwa_badge'); }
-  function _dot()     { return document.getElementById('__pwa_badge_dot'); }
-  function _badgeTxt(){ return document.getElementById('__pwa_badge_text'); }
+  function _wrap()     { return document.getElementById('__pwa_badge_wrap'); }
+  function _badge()    { return document.getElementById('__pwa_badge'); }
+  function _dot()      { return document.getElementById('__pwa_badge_dot'); }
+  function _badgeTxt() { return document.getElementById('__pwa_badge_text'); }
 
-  // Move wrapper inside #dashGreetingName so badge sits inline on the same line.
-  // Safe to call multiple times — moves only once.
   let _placed = false;
   function _placeBadge() {
     if (_placed) return;
@@ -204,9 +169,6 @@
     nameEl.appendChild(_wrap());
   }
 
-  // ── Offline verification ──
-  // Debounce 600ms + a real HEAD fetch before deciding we're offline.
-  // Prevents false-positives from momentary connectivity blips.
   async function _confirmOffline() {
     try {
       const ctrl = new AbortController();
@@ -215,9 +177,9 @@
         method: 'HEAD', cache: 'no-store', signal: ctrl.signal
       });
       clearTimeout(t);
-      return false; // fetch succeeded → still online
+      return false;
     } catch {
-      return true; // confirmed offline
+      return true;
     }
   }
 
@@ -232,18 +194,13 @@
       const w = _wrap(), b = _badge(), dot = _dot(), txt = _badgeTxt();
       if (!b) return;
 
-      // Reset colours + text while badge is still invisible
-      b.classList.remove('pwa-badge-online');
-      b.classList.remove('pwa-badge-hiding');
+      b.classList.remove('pwa-badge-online', 'pwa-badge-hiding');
       b.classList.add('pwa-badge-offline');
       dot.classList.remove('pwa-dot-online');
       txt.classList.remove('pwa-text-fade');
       txt.textContent = 'Offline';
 
-      // Step 1: Snap wrapper open (no animation — instant layout, imperceptible)
       w.classList.add('pwa-wrap-show');
-
-      // Step 2: Next two frames — start GPU fade-in of badge (opacity + transform only)
       requestAnimationFrame(() => requestAnimationFrame(() => {
         b.classList.add('pwa-badge-show');
       }));
@@ -260,45 +217,35 @@
     clearTimeout(_textTimer);
 
     const w = _wrap(), b = _badge(), dot = _dot(), txt = _badgeTxt();
-    // If badge was never shown — nothing to do
     if (!b || !b.classList.contains('pwa-badge-show')) return;
 
-    // Step 1: Fade out text (GPU opacity only — 450ms)
     txt.classList.add('pwa-text-fade');
 
     _textTimer = setTimeout(() => {
-      // Step 2: While text is invisible, swap colours + content (instant, no visual change)
       b.classList.remove('pwa-badge-offline');
       b.classList.add('pwa-badge-online');
       dot.classList.add('pwa-dot-online');
       txt.textContent = 'Back online!';
-
-      // Step 3: Fade text back in
       txt.classList.remove('pwa-text-fade');
 
-      // Step 4: After 2.6s hold, slide the whole badge out to the right
       _hideTimer = setTimeout(() => {
-        b.classList.remove('pwa-badge-show');   // remove visible state
-        b.classList.add('pwa-badge-hiding');     // slide out to the right
+        b.classList.remove('pwa-badge-show');
+        b.classList.add('pwa-badge-hiding');
 
-        // Step 5: After slide-out completes, snap wrapper closed + reset
         setTimeout(() => {
           if (!_isOffline) {
-            b.classList.remove('pwa-badge-hiding');
-            b.classList.remove('pwa-badge-online');
+            b.classList.remove('pwa-badge-hiding', 'pwa-badge-online');
             b.classList.add('pwa-badge-offline');
             dot.classList.remove('pwa-dot-online');
             w.classList.remove('pwa-wrap-show');
           }
         }, 500);
       }, 2600);
-    }, 450); // matches pwa-text-fade transition duration
+    }, 450);
   }
 
-  // ── Event wiring with debounce + verification ──
   const _run = fn => document.body ? fn() : document.addEventListener('DOMContentLoaded', fn);
 
-  // On page load: only show if truly offline (not just slow)
   if (!navigator.onLine) {
     _run(() => setTimeout(async () => {
       if (await _confirmOffline()) _showOfflineBadge();
@@ -316,13 +263,11 @@
   window.addEventListener('online', () => {
     clearTimeout(_onlineDebounce);
     clearTimeout(_offlineDebounce);
-    // Small delay — 'online' event fires before full connectivity is restored
-    _onlineDebounce = setTimeout(() => {
-      _run(_showOnlineBadge);
-    }, 400);
+    _onlineDebounce = setTimeout(() => _run(_showOnlineBadge), 400);
   });
 
   // ── 3. Install prompt (mobile only) ─────────────────────────────────────────
+
   let _deferredPrompt = null;
   const INSTALL_KEY = 'pwa_install_dismissed';
 
@@ -368,11 +313,13 @@
     document.head.appendChild(style);
     document.body.appendChild(banner);
     requestAnimationFrame(() => requestAnimationFrame(() => banner.classList.add('visible')));
+
     function _dismiss(perm) {
       banner.classList.remove('visible');
       if (perm) localStorage.setItem(INSTALL_KEY, '1');
       setTimeout(() => banner.remove(), 500);
     }
+
     document.getElementById('__pwa_ib_close').addEventListener('click', () => _dismiss(true));
     document.getElementById('__pwa_ib_maybe').addEventListener('click', () => _dismiss(false));
     document.getElementById('__pwa_ib_install').addEventListener('click', async () => {
@@ -388,6 +335,5 @@
   if (window.matchMedia('(display-mode:standalone)').matches || window.navigator.standalone) {
     localStorage.setItem(INSTALL_KEY, '1');
   }
-
 
 })();
