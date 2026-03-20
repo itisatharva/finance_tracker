@@ -1,6 +1,3 @@
-// app.js — Finance Tracker
-
-// ─── State ───────────────────────────────────────────────────────────────────
 let uid             = null;
 let transactions    = [];
 let prevTransactionIds = new Set();
@@ -9,19 +6,9 @@ let pendingAmounts  = [];
 let categories      = { income: [], expense: [] };
 let startingBalance = 0;
 let editTxId        = null;
-// ── Pending-sync pill tracking ────────────────────────────────────────────────
-let _pendingTxIds    = new Set();   // IDs currently hasPendingWrites
-let _justSyncedIds   = new Set();   // IDs that just confirmed — show green briefly
-const _syncTimers    = {};          // cleanup timers per txId
 let activeView      = 'dashboard';
 
-// ── Multi-account state ───────────────────────────────────────────────────────
-let activeAccountId    = null;   // currently selected bank account ID
-let accounts           = [];     // [{id, name, createdAt}]
-let _unsubTransactions = null;   // unsubscribe fn for transaction listener
-let _unsubPending      = null;   // unsubscribe fn for pending listener
 
-// ── Firestore path helpers (all scoped to the active account) ─────────────────
 function txCol()        { return window.collection(window.db, 'users', uid, 'accounts', activeAccountId, 'transactions'); }
 function pendingCol()   { return window.collection(window.db, 'users', uid, 'accounts', activeAccountId, 'pending'); }
 function txDocRef(id)   { return window.doc(window.db, 'users', uid, 'accounts', activeAccountId, 'transactions', id); }
@@ -31,26 +18,21 @@ function settDocRef()   { return window.doc(window.db, 'users', uid, 'accounts',
 function acctColRef()   { return window.collection(window.db, 'users', uid, 'accounts'); }
 function acctDocRef(id) { return window.doc(window.db, 'users', uid, 'accounts', id); }
 
-// One-time Firestore read using onSnapshot (works for both doc refs and queries)
 function _once(q) {
   return new Promise((res, rej) => {
     const u = window.onSnapshot(q, s => { u(); res(s); }, rej);
   });
 }
 
-// ── Desktop Sidebar toggle ────────────────────────────────────────────────────
 (function initSidebar() {
   const sidebar = document.getElementById('sidebar');
   const toggle  = document.getElementById('sidebarToggle');
   if (!sidebar || !toggle) return;
 
-  // Measure the required expanded width based on the account name text.
-  // Called once on open and again whenever the active account name changes.
   function _setSidebarWidth() {
     const nameEl = sidebar.querySelector('.sidebar-account-name');
     if (!nameEl) return;
 
-    // Temporarily measure natural text width: remove overflow clipping via clone
     const MIN_W = 176;
     const PADDING = 84; // icon(44) + gap(7) + change-btn(26) + gaps/padding(~7)
     const canvas = _setSidebarWidth._canvas || (_setSidebarWidth._canvas = document.createElement('canvas'));
@@ -66,7 +48,7 @@ function _once(q) {
   toggle.addEventListener('click', () => {
     const isCollapsed = sidebar.classList.contains('collapsed');
     if (isCollapsed) {
-      _setSidebarWidth(); // recalculate before animating open
+      _setSidebarWidth();
       sidebar.classList.remove('collapsed');
       document.body.classList.add('sidebar-expanded');
     } else {
@@ -75,22 +57,14 @@ function _once(q) {
     }
   });
 
-  // Expose so account-switch code can recalculate after name changes
   window._recalcSidebarWidth = _setSidebarWidth;
 })();let activePeriod    = 'daily';
 let monthlyType     = 'expense';
 let yearlyType      = 'expense';
 
-// Set to true only when all four data sources are confirmed loaded.
-// renderStats() is gated on this so stat cards never flash ₹0.
 window._allDataLoaded = false;
 
-// ── Undo-delete state ─────────────────────────────────────────────────────────
-let _undoPendingId   = null;   // ID currently held back from Firestore delete
-let _undoTimer       = null;   // 4s countdown before hard-delete fires
-let _undoTxSnapshot  = null;   // snapshot of deleted tx data (for re-adds if needed)
 
-// ─── Init ────────────────────────────────────────────────────────────────────
 function hideLoader() {
   const l = document.getElementById('pageLoader');
   if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
@@ -134,48 +108,36 @@ const _snack = {
 };
 
 window.firebaseReady.then(() => {
-  if (window.NLP) NLP.preload(); // load model.json in background
-
+  if (window.NLP) NLP.preload();
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) {
-      // No session — send to landing page for new visitors
       window.location.replace('landing.html');
       return;
     }
     uid = user.uid;
-    // Reveal app content now that Firebase has confirmed a real session
     document.body.classList.remove('auth-pending');
-    isFirstLoad = true; // reset per session so animations fire correctly on re-login
-    window._allDataLoaded = false; // reset so stat cards show skeleton on re-login
-    
-    // Track what data needs to load before hiding loader
+    isFirstLoad = true;
+    window._allDataLoaded = false;
     window._dataLoaded = {
       categories: false,
       settings: false,
       transactions: false,
       pending: false
     };
-    
+
     window._checkAllDataLoaded = function() {
       const d = window._dataLoaded;
       if (d.categories && d.settings && d.transactions && d.pending) {
         console.log('[App] All data loaded, hiding loader');
-        // Unlock renderStats so it can now write real values
         window._allDataLoaded = true;
-        // Trigger the skeleton → value fade-in on stat cards with correct data
         renderStats();
-        // Ensure tx list also reflects the final server data
         renderTxList();
-        // Delay loader hide slightly so the fade-in animation has started
-        // before the loader clears, giving a seamless hand-off
         setTimeout(hideLoader, 300);
       }
     };
 
-    // Account info
     document.getElementById('acctEmail').textContent = user.email || '—';
 
-    // Profile panel — populate avatar, name, email
     (function populateProfile() {
       const photo = user.photoURL;
       const email = user.email || '';
@@ -183,18 +145,15 @@ window.firebaseReady.then(() => {
       const displayName = savedName || user.displayName || '';
       const initials = (displayName || email).replace(/[@+].*/, '').slice(0, 2).toUpperCase() || '?';
 
-      // Settings drawer avatar
       const panelImg = document.getElementById('profilePanelImg');
       const panelIni = document.getElementById('profilePanelInitials');
       if (photo) { panelImg.src = photo; panelImg.style.display = ''; panelIni.style.display = 'none'; }
       else { panelIni.textContent = initials; panelIni.style.display = ''; panelImg.style.display = 'none'; }
 
-      // Settings drawer name/email
       document.getElementById('profilePanelName').textContent = displayName || email.split('@')[0];
       document.getElementById('profilePanelEmail').textContent = email;
       document.getElementById('profileNameInput').value = displayName;
 
-      // Dashboard greeting bar avatar
       const dashImg = document.getElementById('dashAvatarImg');
       const dashIni = document.getElementById('dashAvatarInitials');
       if (dashImg && dashIni) {
@@ -203,7 +162,6 @@ window.firebaseReady.then(() => {
       }
     })();
 
-    // Personalised greeting
     const _greetEl = document.getElementById('dashGreeting');
     if (_greetEl) {
       const _savedN = localStorage.getItem('profileName_' + user.uid);
@@ -225,9 +183,7 @@ window.firebaseReady.then(() => {
       else                           _pool = _lateGreets;
 
       const _tod = _pool[Math.floor(Math.random() * _pool.length)];
-      // Old combined greeting (hidden on mobile, kept for any desktop use)
       _greetEl.textContent = _tod;
-      // New split greeting bar
       const _nameEl = document.getElementById('dashGreetingName');
       if (_nameEl) _nameEl.textContent = _name || 'there';
     }
@@ -235,7 +191,6 @@ window.firebaseReady.then(() => {
     if (ts) document.getElementById('acctJoined').textContent =
       new Date(ts).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
 
-    // Default dates
     const today = new Date();
     document.getElementById('txDate').valueAsDate  = today;
     document.getElementById('dailyDate').value     = toInputDate(today);
@@ -255,7 +210,6 @@ window.firebaseReady.then(() => {
   });
 });
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function toInputDate(d) { return d ? d.toISOString().split('T')[0] : ''; }
 function toDate(v) {
   if (v == null) return null;
@@ -279,14 +233,9 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
-// ─── Drag-to-close for mobile bottom sheets ───────────────────────────────────
-// Injects a visual drag pill and wires touch events.
-// Closes when dragged down > 80px; snaps back otherwise.
-// Only active on mobile (≤599px).
 function wireBottomSheetDrag(panel, closeFn) {
   if (!panel) return;
 
-  // Inject drag handle pill as first child (hidden on desktop via CSS)
   const handle = document.createElement("div");
   handle.className = "drag-handle";
   panel.insertBefore(handle, panel.firstChild);
@@ -306,7 +255,6 @@ function wireBottomSheetDrag(panel, closeFn) {
     if (window.innerWidth >= 600) return;
     lastY = e.touches[0].clientY;
     var dy = lastY - startY;
-    // Only start drag when swiping down AND panel is scrolled to top
     if (!dragging && dy > 8 && panel.scrollTop <= 0) {
       dragging = true;
     }
@@ -334,16 +282,13 @@ function wireBottomSheetDrag(panel, closeFn) {
 }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-// Initialize month dropdown
 function initMonthDropdown(currentDate, txList) {
   const select = document.getElementById('monthlyDate');
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
-  // Preserve currently selected value so we don't lose the user's position on refresh
   const prevSelected = select.value;
 
-  // Find the earliest year across all transactions; fall back to currentYear - 2
   let startYear = currentYear - 2;
   if (txList && txList.length) {
     const years = txList.map(t => { const d = toDate(t.selectedDate); return d ? d.getFullYear() : NaN; }).filter(y => !isNaN(y));
@@ -362,7 +307,6 @@ function initMonthDropdown(currentDate, txList) {
     }
   }
 
-  // Restore previous selection if it still exists, otherwise default to current month
   if (prevSelected && select.querySelector(`option[value="${prevSelected}"]`)) {
     select.value = prevSelected;
   } else {
@@ -372,8 +316,6 @@ function initMonthDropdown(currentDate, txList) {
 }
 
 
-
-// ─── Settings Drawer ─────────────────────────────────────────────────────────
 function wireSettingsDrawer() {
   const btnOpen   = document.getElementById('btnSettings');
   const backdrop  = document.getElementById('settingsBackdrop');
@@ -399,11 +341,9 @@ function wireSettingsDrawer() {
 
   btnOpen.addEventListener('click', openDrawer);
 
-  // Mobile bottom nav settings button
   const bnSettingsBtn = document.getElementById('bnSettings');
   if (bnSettingsBtn) {
     bnSettingsBtn.addEventListener('click', () => {
-      // Mark active visually
       ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.remove('active');
@@ -413,7 +353,6 @@ function wireSettingsDrawer() {
     });
   }
 
-  // When drawer closes, restore nav active state
   function closeDrawerAndRestoreNav() {
     closeDrawer();
     const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
@@ -427,7 +366,6 @@ function wireSettingsDrawer() {
   btnClose.addEventListener('click', closeDrawerAndRestoreNav);
   backdrop.addEventListener('click', closeDrawerAndRestoreNav);
 
-  // Drag-to-close on mobile (pill + swipe-down, same as other bottom sheets)
   wireBottomSheetDrag(drawer, closeDrawerAndRestoreNav);
   const btnImportCSV = document.getElementById('btnImportCSV');
   if (btnImportCSV) {
@@ -449,7 +387,7 @@ function wireSettingsDrawer() {
         const rows = [['Date','Type','Category','Amount','Description']];
         txSorted(transactions).slice().reverse().forEach(tx => {
           const d = toDate(tx.selectedDate);
-          if (!d) return; // skip transactions with no date rather than crashing
+          if (!d) return;
           const dateStr = [
             String(d.getMonth()+1).padStart(2,'0'),
             String(d.getDate()).padStart(2,'0'),
@@ -485,7 +423,6 @@ function wireSettingsDrawer() {
   }
 
 
-  // Name save
   if (saveBtn && nameInput) {
     saveBtn.addEventListener('click', () => {
       const name = nameInput.value.trim();
@@ -499,7 +436,6 @@ function wireSettingsDrawer() {
       }
       const nameEl = document.getElementById('dashGreetingName');
       if (nameEl) nameEl.textContent = name;
-      // Also update dashboard greeting bar avatar initials
       const dashIni2 = document.getElementById('dashAvatarInitials');
       const dashImg2 = document.getElementById('dashAvatarImg');
       const _user = window.auth && window.auth.currentUser;
@@ -522,7 +458,6 @@ function wireSettingsDrawer() {
     _showSignOutToast();
   });
 
-  // ── Sign-out toast ───────────────────────────────────────────────────────────
   const _signOutToast      = document.getElementById('signOutToast');
   const _signOutBackdrop   = document.getElementById('signOutBackdrop');
   const _signOutConfirmBtn = document.getElementById('signOutConfirmBtn');
@@ -534,7 +469,6 @@ function wireSettingsDrawer() {
     _signOut_hideUndo(); // hide undo snackbar if visible
     _signOutBackdrop.classList.add('show');
     _signOutToast.classList.add('show');
-    // Auto-dismiss after 6s if no action
     _signOutTimer = setTimeout(_hideSignOutToast, 6000);
   }
 
@@ -554,7 +488,6 @@ function wireSettingsDrawer() {
 
   _signOutConfirmBtn.addEventListener('click', async () => {
     _hideSignOutToast();
-    // Reset delete-confirmation preference on every sign-out so it defaults to asking again on next login
     localStorage.removeItem('skipDeleteConfirm');
     await window.fbSignOut(window.auth).catch(console.error);
     window.location.replace('login.html');
@@ -562,7 +495,6 @@ function wireSettingsDrawer() {
 
   btnCats.addEventListener('click', () => { closeDrawer(); openCatsModal(); });
 
-  // ── Change Password ──────────────────────────────────────────────────────────
   const btnChangePwd    = document.getElementById('btnChangePassword');
   const cpBackdrop      = document.getElementById('changePwdBackdrop');
   const btnClosePwd     = document.getElementById('btnClosePwdModal');
@@ -588,7 +520,6 @@ function wireSettingsDrawer() {
   }
 
   function openChangePwdModal() {
-    // Reset all states
     cpFormState.style.display    = '';
     cpGoogleState.style.display  = 'none';
     cpSuccessState.style.display = 'none';
@@ -602,7 +533,6 @@ function wireSettingsDrawer() {
     btnSubmitPwd.style.background = '';
     btnSubmitPwd.style.color      = '';
 
-    // Detect Google-only user
     const user = window.auth && window.auth.currentUser;
     const isEmailUser = user && user.providerData.some(p => p.providerId === 'password');
     if (!isEmailUser) {
@@ -625,7 +555,6 @@ function wireSettingsDrawer() {
   if (btnCancelPwd)  btnCancelPwd.addEventListener('click', closeChangePwdModal);
   if (cpBackdrop)    cpBackdrop.addEventListener('click', e => { if (e.target === cpBackdrop) closeChangePwdModal(); });
 
-  // Show/hide password toggle buttons
   document.querySelectorAll('.pwd-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const inp = document.getElementById(btn.dataset.target);
@@ -635,7 +564,6 @@ function wireSettingsDrawer() {
     });
   });
 
-  // Password strength meter
   window.updatePwdStrength = function(val) {
     const wrap  = document.getElementById('pwdStrengthWrap');
     const fill  = document.getElementById('pwdStrengthFill');
@@ -662,7 +590,6 @@ function wireSettingsDrawer() {
     label.style.color     = lvl.color;
   };
 
-  // Submit change password
   if (btnSubmitPwd) {
     btnSubmitPwd.addEventListener('click', async () => {
       showCpErr('');
@@ -684,8 +611,6 @@ function wireSettingsDrawer() {
         const credential = window.EmailAuthProvider.credential(user.email, currentPwd);
         await window.reauthenticateWithCredential(user, credential);
         await window.updatePassword(user, newPwd);
-
-        // Success
         cpFormState.style.display    = 'none';
         cpSuccessState.style.display = '';
         cpSuccessState.style.opacity = '0';
@@ -703,7 +628,6 @@ function wireSettingsDrawer() {
       }
     });
 
-    // Allow Enter key in confirm field to submit
     document.getElementById('cpConfirmPwd').addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); btnSubmitPwd.click(); }
     });
@@ -728,11 +652,9 @@ function wireSettingsDrawer() {
   });
 }
 
-// ─── View switching ──────────────────────────────────────────────────────────
 window.showView = function(v) {
   activeView = v;
 
-  // Close settings drawer if open (e.g. user tapped another nav tab)
   const _drawer   = document.getElementById('settingsDrawer');
   const _backdrop = document.getElementById('settingsBackdrop');
   if (_drawer && _drawer.classList.contains('open')) {
@@ -741,19 +663,15 @@ window.showView = function(v) {
     document.body.style.overflow = '';
   }
 
-  // Close add tx sheet if open
   if (window.closeAddTxSheet) window.closeAddTxSheet();
 
-  // Close pending sheet if open
   if (window.closePendingSheet) window.closePendingSheet();
 
-  // Close categories modal if open
   const _catsBg = document.getElementById('catsModalBg');
   if (_catsBg && _catsBg.classList.contains('open')) {
     window.closeCatsModal();
   }
 
-  // Close transaction detail panel if open
   const _txBg = document.getElementById('txDetailBg');
   if (_txBg && _txBg.classList.contains('open')) {
     window.closeTxDetail && window.closeTxDetail();
@@ -762,7 +680,6 @@ window.showView = function(v) {
   document.getElementById('viewDashboard').classList.toggle('hidden', v !== 'dashboard');
   document.getElementById('viewAnalytics').classList.toggle('hidden', v !== 'analytics');
   document.getElementById('viewTransactions').classList.toggle('hidden', v !== 'transactions');
-  // Sync bottom nav
   const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
   ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
     const el = document.getElementById(id);
@@ -777,7 +694,6 @@ window.showView = function(v) {
     populateTxCategoryFilter();
     renderAllTxList();
   }
-  // Sync sidebar active state
   ['sidebarDash','sidebarAnalytics','sidebarTransactions'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
@@ -786,7 +702,6 @@ window.showView = function(v) {
   if (sidebarMap[v]) { const el = document.getElementById(sidebarMap[v]); if (el) el.classList.add('active'); }
 };
 
-// ─── Period switching ─────────────────────────────────────────────────────────
 const PERIODS = ['daily','monthly','yearly','cashflow'];
 
 window.showPeriod = function(p) {
@@ -810,7 +725,6 @@ function refreshCurrentPeriod() {
 }
 
 
-// ─── Monthly/Yearly Type Toggle ──────────────────────────────────────────────
 window.setMonthlyType = function(type) {
   monthlyType = type;
   document.getElementById('btnMonthlyExpense').classList.toggle('active', type === 'expense');
@@ -825,7 +739,6 @@ window.setYearlyType = function(type) {
   renderYearly();
 };
 
-// ─── Categories ──────────────────────────────────────────────────────────────
 async function loadCategories() {
   const snap = await window.getDoc(catDocRef());
   if (snap.exists()) {
@@ -855,14 +768,12 @@ async function loadCategories() {
     await saveCategories();
   }
   populateCategoryDropdowns();
-  if (window._dataLoaded) { 
-    window._dataLoaded.categories = true;
+  if (window._dataLoaded) {
     renderQuickCats();
-    window._checkAllDataLoaded(); 
+    window._checkAllDataLoaded();
   }
 }
 
-// Trigger animations for new transactions
 function triggerNewTransactionAnimations() {
   requestAnimationFrame(() => {
     const newItems = document.querySelectorAll('[data-is-new="true"]');
@@ -885,7 +796,6 @@ async function saveCategories() {
   );
 }
 
-// ─── General Settings ────────────────────────────────────────────────────────
 async function loadSettings() {
   try {
     const snap = await window.getDoc(settDocRef());
@@ -903,7 +813,6 @@ async function saveSettings() {
   );
 }
 
-// ─── Category helpers ─────────────────────────────────────────────────────────
 function catName(c)  { return typeof c === 'string' ? c : c.name; }
 function catColor(c) { return typeof c === 'string' ? '#999'  : c.color; }
 
@@ -918,7 +827,6 @@ function catColorByName(type, name) {
   return found ? catColor(found) : (type === 'income' ? '#0FA974' : '#E84545');
 }
 
-// Expense first, then Income — per user request
 function populateCategoryDropdowns() {
   ['txCategory', 'editCategory'].forEach(id => {
     const sel = document.getElementById(id);
@@ -945,22 +853,16 @@ function populateCategoryDropdowns() {
 }
 
 
-// ─── Quick Category Pills ─────────────────────────────────────────────────────
-// Shows the 3 most-used expense categories as fast-tap pills on the desktop
-// Add Transaction card. Falls back to the first 3 expense categories if there
-// are not enough transactions yet.
 function renderQuickCats() {
   const el = document.getElementById('quickCats');
   if (!el) return;
   el.style.cursor = 'pointer';
 
-  // Count usage per expense category from all transactions
   const counts = {};
   transactions.forEach(tx => {
     if (tx.type === 'expense') counts[tx.category] = (counts[tx.category] || 0) + 1;
   });
 
-  // Rank expense categories; fall back to first 3 if not enough data
   let top = categories.expense
     .map(c => ({ name: catName(c), color: catColor(c), count: counts[catName(c)] || 0 }))
     .sort((a, b) => b.count - a.count)
@@ -974,7 +876,6 @@ function renderQuickCats() {
       ${esc(cat.name)}
     </button>`).join('');
 
-  // Clicking the pills area itself (but not a pill) → open sheet with no pre-selection
   el.addEventListener('click', e => {
     if (!e.target.closest('.quick-cat-pill')) {
       e.stopPropagation();
@@ -982,18 +883,15 @@ function renderQuickCats() {
     }
   });
 
-  // Wire pill clicks — open sheet with that category pre-selected
   el.querySelectorAll('.quick-cat-pill').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const selectedCat = btn.dataset.cat;
       window.openAddTxSheet && window.openAddTxSheet();
-      // Pre-select category after sheet opens (DOM must be visible first)
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const sel = document.getElementById('txCategory');
           if (sel) sel.value = selectedCat;
-          // Focus the amount field so the user can type immediately
           const amt = document.getElementById('txAmount');
           if (amt) amt.focus();
         });
@@ -1001,16 +899,13 @@ function renderQuickCats() {
     });
   });
 }
-// ─── Categories Modal ────────────────────────────────────────────────────────
 window.openCatsModal = function() {
   renderCatLists();
   document.getElementById('catsModalBg').classList.add('open');
   document.body.style.overflow = 'hidden';
-  // Hide navbar so modal is the only interactive layer
   const nav = document.getElementById('bottomNav');
   if (nav) nav.style.display = 'none';
 };
-// drag-to-close on mobile (wired once)
 (function() {
   var panel = document.querySelector('#catsModalBg .modal');
   if (panel && !panel._dragWired) {
@@ -1019,14 +914,11 @@ window.openCatsModal = function() {
   }
 })();
 window.closeCatsModal = function() {
-  // Close any open colour picker
   _closeColorPicker();
   document.getElementById('catsModalBg').classList.remove('open');
   document.body.style.overflow = '';
-  // Restore navbar
   const nav = document.getElementById('bottomNav');
   if (nav) nav.style.display = '';
-  // Re-sync bottom nav highlight to whichever view is actually on screen
   const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
   ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
     const el = document.getElementById(id);
@@ -1038,7 +930,6 @@ window.closeCatsModal = function() {
   saveCategories().catch(e => console.error('auto-save categories failed:', e));
 };
 
-// ─── CSV Import ──────────────────────────────────────────────────────────────
 (function wireImport() {
   const bg      = document.getElementById('importPanelBg');
   const closeBtn = document.getElementById('importCloseBtn');
@@ -1067,17 +958,14 @@ window.closeCatsModal = function() {
     document.body.style.overflow = '';
   }
 
-  // expose for settings button
   window.openImportModal  = openImport;
   window.closeImportModal = closeImport;
 
-  // drag-to-close on mobile
   wireBottomSheetDrag(document.getElementById("importPanel"), closeImport);
 
   closeBtn.addEventListener('click', closeImport);
   cancelBtn.addEventListener('click', closeImport);
 
-  // close on backdrop click (not panel click)
   bg.addEventListener('click', function(e) {
     if (e.target === bg) closeImport();
   });
@@ -1112,9 +1000,6 @@ window.closeCatsModal = function() {
     previewEl.style.display = 'block';
     previewList.innerHTML = `<div style="color:var(--text-2)">Starting import of ${rows.length} transactions…</div>`;
 
-    // Firestore batches are capped at 500 ops each.
-    // All docs in a batch commit atomically — if the tab closes mid-import
-    // only whole batches are lost, never individual rows from a batch.
     const BATCH_SIZE = 500;
     let ok = 0, fail = 0, errs = [];
 
@@ -1137,7 +1022,6 @@ window.closeCatsModal = function() {
         fail += chunk.length;
         errs.push(`Batch ${Math.floor(batchStart/BATCH_SIZE)+1}: ${e.message}`);
       }
-      // Yield between batches to keep UI responsive
       await new Promise(r => setTimeout(r, 100));
     }
 
@@ -1175,7 +1059,6 @@ function parseCSV(csvText) {
     if (isNaN(amount) || amount <= 0) continue;
     const dateParts = dateStr.split('/');
     if (dateParts.length !== 3) continue;
-    // Format: MM/DD/YYYY
     const month = parseInt(dateParts[0]), day = parseInt(dateParts[1]), year = parseInt(dateParts[2]);
     if (isNaN(month)||isNaN(day)||isNaN(year)) continue;
     if (month<1||month>12||day<1||day>31) continue;
@@ -1213,10 +1096,8 @@ window.removeCat = async function(type, name) {
 };
 
 window.showCatDeleteConfirm = function(btn, type, name) {
-  // Toggle off if already showing
   const existing = btn.parentNode.querySelector('.tx-confirm-row');
   if (existing) { existing.remove(); btn.style.display = ''; return; }
-  // Close any others
   document.querySelectorAll('.cat-item .tx-confirm-row').forEach(el => {
     const p = el.closest('.cat-item');
     el.remove();
@@ -1242,15 +1123,9 @@ window.showCatDeleteConfirm = function(btn, type, name) {
   btn.parentNode.appendChild(row);
 };
 
-// ── Shared floating colour-picker popover ─────────────────────────────────
-// One singleton popover lives in document.body; repositioned per-button.
 let _colorPickerPopover = null;
 let _colorPickerCleanup = null;
 
-/**
- * Build the inner DOM of the floating popover (swatches + hex + wheel).
- * onPick(color) fires on every selection.
- */
 function _buildPickerContent(popover, initialColor, onPick) {
   const VIVID = [
     '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
@@ -1299,15 +1174,12 @@ function _buildPickerContent(popover, initialColor, onPick) {
   makeRow(VIVID,  'Vivid');
   makeRow(PASTEL, 'Pastel');
 
-  // Footer: hex row (preview + input + wheel) + done button
   const footer = document.createElement('div');
   footer.className = 'cat-color-panel-footer';
 
-  // Hex row
   const hexRow = document.createElement('div');
   hexRow.className = 'color-pick-hex-row';
 
-  // Live colour preview swatch
   const hexPreview = document.createElement('span');
   hexPreview.className = 'color-pick-hex-preview';
   hexPreview.style.background = initialColor;
@@ -1337,7 +1209,6 @@ function _buildPickerContent(popover, initialColor, onPick) {
   const nativeWrap = document.createElement('div');
   nativeWrap.className = 'cat-color-native-wrap';
   nativeWrap.title = 'Custom colour';
-  // Stop propagation so native OS picker doesn't close the popover on mobile
   nativeWrap.addEventListener('pointerdown', e => e.stopPropagation());
   const nativeInput = document.createElement('input');
   nativeInput.type = 'color';
@@ -1355,7 +1226,6 @@ function _buildPickerContent(popover, initialColor, onPick) {
   };
   nativeInput.addEventListener('input', _applyNative);
   nativeInput.addEventListener('change', _applyNative);
-  // Eyedropper icon — filled, clean
   const nativeIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   nativeIcon.setAttribute('viewBox', '0 0 24 24');
   nativeIcon.setAttribute('fill', 'currentColor');
@@ -1369,7 +1239,6 @@ nativeWrap.removeAttribute('title');
   hexRow.appendChild(nativeWrap);
   footer.appendChild(hexRow);
 
-  // Done button
   const doneRow = document.createElement('div');
   doneRow.className = 'color-pick-done-row';
   const doneBtn = document.createElement('button');
@@ -1383,21 +1252,12 @@ nativeWrap.removeAttribute('title');
   popover.appendChild(footer);
 }
 
-/** Close any open colour popover. */
 function _closeColorPicker() {
   if (_colorPickerCleanup) { _colorPickerCleanup(); _colorPickerCleanup = null; }
   if (_colorPickerPopover) { _colorPickerPopover.remove(); _colorPickerPopover = null; }
   document.querySelectorAll('.color-pick-btn.open').forEach(b => b.classList.remove('open'));
 }
 
-/**
- * Create a colour-picker button element.
- *   btn.dataset.color  always reflects the current colour.
- * @param {string}   initialColor
- * @param {Function} onPick(color)  — called on each change
- * @param {string}   [label]        — button label (default "Colour")
- * @returns {HTMLElement} the .color-pick-wrap wrapper
- */
 function _makeColorPickBtn(initialColor, onPick) {
   let currentColor = initialColor;
 
@@ -1427,11 +1287,9 @@ function _makeColorPickBtn(initialColor, onPick) {
     e.stopPropagation();
     const isOpen = btn.classList.contains('open');
 
-    // Close any existing picker
     _closeColorPicker();
     if (isOpen) return;
 
-    // Open a new popover
     btn.classList.add('open');
     const popover = document.createElement('div');
     popover.className = 'color-pick-popover';
@@ -1444,26 +1302,22 @@ function _makeColorPickBtn(initialColor, onPick) {
     document.body.appendChild(popover);
     _colorPickerPopover = popover;
 
-    // Position below button
     function _position() {
       const margin = 8;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const br = btn.getBoundingClientRect();
 
-      // Cap the popover height to the available space so overflow-y kicks in
       const maxPossibleH = vh - 2 * margin;
       popover.style.maxHeight = maxPossibleH + 'px';
 
       const pw = popover.offsetWidth  || 280;
       const ph = popover.offsetHeight || 260;
 
-      // Horizontal: prefer align left with button, clamp to viewport
       let left = br.left;
       if (left + pw > vw - margin) left = vw - pw - margin;
       left = Math.max(margin, left);
 
-      // Vertical: prefer below, flip above if not enough room
       const spaceBelow = vh - br.bottom - margin;
       const spaceAbove = br.top - margin;
       let top;
@@ -1477,37 +1331,31 @@ function _makeColorPickBtn(initialColor, onPick) {
       popover.style.left = left + 'px';
       popover.style.top  = top  + 'px';
     }
-    // Wait for layout paint before measuring height
     requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(_position, 0)));
 
     _colorPickerCleanup = () => {};
   });
 
-  // Expose a setter so the caller can push colours programmatically
   wrap._setColor = _updateDot;
   wrap._getColor = () => currentColor;
 
   return wrap;
 }
 
-// Close picker when clicking outside
 document.addEventListener('pointerdown', e => {
   if (!_colorPickerPopover) return;
   if (_colorPickerPopover.contains(e.target)) return;
   if (e.target.closest('.color-pick-btn')) return;
   _closeColorPicker();
 }, true);
-// Close on scroll/resize — but NOT while the native OS colour picker is open
 window.addEventListener('scroll', (e) => {
   if (document.activeElement && document.activeElement.type === 'color') return;
   _closeColorPicker();
 }, true);
 window.addEventListener('resize', _closeColorPicker);
 
-// ── Tracks chosen color for each "add new" palette ─────────────────────────
 const _addPaletteColor = { expense: '#E84545', income: '#0FA974' };
 
-/** Render the colour-picker button in the add-new strip. */
 function renderAddPalette(type) {
   const id = type === 'expense' ? 'expAddPalette' : 'incAddPalette';
   const wrap = document.getElementById(id);
@@ -1516,7 +1364,6 @@ function renderAddPalette(type) {
 
   const pickWrap = _makeColorPickBtn(_addPaletteColor[type], (c) => {
     _addPaletteColor[type] = c;
-    // Keep the hidden sync input up-to-date for addCat() compatibility
     const syncId = type === 'expense' ? 'newExpColor' : 'newIncColor';
     const inp = document.getElementById(syncId);
     if (inp) inp.value = c;
@@ -1561,7 +1408,6 @@ function renderCatLists() {
         ? `<input type="number" value="${budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01" onchange="updateCatBudget('${type}','${safeName}',this.value)">`
         : '';
 
-      // Build info + remove
       const infoEl = document.createElement('div');
       infoEl.className = 'cat-info';
       infoEl.innerHTML = `<span class="cat-name">${esc(name)}</span>${budgetInput}`;
@@ -1570,7 +1416,6 @@ function renderCatLists() {
       delBtn.textContent = 'Remove';
       delBtn.addEventListener('click', () => window.showCatDeleteConfirm(delBtn, type, name));
 
-      // Build compact colour picker button
       const colorPickWrap = _makeColorPickBtn(color, (newColor) => {
         window.updateCatColor(type, name, newColor);
       }, 'Colour');
@@ -1581,14 +1426,11 @@ function renderCatLists() {
       el.appendChild(div);
     });
   });
-  // Re-render the add-new palette strips
   renderAddPalette('expense');
   renderAddPalette('income');
 }
 
-// ─── Transactions ─────────────────────────────────────────────────────────────
 function listenTransactions() {
-  // Unsubscribe any existing listener before starting a new one
   if (_unsubTransactions) { _unsubTransactions(); _unsubTransactions = null; }
   const q = window.query(
     txCol(),
@@ -1599,21 +1441,18 @@ function listenTransactions() {
     snap.docs.forEach(d => {
       const isPending = d.metadata.hasPendingWrites;
       if (_pendingTxIds.has(d.id) && !isPending) {
-        // Just confirmed by server → show "Synced" pill briefly
         _justSyncedIds.add(d.id);
         clearTimeout(_syncTimers[d.id]);
         _syncTimers[d.id] = setTimeout(() => {
           _justSyncedIds.delete(d.id);
           delete _syncTimers[d.id];
-        }, 3500); // matches animation hold + fade-out
+        }, 3500);
       }
       if (isPending) _pendingTxIds.add(d.id);
       else           _pendingTxIds.delete(d.id);
     });
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data(), hasPendingWrites: d.metadata.hasPendingWrites }));
 
-    // Rebuild month dropdown only when the set of transaction years/months changes,
-    // not on every snapshot tick (e.g. hasPendingWrites flip).
     const _newMonthKey = transactions.map(t => {
       const d = toDate(t.selectedDate); return d ? `${d.getFullYear()}-${d.getMonth()}` : '';
     }).sort().join('|');
@@ -1622,14 +1461,12 @@ function listenTransactions() {
       initMonthDropdown(new Date(), transactions);
     }
 
-    // Track new transactions for render functions
     const currentIds = new Set(transactions.map(t => t.id));
     const newIds = [...currentIds].filter(id => !prevTransactionIds.has(id));
     prevTransactionIds = currentIds;
-    
-    // Store new IDs for render functions
+
     window._newTxIds = (!isFirstLoad && newIds.length > 0) ? new Set(newIds) : new Set();
-    
+
     if (isFirstLoad) {
       isFirstLoad = false;
     }
@@ -1638,10 +1475,10 @@ function listenTransactions() {
     renderQuickCats();
     setTimeout(() => { window._newTxIds = new Set(); }, 600);
     if (activeView === 'analytics') refreshCurrentPeriod();
-    
+
     populateTxCategoryFilter();
     if (activeView === 'transactions') renderAllTxList();
-    
+
     if (firstLoad && window._dataLoaded) {
       firstLoad = false;
       window._dataLoaded.transactions = true;
@@ -1656,8 +1493,6 @@ function wireAddTxForm() {
   const fab      = document.getElementById('bnAddTx');
   const desktopTrigger = document.getElementById('btnOpenAddTx');
 
-  // Auto-close timer handle + success-mode flag — used to intercept taps
-  // during the 3-second success window and reset to add-another instead of closing
   let _autoCloseTimer = null;
   let _txSuccessMode  = false;
 
@@ -1666,21 +1501,14 @@ function wireAddTxForm() {
   function openAddTxSheet(confirmMode = false) {
     bg.classList.add('open');
     if (fab) fab.classList.add('open');
-    // In confirm mode (NLP single-result prefill), hide the AI input section
     const panel = document.getElementById('addTxSheet');
     if (panel) panel.classList.toggle('confirm-mode', !!confirmMode);
-    // Clear NLP input on every open so previous text doesn't linger
     const sni = document.getElementById('sheetNlpInput');
     if (sni) sni.value = '';
-    // Defer overflow=hidden until after the slide-up animation (≈400ms).
-    // Setting it synchronously forces a layout recalculation on frame 1
-    // of the translateY transition, stealing compositor budget and causing
-    // the visible chop on mobile.
     clearTimeout(_openOverflowTimer);
     _openOverflowTimer = setTimeout(() => {
       document.body.style.overflow = 'hidden';
     }, 420);
-    // Deactivate all nav tabs while sheet is open
     ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.remove('active');
@@ -1688,7 +1516,6 @@ function wireAddTxForm() {
   }
 
   function closeAddTxSheet() {
-    // Cancel any pending auto-close and the deferred overflow timer
     clearTimeout(_autoCloseTimer);
     clearTimeout(_openOverflowTimer);
     _autoCloseTimer = null;
@@ -1697,15 +1524,11 @@ function wireAddTxForm() {
     document.getElementById('addTxSheet')?.classList.remove('confirm-mode');
     if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
-    // Restore nav tab for active view
     const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
     const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
     if (activeEl) activeEl.classList.add('active');
   }
 
-  // Resets button/done state so the user can immediately add another transaction.
-  // Called when the user explicitly signals "add another" (FAB, backdrop, submit button).
-  // Does NOT steal focus on its own — caller decides whether to focus.
   function resetToAddForm(shouldFocus = true) {
     clearTimeout(_autoCloseTimer);
     _autoCloseTimer = null;
@@ -1716,21 +1539,15 @@ function wireAddTxForm() {
     if (done)  done.classList.add('hidden');
     if (label) label.classList.remove('hidden');
     if (btn)   { btn.disabled = false; btn.style.background = ''; btn.style.color = ''; }
-    // Focus category first — it was cleared after submit, so the correct
-    // flow is category → amount → note.  Only focus when the caller wants it
-    // (not when the user already tapped a specific field).
     if (shouldFocus) {
       const catField = document.getElementById('txCategory');
       if (catField) setTimeout(() => catField.focus(), 60);
     }
   }
 
-  // Expose so post-submit can close it
   window.openAddTxSheet  = openAddTxSheet;
   window.closeAddTxSheet = closeAddTxSheet;
 
-  // ── NLP Category Suggestion Popup ─────────────────────────────────────────
-  // Injected once into the DOM, shown/hidden via Promise-based API.
   let _catSuggestColor = '#E84545';
   let _catSuggestType  = 'expense';
   let _catSuggestPickerWrap = null; // the _makeColorPickBtn wrap node
@@ -1813,7 +1630,6 @@ function wireAddTxForm() {
 </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
 
-    // Mount compact colour-picker button into the modal
     const colorMount = document.getElementById('catSuggestColorMount');
     if (colorMount) {
       _catSuggestPickerWrap = _makeColorPickBtn(_catSuggestColor, (c) => {
@@ -1825,11 +1641,6 @@ function wireAddTxForm() {
     }
   }
 
-  /**
-   * Show the "New Category Detected" popup.
-   * Returns a Promise that resolves with {name, color, type, budget}
-   * when user clicks "Add & Use", or null when they click "Skip".
-   */
   function _showCatSuggestionPopup(match) {
     _initCatSuggestionModal();
     return new Promise(resolve => {
@@ -1840,18 +1651,15 @@ function wireAddTxForm() {
       const skipBtn  = document.getElementById('catSuggestSkipBtn');
       const fallback = document.getElementById('catSuggestFallbackHint');
 
-      // Pre-fill fields
       nameIn.value = match.suggestedName;
       subtitle.textContent =
         `"${match.suggestedName}" wasn't found in your categories. Want to add it?`;
 
-      // Set type and color
       _catSuggestSetType(match.suggestedType);
       const defaultColor = match.suggestedType === 'income' ? '#0FA974' : '#E84545';
       _catSuggestSetColor(defaultColor);
       document.getElementById('catSuggestBudget').value = '';
 
-      // Fallback hint
       if (match.categoryName) {
         fallback.innerHTML = `Skip → will use <strong>"${match.categoryName}"</strong> instead`;
         fallback.style.display = '';
@@ -1860,7 +1668,6 @@ function wireAddTxForm() {
         fallback.style.display = 'none';
       }
 
-      // Show with animation
       modal.style.display = 'flex';
       requestAnimationFrame(() => {
         modal.style.opacity = '1';
@@ -1869,7 +1676,6 @@ function wireAddTxForm() {
       });
       setTimeout(() => nameIn && (nameIn.focus(), nameIn.select()), 80);
 
-      // Close helper
       function _close() {
         modal.style.opacity = '0';
         const card = modal.firstElementChild;
@@ -1908,17 +1714,9 @@ function wireAddTxForm() {
     });
   }
 
-  /**
-   * For each transaction whose category didn't match (or matched poorly),
-   * show a suggestion popup and let the user decide.
-   * Deduplicates by predicted name so identical categories get one popup.
-   */
   async function _processCatSuggestionQueue(items) {
-    // items: [{tx, match}, ...]
-    // Build a map: suggestedName → resolved {name,type} or null
     const resolved = new Map();
 
-    // Get unique predicted names that need popups
     const uniqueMatches = [];
     for (const { match } of items) {
       if (!resolved.has(match.suggestedName)) {
@@ -1927,26 +1725,21 @@ function wireAddTxForm() {
       }
     }
 
-    // Show popup for each unique unmatched category
     for (const match of uniqueMatches) {
       const result = await _showCatSuggestionPopup(match);
       resolved.set(match.suggestedName, result); // {name,color,type,budget} or null
     }
 
-    // Apply results back to transactions
     for (const { tx, match } of items) {
       const added = resolved.get(match.suggestedName);
       if (added) {
-        // User added it — use the new category
         tx.category = added.name;
         tx.type     = added.type;
       } else if (match.categoryName) {
-        // User skipped but there's a close-enough match
         tx.category = match.categoryName;
         tx.type     = match.categoryType;
         tx.confidence = Math.max(20, tx.confidence - 15);
       } else {
-        // Absolute fallback — first available category of the right type
         const pool = tx.type === 'income' ? categories.income : categories.expense;
         if (pool && pool.length) {
           tx.category = catName(pool[0]);
@@ -1956,7 +1749,6 @@ function wireAddTxForm() {
     }
   }
 
-  // ── NLP Smart Entry ────────────────────────────────────────────────────────
   (function initNLP() {
     const toggleBtn        = document.getElementById('nlpToggleBtn');
     const nlpInputRow      = document.getElementById('nlpInputRow');
@@ -2044,7 +1836,6 @@ function wireAddTxForm() {
           return;
         }
 
-        // ── Smart category matching against user's actual category lists ──────
         const matchResults = valid.map(tx => {
           const match = NLP.matchToUserCategories(
             tx.category, tx.type,
@@ -2055,7 +1846,6 @@ function wireAddTxForm() {
           return { tx, match };
         });
 
-        // Apply high-confidence matches immediately
         const needsSuggestion = [];
         matchResults.forEach(({ tx, match }) => {
           if (match.matched) {
@@ -2066,13 +1856,11 @@ function wireAddTxForm() {
           }
         });
 
-        // Show popup(s) for unrecognised categories, then proceed
         if (needsSuggestion.length > 0) {
           hideStatus();
           await _processCatSuggestionQueue(needsSuggestion);
         }
 
-        // ── Proceed with resolved transactions ────────────────────────────────
         hideStatus();
         if (valid.length === 1) {
           const tx = valid[0];
@@ -2127,7 +1915,6 @@ function wireAddTxForm() {
       if (btn) { btn.disabled = false; btn.textContent = 'Log All'; }
     }
 
-    // Wire up all events
     if (toggleBtn)        toggleBtn.addEventListener('click', () => setNlpMode(!nlpOn));
     if (nlpCloseBtn)      nlpCloseBtn.addEventListener('click', () => setNlpMode(false));
     if (nlpPreviewCancel) nlpPreviewCancel.addEventListener('click', hidePreview);
@@ -2136,7 +1923,6 @@ function wireAddTxForm() {
     if (mobileSendBtn)    mobileSendBtn.addEventListener('click', () => doNlpParse(mobileInput.value));
     if (nlpInput)         nlpInput.addEventListener('keydown', e => { if (e.key==='Enter') doNlpParse(nlpInput.value); });
     if (mobileInput)      mobileInput.addEventListener('keydown', e => { if (e.key==='Enter') doNlpParse(mobileInput.value); });
-    // ── Sheet-specific status/preview helpers ──────────────────────────────
     function showSheetStatus(msg, isError = false) {
       if (!sheetNlpStatus) return;
       sheetNlpStatus.textContent = msg;
@@ -2216,7 +2002,6 @@ function wireAddTxForm() {
         hideSheetStatus();
         if (valid.length === 1) {
           const tx = valid[0];
-          // Clear input immediately so user knows it was accepted
           if (sheetNlpInput) sheetNlpInput.value = '';
           setTimeout(() => {
             const sel  = document.getElementById('txCategory');
@@ -2227,16 +2012,13 @@ function wireAddTxForm() {
             if (amt)  amt.value  = tx.amount;
             if (note) note.value = tx.note || '';
             if (date) date.value = tx.date;
-            // Visual confirmation — flash the form fields
             const form = document.getElementById('addTxForm');
             if (form) {
               form.classList.add('nlp-filled');
               setTimeout(() => form.classList.remove('nlp-filled'), 800);
             }
-            // Show brief success status
             showSheetStatus('✓ Filled! Check below and tap Add Transaction.');
             setTimeout(hideSheetStatus, 3000);
-            // Scroll to amount so user can review
             if (amt) setTimeout(() => amt.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
           }, 60);
         } else {
@@ -2281,9 +2063,6 @@ function wireAddTxForm() {
     setNlpMode(nlpOn); // restore saved state
   })();
 
-  // Opens the sheet pre-filtered to a specific type ('income' | 'expense').
-  // Rebuilds the category <select> to only show that type's categories,
-  // so the user lands directly on the right options without scrolling.
   window.openAddTxSheetWithType = function(type) {
     openAddTxSheet();
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -2301,7 +2080,6 @@ function wireAddTxForm() {
     }));
   };
 
-  // After the close animation, restore all categories so the normal FAB shows both types
   const _origCloseForType = closeAddTxSheet;
   closeAddTxSheet = function() {
     _origCloseForType();
@@ -2310,15 +2088,6 @@ function wireAddTxForm() {
   window.closeAddTxSheet = closeAddTxSheet;
 
 
-  // ── Keyboard-lift: scroll focused field into view above keyboard ─────────────
-  // Single-pass getBoundingClientRect at 80ms fails for amount→note because
-  // Android briefly reports stale layout values during the focus handoff while
-  // the keyboard is already open (no visualViewport resize fires to re-trigger).
-  // Two-pass fix:
-  //   Pass 1 — native scrollIntoView to bring the field into the panel's
-  //             scroll container (handles all cases cleanly).
-  //   Pass 2 — rAF after pass 1 to measure the real post-keyboard position
-  //             and add any remaining offset above the keyboard edge.
   if (window.visualViewport && window.innerWidth < 600) {
     const panel = document.getElementById('addTxSheet');
 
@@ -2326,18 +2095,12 @@ function wireAddTxForm() {
       if (!bg.classList.contains('open')) return;
       // Wait for Android to finish its own focus-scroll attempt before we measure
       setTimeout(() => {
-        // For the note field, scroll to the submit button (below note) so both
-        // the field AND the button are visible above the keyboard in one scroll.
         const scrollTarget = (field.id === 'txNote')
           ? (document.getElementById('addTxBtn') || field)
           : field;
 
-        // Pass 1: let the browser scroll the panel so the target is in its
-        // scroll viewport (doesn't account for on-screen keyboard yet)
         scrollTarget.scrollIntoView({ behavior: 'instant', block: 'nearest' });
 
-        // Pass 2: after pass 1 settles, check if target is still behind the
-        // keyboard and push panel scroll by the exact remaining gap
         requestAnimationFrame(() => {
           const vvHeight   = window.visualViewport.height;
           const targetRect = scrollTarget.getBoundingClientRect();
@@ -2346,7 +2109,7 @@ function wireAddTxForm() {
             panel.scrollTop += targetRect.bottom - (vvHeight - PADDING);
           }
         });
-      }, 150); // 150ms lets keyboard + focus animation fully settle on Android
+      }, 150);
     }
 
     function scrollPanelToBottom() {
@@ -2361,8 +2124,6 @@ function wireAddTxForm() {
 
     window.visualViewport.addEventListener('resize', onViewportResize);
 
-    // Wire all four fields — covers both "keyboard just opened" and
-    // "keyboard already open, moving between fields" (the amount→note case)
     ['txDate', 'txCategory', 'txAmount', 'txNote'].forEach(fId => {
       const el = document.getElementById(fId);
       if (el) el.addEventListener('focus', () => scrollFieldIntoView(el));
@@ -2370,7 +2131,6 @@ function wireAddTxForm() {
   }
 
   if (fab) fab.addEventListener('click', () => {
-    // Priority 1: close settings drawer if it's open
     const settingsDrawer = document.getElementById('settingsDrawer');
     if (settingsDrawer && settingsDrawer.classList.contains('open')) {
       settingsDrawer.classList.remove('open');
@@ -2385,11 +2145,9 @@ function wireAddTxForm() {
       if (activeEl) activeEl.classList.add('active');
       return;
     }
-    // Priority 2: close pending sheet if open
     if (window.closePendingSheet && document.getElementById('pendingSheetBg')?.classList.contains('open')) {
       window.closePendingSheet();
     } else if (bg.classList.contains('open')) {
-      // If we're in the success window, tap = "add another" not "close"
       if (_txSuccessMode) {
         resetToAddForm();
       } else {
@@ -2400,15 +2158,11 @@ function wireAddTxForm() {
     }
   });
   if (desktopTrigger) desktopTrigger.addEventListener('click', openAddTxSheet);
-  // Also wire the quickCats container's parent card if it sits outside btnOpenAddTx
-  // so the entire card area (header, empty space, pills zone) is always clickable.
   const addTxCard = desktopTrigger ? desktopTrigger.closest('.add-tx-card, .stat-card, [data-card], .card') || desktopTrigger.parentElement : null;
   if (addTxCard && addTxCard !== desktopTrigger) {
     addTxCard.style.cursor = 'pointer';
     addTxCard.addEventListener('click', e => {
-      // Don't double-fire if the desktopTrigger itself or a pill already handled it
       if (e.target.closest('.quick-cat-pill')) return;
-      // Don't open sheet if user clicked the NLP UI elements
       const t = e.target;
       if (t.closest('#nlpToggleBtn') || t.closest('#nlpInputRow') ||
           t.closest('#nlpStatus')    || t.closest('#nlpPreview')) return;
@@ -2416,7 +2170,6 @@ function wireAddTxForm() {
     });
   }
   if (closeBtn) closeBtn.addEventListener('click', closeAddTxSheet);
-  // Close on any click that lands outside the panel (works on desktop & mobile)
   bg.addEventListener('click', e => {
     const panel = document.getElementById('addTxSheet');
     if (panel && !panel.contains(e.target)) {
@@ -2427,8 +2180,6 @@ function wireAddTxForm() {
       }
     }
   });
-
-  // Drag-to-close on mobile
   wireBottomSheetDrag(document.getElementById('addTxSheet'), function() {
     if (_txSuccessMode) {
       resetToAddForm();
@@ -2437,13 +2188,6 @@ function wireAddTxForm() {
     }
   });
 
-  // Cancel auto-close the moment the user touches/clicks anywhere inside the
-  // panel during the 3-second success window. Without this, tapping a form
-  // field to start the next entry wouldn't clear the timer.
-  // shouldFocus=false: whatever the user actually tapped gets its own natural
-  // focus — we must not call amtField/catField.focus() here because pointerdown
-  // fires BEFORE the element receives focus, so a setTimeout focus would fire
-  // 60ms later and yank the caret away from wherever the user tapped.
   document.getElementById('addTxSheet').addEventListener('pointerdown', () => {
     if (_txSuccessMode) resetToAddForm(false);
   });
@@ -2451,7 +2195,6 @@ function wireAddTxForm() {
   document.getElementById('addTxForm').addEventListener('submit', async e => {
     e.preventDefault();
 
-    // If in success window, tapping the button = "add another" — reset the form
     if (_txSuccessMode) { resetToAddForm(); return; }
 
     const category = document.getElementById('txCategory').value;
@@ -2498,7 +2241,6 @@ function wireAddTxForm() {
         btn.style.color = '#ffffff';
         vibrate();
       }
-      // Re-enable so the button is full opacity and tappable (tapping resets to add-another)
       btn.disabled = false;
       document.getElementById('txAmount').value = '';
       document.getElementById('txNote').value   = '';
@@ -2526,18 +2268,15 @@ function wireAddTxForm() {
   });
 }
 
-// Sort helper: selectedDate desc, then createdAt desc for same-day ties
 function txSorted(list) {
   return list.slice().sort((a, b) => {
     const da = toDate(a.selectedDate);
     const db = toDate(b.selectedDate);
-    // Transactions with no date sort to the bottom
     if (!da && !db) return 0;
     if (!da) return 1;
     if (!db) return -1;
     const selDiff = db - da;
     if (selDiff !== 0) return selDiff;
-    // null createdAt = pending server write (just added) → sort to top
     if (!a.createdAt && !b.createdAt) return 0;
     if (!a.createdAt) return -1;
     if (!b.createdAt) return 1;
@@ -2546,7 +2285,6 @@ function txSorted(list) {
 }
 
 
-// ── Sync-pill HTML builder + animator ────────────────────────────────────────
 function _txPillHtml(txId, hasPending) {
   if (hasPending) {
     return `<span class="tx-queue-wrap" id="tqw-${txId}"><span class="tx-queue-pill tqp-queued" id="tqp-${txId}"><span class="tqp-dot"></span><span class="tqp-text">Queued</span></span></span>`;
@@ -2556,25 +2294,20 @@ function _txPillHtml(txId, hasPending) {
   }
   return '';
 }
-// Triggers the GPU transitions on a pill that was just rendered.
-// Call once per tx after the div is appended to the DOM.
 function _animateTxPill(txId, hasPending) {
   if (hasPending) {
-    // Fade in: snap wrapper open → next rAF → add show class
     const w = document.getElementById(`tqw-${txId}`);
     const p = document.getElementById(`tqp-${txId}`);
     if (!w || !p) return;
     w.classList.add('tqw-show');
     requestAnimationFrame(() => requestAnimationFrame(() => p.classList.add('tqp-show')));
   } else if (_justSyncedIds.has(txId)) {
-    // Already visible green — snap wrapper + show, then fade out after hold
     const w = document.getElementById(`tqw-${txId}`);
     const p = document.getElementById(`tqp-${txId}`);
     if (!w || !p) return;
     w.classList.add('tqw-show');
     requestAnimationFrame(() => requestAnimationFrame(() => {
       p.classList.add('tqp-show');
-      // Hold 2s, then fade out
       setTimeout(() => {
         p.classList.remove('tqp-show');
         setTimeout(() => w.classList.remove('tqw-show'), 650);
@@ -2590,8 +2323,6 @@ function buildTxDiv(tx) {
     : 'No date';
   const color = catColorByName(tx.type, tx.category);
 
-  // .tx-row is the height-collapsing wrapper (owns the 10px gap via margin-bottom).
-  // data-tx-id lives here so confirmDeleteTx can find and collapse the whole wrapper.
   const row = document.createElement('div');
   row.className = 'tx-row';
   row.setAttribute('data-tx-id', tx.id);
@@ -2648,7 +2379,6 @@ function _preserveRemovingRows(el, rebuildFn) {
 function renderTxList() {
   const el = document.getElementById('txList');
   let sorted = txSorted(transactions).slice(0, 5);
-  // Hide the undo-pending row during the 4-second grace window
   if (_undoPendingId) sorted = sorted.filter(t => t.id !== _undoPendingId);
 
   if (!sorted.length) {
@@ -2660,7 +2390,6 @@ function renderTxList() {
   const newIds = window._newTxIds || new Set();
 
   if (isFirstRender) {
-    // First load: cascade fade-in
     el.innerHTML = '';
     sorted.forEach((tx, index) => {
       const div = buildTxDiv(tx);
@@ -2670,7 +2399,6 @@ function renderTxList() {
       setTimeout(() => { div.style.opacity = '1'; }, 600 + (index * 80));
     });
   } else if (newIds.size > 0) {
-    // New transaction(s) added: animate new items sliding in at top
     _preserveRemovingRows(el, () => {
       el.innerHTML = '';
       sorted.forEach(tx => {
@@ -2680,23 +2408,19 @@ function renderTxList() {
       });
     });
   } else {
-    // Regular update (delete/edit): rebuild without animation
     _preserveRemovingRows(el, () => {
       el.innerHTML = '';
       sorted.forEach(tx => el.appendChild(buildTxDiv(tx)));
     });
   }
 
-  // IDs cleared by snapshot handler after brief window
 }
 
 function populateTxCategoryFilter() {
   const sel = document.getElementById('txCategoryFilter');
   if (!sel) return;
   const current = sel.value;
-  // Gather all unique categories present in transactions
   const cats = [...new Set(transactions.map(t => t.category).filter(Boolean))].sort();
-  // Skip rebuild if the option set hasn't changed
   const newKey = cats.join('|');
   if (newKey === (populateTxCategoryFilter._lastKey || '')) return;
   populateTxCategoryFilter._lastKey = newKey;
@@ -2707,7 +2431,6 @@ function populateTxCategoryFilter() {
     o.textContent = cat;
     sel.appendChild(o);
   });
-  // Restore selection if still valid
   if (cats.includes(current)) sel.value = current;
 }
 
@@ -2720,13 +2443,11 @@ function renderAllTxList() {
     return;
   }
 
-  // Read filter state
   const searchQ    = (document.getElementById('txSearchInput')?.value || '').trim().toLowerCase();
   const catFilter  = document.getElementById('txCategoryFilter')?.value || '';
   const typeFilter = document.getElementById('txTypeFilter')?.value || '';
 
   let sorted = txSorted(transactions);
-  // Hide undo-pending row during grace window
   if (_undoPendingId) sorted = sorted.filter(t => t.id !== _undoPendingId);
 
   if (catFilter)  sorted = sorted.filter(t => t.category === catFilter);
@@ -2755,18 +2476,13 @@ function renderAllTxList() {
   });
 }
 
-// ─── Inline delete confirmation ───────────────────────────────────────────────
-// Uses pre-rendered .txa-normal / .txa-confirm divs inside .tx-actions.
-// Toggle class .confirming on .tx-actions — pure CSS animation, zero DOM churn.
 
-// Helper to show/hide confirm panels via inline style (bypasses SW-cached CSS issues)
 function _txConfirmShow(actions) {
   const normal  = actions.querySelector('.txa-normal');
   const confirm = actions.querySelector('.txa-confirm');
   if (!normal || !confirm) return;
   normal.style.display  = 'none';
   confirm.style.display = 'flex';
-  // Re-trigger animation
   confirm.style.animationName = 'none';
   confirm.offsetWidth; // force reflow
   confirm.style.animationName = '';
@@ -2787,8 +2503,6 @@ window.showDeleteConfirm = function(id) {
     window.confirmDeleteTx(id);
     return;
   }
-  // Scope to the currently visible list to avoid matching the same tx-id
-  // in both #txList (dashboard) and #allTxList (transactions tab) simultaneously.
   const activeList = activeView === 'transactions'
     ? document.getElementById('allTxList')
     : document.getElementById('txList');
@@ -2797,12 +2511,10 @@ window.showDeleteConfirm = function(id) {
   const actions = txEl ? txEl.querySelector('.tx-actions') : null;
   if (!actions) return;
 
-  // Close any other open confirms
   document.querySelectorAll('.tx-actions.confirming').forEach(a => {
     if (a !== actions) _txConfirmHide(a);
   });
 
-  // Toggle this one
   if (actions.classList.contains('confirming')) {
     _txConfirmHide(actions);
   } else {
@@ -2815,7 +2527,6 @@ window.cancelDeleteTx = function(btn) {
   if (actions) _txConfirmHide(actions);
 };
 
-// Called by the pre-rendered Yes button in .txa-confirm
 window.doConfirmDeleteTx = function(id, btn) {
   const confirm = btn.closest('.txa-confirm');
   const chk = confirm ? confirm.querySelector('.dont-ask-chk') : null;
@@ -2895,7 +2606,6 @@ async function _undoDelete() {
   setTimeout(() => { window._restoringTxId = null; }, 500);
 }
 
-// ── Transaction Detail Panel ──────────────────────────────────────────────────
 let _txDetailId = null;
 let _txDetailEditing = false;
 
@@ -2915,7 +2625,6 @@ window.openTxDetail = function(id) {
   const d = toDate(tx.selectedDate);
   const color = catColorByName(tx.type, tx.category);
 
-  // Populate view
   document.getElementById('txdTypeDot').style.background = tx.type === 'income' ? 'var(--green)' : 'var(--red)';
   document.getElementById('txdTypeLabel').textContent = tx.type;
   const amtEl = document.getElementById('txdAmount');
@@ -2945,11 +2654,9 @@ window.openTxDetail = function(id) {
     updRow.style.display = 'none';
   }
 
-  // Show view, hide edit
   document.getElementById('txdView').style.display = '';
   document.getElementById('txdEdit').style.display = 'none';
 
-  // Open
   document.getElementById('txDetailBg').classList.add('open');
   document.body.style.overflow = 'hidden';
 };
@@ -2961,7 +2668,6 @@ window.closeTxDetail = function(e) {
   document.body.style.overflow = '';
   _txDetailId = null;
 };
-// drag-to-close on mobile (wired once at startup)
 (function() {
   var panel = document.getElementById('txDetailPanel');
   if (panel && !panel._dragWired) {
@@ -2974,7 +2680,6 @@ window.closeTxDetail = function(e) {
   }
 })();
 
-// Close on Escape
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.getElementById('txDetailBg').classList.contains('open')) {
     document.getElementById('txDetailBg').classList.remove('open');
@@ -2988,12 +2693,10 @@ window.txDetailStartEdit = function() {
   if (!tx) return;
   const d = toDate(tx.selectedDate);
 
-  // Populate edit fields
   document.getElementById('txdEditDate').value = toInputDate(d);
   document.getElementById('txdEditAmount').value = tx.amount;
   document.getElementById('txdEditNote').value = tx.description || '';
 
-  // Populate category dropdown
   const sel = document.getElementById('txdEditCategory');
   sel.innerHTML = '<option value="">Select</option>';
   const allCats = [...(categories.income||[]), ...(categories.expense||[])];
@@ -3047,11 +2750,9 @@ window.txDetailDelete = function() {
   yes.className = 'btn-sm del'; yes.textContent = 'Yes, delete';
   yes.addEventListener('click', async () => {
     const id = _txDetailId;
-    // Close the detail panel first
     document.getElementById('txDetailBg').classList.remove('open');
     document.body.style.overflow = '';
     _txDetailId = null;
-    // Route through undo-aware delete
     await window.confirmDeleteTx(id);
   });
   const no = document.createElement('button');
@@ -3087,7 +2788,6 @@ window.saveEdit = async function() {
   const type     = catType(category);
   if (!category || !amount || !dateVal || !type) { alert('Please fill all fields'); return; }
 
-  // Show saving state
   const saveBtn = document.querySelector('#editModalBg .btn-primary');
   const origHtml = saveBtn ? saveBtn.innerHTML : null;
   if (saveBtn) {
@@ -3102,14 +2802,12 @@ window.saveEdit = async function() {
       { merge: true }
     );
     vibrate();
-    // Show green saved state
     if (saveBtn) {
       saveBtn.innerHTML = '✓ Saved';
       saveBtn.style.background = 'var(--green)';
       saveBtn.style.color = '#fff';
       saveBtn.style.borderColor = 'var(--green)';
     }
-    // Auto-close after brief confirmation
     setTimeout(() => {
       if (saveBtn) {
         saveBtn.style.background = '';
@@ -3129,13 +2827,9 @@ window.saveEdit = async function() {
   }
 };
 
-// ─── Stats (all-time) ─────────────────────────────────────────────────────────
 function renderStats() {
-  // Don't render until all data sources are confirmed ready.
-  // This prevents stat cards from flashing ₹0 on the first (possibly cached/empty) snapshot.
   if (!window._allDataLoaded) return;
 
-  // Update profile tx count
   const tcEl = document.getElementById('profileTxCount');
   if (tcEl) tcEl.textContent = transactions.length;
   const now = new Date();
@@ -3156,18 +2850,16 @@ function renderStats() {
   const expenseEl = document.getElementById('sExpense');
   const balanceEl = document.getElementById('sBalance');
   const pendingEl = document.getElementById('sPending');
-  
+
   const elements = [incomeEl, expenseEl, balanceEl, pendingEl].filter(Boolean);
   const valueMap = new Map([
     [incomeEl, fmt(income)], [expenseEl, fmt(expense)],
     [balanceEl, fmt(balance)], [pendingEl, fmt(pending)]
   ]);
 
-  // Check if skeleton spinners are still present (first reveal)
   const hasSpinners = incomeEl && incomeEl.querySelector('.loading-spinner') !== null;
-  
+
   if (hasSpinners) {
-    // Fade out spinners, swap in correct values, then fade back in
     elements.forEach(el => {
       el.style.transition = 'opacity 0.2s ease';
       el.style.opacity = '0';
@@ -3177,22 +2869,17 @@ function renderStats() {
         el.innerHTML = valueMap.get(el);
         el.style.opacity = '0'; // ensure we start from invisible
       });
-      // Double rAF guarantees the browser has committed the new DOM
-      // before starting the opacity transition (avoids instant-snap)
       requestAnimationFrame(() => requestAnimationFrame(() => {
         elements.forEach(el => { el.style.opacity = '1'; });
       }));
     }, 200);
   } else {
-    // Subsequent updates (edit/delete/etc.): instant update, no flash
     elements.forEach(el => el.innerHTML = valueMap.get(el));
   }
 
-  // Update cash flow starting balance label
   const cfEl = document.getElementById('cfStartBal');
   if (cfEl) cfEl.textContent = fmt(startingBalance);
 
-  // Highest pending item sub-line
   const topEl = document.getElementById('sPendingTop');
   if (topEl) {
     if (pendingAmounts.length) {
@@ -3207,11 +2894,7 @@ function renderStats() {
   renderTopSpending();
 }
 
-// ─── Stat Card Sparklines ─────────────────────────────────────────────────────
-// Pure SVG area charts, fully contained inside each card via overflow:hidden.
-// No axes, no labels — just the shape of the data over the last 30 days.
 
-// ─── Top Spending Categories ──────────────────────────────────────────────────
 function renderTopSpending() {
   const el = document.getElementById('topSpendingList');
   const monthEl = document.getElementById('topSpendingMonth');
@@ -3235,14 +2918,12 @@ function renderTopSpending() {
     return;
   }
 
-  // Sum per category
   const totals = {};
   monthExpenses.forEach(t => {
     const cat = t.category || 'Other';
     totals[cat] = (totals[cat] || 0) + t.amount;
   });
 
-  // Sort descending, take top 5
   const sorted = Object.entries(totals)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
@@ -3284,7 +2965,6 @@ function renderSparklines() {
   const DAYS = 30;
   const now  = new Date();
 
-  // Daily totals for income or expense over last N days
   function dailyTotals(type, n) {
     const buckets = new Array(n).fill(0);
     transactions.forEach(t => {
@@ -3297,7 +2977,6 @@ function renderSparklines() {
     return buckets;
   }
 
-  // Rolling daily balance for last N days
   function dailyBalance(n) {
     return Array.from({ length: n }, (_, i) => {
       const dayEnd = new Date(now);
@@ -3329,9 +3008,6 @@ function drawSparkline(id, data, color, isDark) {
   const max = Math.max(...data);
   const min = Math.min(...data);
 
-  // Use the actual rendered pixel width so viewBox === element size.
-  // This means no SVG scaling occurs and stroke-width is always exactly
-  // the specified number of CSS pixels — no thinning/thickening on mobile.
   const W = Math.round(svg.getBoundingClientRect().width) || 300;
   const H = 56;
   const PAD_T = 8;   // gap above the peak so the line isn't clipped
@@ -3341,13 +3017,11 @@ function drawSparkline(id, data, color, isDark) {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('preserveAspectRatio', 'none');
 
-  // Map each data point → SVG coordinate
   const pts = data.map((v, i) => [
     (i / (n - 1)) * W,
     PAD_T + (1 - (v - min) / range) * (H - PAD_T - PAD_B)
   ]);
 
-  // Smooth cubic-bezier path
   function makePath(points) {
     let d = `M ${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
     for (let i = 1; i < points.length; i++) {
@@ -3361,7 +3035,6 @@ function drawSparkline(id, data, color, isDark) {
   const fillPath = `${linePath} L ${W},${H} L 0,${H} Z`;
   const gradId   = `sg_${id}`;
 
-  // Fill opacity: soft in light mode, slightly stronger in dark
   const fillOpacity0 = isDark ? '0.30' : '0.20';
   const lineOpacity  = isDark ? '0.90' : '0.80';
 
@@ -3381,7 +3054,6 @@ function drawSparkline(id, data, color, isDark) {
   svg.classList.add('loaded');
 }
 
-// ─── Pending Amounts ──────────────────────────────────────────────────────────
 function listenPending() {
   if (_unsubPending) { _unsubPending(); _unsubPending = null; }
   const q = window.query(
@@ -3393,7 +3065,7 @@ function listenPending() {
     pendingAmounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderPendingList();
     renderStats();
-    
+
     if (firstLoad && window._dataLoaded) {
       firstLoad = false;
       window._dataLoaded.pending = true;
@@ -3477,23 +3149,18 @@ function renderPendingList() {
   const pendingCard = document.querySelector('.pending-card');
   const pendingStatAdd = document.getElementById('pendingStatAdd');
 
-  // On mobile: hide the pending card when 0 or 1 entries (stat card handles it)
-  // On mobile with >1 entries: show the full card as normal
   if (isMobile && pendingCard) {
     const hide = pendingAmounts.length === 0;
     pendingCard.classList.toggle('pending-card-mobile-hidden', hide);
   }
 
-  // Show/hide the "add pending" subtle link on the stat card (mobile only)
   if (pendingStatAdd) {
-    // Only show when there are 0 items (nothing to display in sPendingTop either)
     pendingStatAdd.style.display = (isMobile && pendingAmounts.length === 0) ? '' : 'none';
   }
 
   if (!pendingAmounts.length) { el.innerHTML = '<div class="empty">No pending amounts</div>'; return; }
   el.innerHTML = '';
 
-  // Hint message
   const hint = document.createElement('p');
   hint.className = 'pending-hint';
   hint.textContent = 'Tap the circle when money is credited.';
@@ -3523,7 +3190,6 @@ window.clearPending = async function(id) {
   vibrate();
 };
 
-// ─── Analytics: Daily ─────────────────────────────────────────────────────────
 function renderDaily() {
   const dateVal = document.getElementById('dailyDate').value;
   if (!dateVal) return;
@@ -3555,8 +3221,6 @@ function renderDaily() {
 }
 document.getElementById('dailyDate').addEventListener('change', renderDaily);
 
-// ─── Analytics: Monthly ───────────────────────────────────────────────────────
-// ── Smart description suggestions ─────────────────────────────────────────────
 (function wireDescSuggestions() {
   const noteInput = document.getElementById('txNote');
   const catSelect = document.getElementById('txCategory');
@@ -3618,7 +3282,7 @@ function renderMonthly() {
     const d = toDate(t.selectedDate);
     return d && d.getFullYear()===y && d.getMonth()===m-1;
   });
-  
+
   const prevDate = new Date(y, m-1, 1);
   prevDate.setMonth(prevDate.getMonth() - 1);
   const prevY = prevDate.getFullYear();
@@ -3640,7 +3304,7 @@ function renderMonthly() {
 
   document.getElementById('msIncome').textContent  = fmt(monthIncTotal);
   document.getElementById('msExpense').textContent = fmt(monthExpTotal);
-  
+
   const msArrow = document.getElementById('msArrow');
   if (monthIncTotal > monthExpTotal) {
     msArrow.textContent = '↓';
@@ -3658,28 +3322,28 @@ function renderMonthly() {
 
   const thisTotal = monthlyType === 'income' ? monthIncTotal : monthExpTotal;
   const lastTotal = monthlyType === 'income' ? prevMonthIncTotal : prevMonthExpTotal;
-  
+
   document.getElementById('monthlyThis').textContent = fmt(thisTotal);
   document.getElementById('monthlyLast').textContent = fmt(lastTotal);
 
   const diff = thisTotal - lastTotal;
   const resultEl = document.getElementById('monthlyResult');
   const arrowEl  = document.getElementById('monthlyArrow');
-  
+
   if (diff > 0) {
-    resultEl.textContent = `${fmt(diff)} more than last month`; 
+    resultEl.textContent = `${fmt(diff)} more than last month`;
     resultEl.className='cmp-result neg';
-    arrowEl.textContent = '↑'; 
+    arrowEl.textContent = '↑';
     arrowEl.className = 'cmp-arrow up';
   } else if (diff < 0) {
-    resultEl.textContent = `${fmt(Math.abs(diff))} less than last month`; 
+    resultEl.textContent = `${fmt(Math.abs(diff))} less than last month`;
     resultEl.className='cmp-result pos';
-    arrowEl.textContent = '↓'; 
+    arrowEl.textContent = '↓';
     arrowEl.className = 'cmp-arrow down';
   } else {
-    resultEl.textContent = thisTotal===0 ? 'No data for either month' : 'Same as last month'; 
+    resultEl.textContent = thisTotal===0 ? 'No data for either month' : 'Same as last month';
     resultEl.className='cmp-result';
-    arrowEl.textContent = '='; 
+    arrowEl.textContent = '=';
     arrowEl.className='cmp-arrow flat';
   }
 
@@ -3694,15 +3358,15 @@ function renderMonthly() {
   });
   const sorted = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
   const el = document.getElementById('breakdownList');
-  if (!sorted.length) { 
-    el.innerHTML=`<div class="empty">No ${monthlyType} this month</div>`; 
-    return; 
+  if (!sorted.length) {
+    el.innerHTML=`<div class="empty">No ${monthlyType} this month</div>`;
+    return;
   }
   el.innerHTML = '';
   sorted.forEach(([name, amt]) => {
     const div = document.createElement('div');
     div.className = 'breakdown-item';
-    
+
     let budgetBarHtml = '';
     if (monthlyType === 'expense') {
       const cat = categories.expense.find(c => catName(c) === name);
@@ -3738,7 +3402,6 @@ function renderMonthly() {
   renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, monthIncTotal, monthExpTotal, prevMonthIncTotal, prevMonthExpTotal);
 }
 
-// ── Monthly Spending Insights ────────────────────────────────────────────────
 function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, monthIncTotal, monthExpTotal, prevIncTotal, prevExpTotal) {
   const el = document.getElementById('monthlyInsights');
   if (!el) return;
@@ -3749,7 +3412,6 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
   const isCurrentMonth = today.getFullYear() === y && today.getMonth() === m - 1;
   const daysPassed = isCurrentMonth ? today.getDate() : daysInMonth;
 
-  // 1. Total Spending
   if (monthExpTotal > 0 || prevExpTotal > 0) {
     const diff = monthExpTotal - prevExpTotal;
     const pct = prevExpTotal > 0 ? Math.round((diff / prevExpTotal) * 100) : null;
@@ -3764,7 +3426,6 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
     });
   }
 
-  // 2. Net Savings
   if (monthIncTotal > 0) {
     const net = monthIncTotal - monthExpTotal;
     const rate = Math.round((net / monthIncTotal) * 100);
@@ -3779,7 +3440,6 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
     });
   }
 
-  // 3. Income Change
   if (monthIncTotal > 0 || prevIncTotal > 0) {
     const diff = monthIncTotal - prevIncTotal;
     const pct = prevIncTotal > 0 ? Math.round((diff / prevIncTotal) * 100) : null;
@@ -3793,7 +3453,6 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
     });
   }
 
-  // 4. Top Spending Category
   if (monthExp.length > 0) {
     const totals = {};
     monthExp.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount; });
@@ -3807,7 +3466,6 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
     });
   }
 
-  // 5. Biggest Category Increase
   if (monthExp.length > 0 && prevMonthTx.length > 0) {
     const cur = {}, prev = {};
     monthExp.forEach(t => { cur[t.category] = (cur[t.category] || 0) + t.amount; });
@@ -3829,7 +3487,6 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
     }
   }
 
-  // 6. Budget Utilization
   const budgetCats = categories.expense.filter(c => typeof c === 'object' && c.budget);
   if (budgetCats.length > 0 && monthExp.length > 0) {
     const totals = {};
@@ -3848,7 +3505,6 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
     });
   }
 
-  // 7. Daily Average
   if (monthExpTotal > 0 && daysPassed > 0) {
     const avg = monthExpTotal / daysPassed;
     const projected = avg * daysInMonth;
@@ -3862,7 +3518,6 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
     });
   }
 
-  // 8. Transaction Count
   if (monthExp.length > 0) {
     const prevCount = prevMonthTx.filter(t => t.type === 'expense').length;
     const diff = monthExp.length - prevCount;
@@ -3899,8 +3554,6 @@ function renderMonthlyInsights(y, m, monthTx, prevMonthTx, monthInc, monthExp, m
 
 document.getElementById('monthlyDate').addEventListener('change', renderMonthly);
 
-// ─── Transaction search & filter listeners ────────────────────────────────────
-// Debounce the free-text search so we don't rebuild the full list on every keystroke.
 let _txSearchDebounceTimer = null;
 document.getElementById('txSearchInput').addEventListener('input', () => {
   clearTimeout(_txSearchDebounceTimer);
@@ -3909,14 +3562,13 @@ document.getElementById('txSearchInput').addEventListener('input', () => {
 document.getElementById('txCategoryFilter').addEventListener('change', renderAllTxList);
 document.getElementById('txTypeFilter').addEventListener('change', renderAllTxList);
 
-// ─── Analytics: Yearly ───────────────────────────────────────────────────────
 function renderYearly() {
   const year = parseInt(document.getElementById('yearlyYear').value);
   if (!year) return;
-  
+
   const typeLabel = yearlyType === 'income' ? 'Income' : 'Expenses';
   document.getElementById('yearlyLabel').textContent = `Monthly ${typeLabel} by Category`;
-  
+
   const yearlyData = transactions.filter(t => { const d = toDate(t.selectedDate); return t.type===yearlyType && d && d.getFullYear()===year; });
   const catSet = new Set(); yearlyData.forEach(t => catSet.add(t.category));
   if (!catSet.size) {
@@ -3941,15 +3593,12 @@ function renderYearly() {
 }
 document.getElementById('yearlyYear').addEventListener('change', renderYearly);
 
-// ─── Analytics: Cash Flow ────────────────────────────────────────────────────
-// Income - Expense per month, carrying balance forward from startingBalance
 function renderCashflow() {
   const year = parseInt(document.getElementById('cashflowYear').value);
   if (!year) return;
 
   const yearTx = transactions.filter(t => { const d = toDate(t.selectedDate); return d && d.getFullYear() === year; });
 
-  // Build monthly income + expense
   const monthInc = Array(12).fill(0);
   const monthExp = Array(12).fill(0);
   yearTx.forEach(t => {
@@ -3960,7 +3609,6 @@ function renderCashflow() {
     if (t.type === 'expense') monthExp[mo] += t.amount;
   });
 
-  // Also check if there are any months with data at all
   const hasData = monthInc.some(v=>v>0) || monthExp.some(v=>v>0);
   if (!hasData) {
     document.getElementById('cashflowBody').innerHTML =
@@ -3968,8 +3616,6 @@ function renderCashflow() {
     return;
   }
 
-  // Opening balance for the selected year = startingBalance + all net from transactions
-  // that occurred strictly before Jan 1 of the selected year.
   const yearStart = new Date(year, 0, 1);
   const priorNet = transactions.reduce((sum, t) => {
     const d = toDate(t.selectedDate);
@@ -3980,7 +3626,6 @@ function renderCashflow() {
   }, 0);
   const openingBalance = startingBalance + priorNet;
 
-  // Rolling balance: starts with opening balance for the year, carries month-to-month
   const tbody = document.getElementById('cashflowBody');
   tbody.innerHTML = '';
   let runningBalance = openingBalance;
@@ -4016,10 +3661,6 @@ function renderCashflow() {
 
 document.getElementById('cashflowYear').addEventListener('change', renderCashflow);
 
-// ─── Shared theme-change observer for charts ─────────────────────────────────
-// A single MutationObserver shared across all chart renderers.
-// Each chart registers its update callback by container element.
-// Re-rendering a chart simply overwrites the previous entry — no leak.
 const _chartThemeCallbacks = new Map();
 const _chartThemeObserver = new MutationObserver(() => {
   _chartThemeCallbacks.forEach(cb => cb());
@@ -4032,12 +3673,10 @@ function registerChartThemeCallback(container, cb) {
   _chartThemeCallbacks.set(container, cb);
 }
 
-// ─── Analytics: Monthly Daily Line Chart ─────────────────────────────────────
 function renderMonthlyLineChart(year, month, txList, type) {
   const wrap = document.getElementById('monthlyLineWrap');
   if (!wrap) return;
 
-  // Build day-by-day totals for the month
   const daysInMonth = new Date(year, month, 0).getDate();
   const dailyTotals = new Array(daysInMonth).fill(0);
 
@@ -4060,11 +3699,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
   });
   const yValues = dailyTotals;
 
-  // Y-axis always starts at 0 so zero days sit flat at the bottom.
-  // Top is padded 15% above the peak so the highest bar has breathing room.
   const maxVal = Math.max(...yValues);
-  // Small negative bottom padding so the line isn't clipped when it
-  // touches zero — gives just enough room for the curve to land cleanly.
   const yMin   = -(maxVal * 0.04);
   const yMax   = maxVal * 1.15;
 
@@ -4084,14 +3719,12 @@ function renderMonthlyLineChart(year, month, txList, type) {
     type: 'scatter',
     mode: 'lines+markers',
     line: { color: lineColor, width: 2.5, shape: 'spline', smoothing: 0.4 },
-    // Small invisible markers on every point so hover snaps cleanly
     marker: {
       color: typeColor,
       size: 6,
       opacity: 0,
       line: { width: 0 },
     },
-    // On hover, marker becomes visible
     selected: { marker: { opacity: 1, size: 8 } },
     hovertemplate: '<b>%{x}</b><br>₹%{y:,.2f}<extra></extra>',
   }];
@@ -4138,7 +3771,6 @@ function renderMonthlyLineChart(year, month, txList, type) {
 
   Plotly.react(container, trace, layout, config);
 
-  // Register theme-sync callback in the shared observer (replaces any previous entry for this container)
   registerChartThemeCallback(container, () => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const nl = nowDark ? '#E8E6E1' : '#1c1c1c';
@@ -4156,12 +3788,12 @@ function renderMonthlyLineChart(year, month, txList, type) {
 
 function renderPieChart(wrapId, txList, type) {
   const wrap = document.getElementById(wrapId);
-  if (!txList.length) { 
-    wrap.innerHTML=`<div class="empty">No ${type} for this period</div>`; 
-    return; 
+  if (!txList.length) {
+    wrap.innerHTML=`<div class="empty">No ${type} for this period</div>`;
+    return;
   }
 
-  const totals = {}; 
+  const totals = {};
   const colors = {};
   txList.forEach(t => {
     totals[t.category] = (totals[t.category]||0) + t.amount;
@@ -4171,13 +3803,9 @@ function renderPieChart(wrapId, txList, type) {
   const labels = Object.keys(totals);
   const values = Object.values(totals);
   const colorArray = Object.values(colors);
-  
-  // Slightly explode slices
   const pull = labels.map(() => 0.04);
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
-
-  // Remove any previous hint so re-renders don't stack them
   const _prevHint = wrap.previousElementSibling;
   if (_prevHint && _prevHint.classList.contains('pie-mobile-hint')) _prevHint.remove();
 
@@ -4197,9 +3825,6 @@ function renderPieChart(wrapId, txList, type) {
   const bgColor = isDark ? '#1c1c1c' : '#ffffff';
   const borderColor = isDark ? '#3a3a3a' : '#ffffff';
 
-  // On mobile (touch) devices hide labels — they become too cramped.
-  // Labels show only via the hover/tap tooltip instead.
-  // On desktop, show labels outside as normal.
 
   const data = [{
     type: 'pie',
@@ -4231,7 +3856,6 @@ function renderPieChart(wrapId, txList, type) {
 
   const layout = {
     showlegend: false,
-    // Mobile: no outside labels so no margin needed for text overflow
     margin: isMobile
       ? { t: 20, b: 20, l: 20, r: 20 }
       : { t: 80, b: 80, l: 120, r: 120 },
@@ -4256,7 +3880,6 @@ function renderPieChart(wrapId, txList, type) {
 
   Plotly.react(container, data, layout, config);
 
-  // Register theme-sync callback in the shared observer (replaces any previous entry for this container)
   registerChartThemeCallback(container, () => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const newTextColor = nowDark ? '#E8E6E1' : '#2D2D2D';
@@ -4274,13 +3897,8 @@ function renderPieChart(wrapId, txList, type) {
   });
 }
 
-// Re-render sparklines on theme toggle (balance line color is theme-dependent)
 registerChartThemeCallback('sparklines', () => renderSparklines());
-// ═══════════════════════════════════════════════════════════════════
-// ── MULTI-ACCOUNT SYSTEM ────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════
 
-// ── Default categories for a brand-new account ────────────────────
 const DEFAULT_CATEGORIES = {
   expense: [
     { name: 'Food & Dining',     color: '#E84545', budget: null },
@@ -4303,13 +3921,10 @@ const DEFAULT_CATEGORIES = {
   ],
 };
 
-// ── Migrate legacy data (existing users pre-multi-account) ─────────
 async function migrateLegacyData() {
-  // Check if migration already done
   const userMeta = await window.getDoc(window.doc(window.db, 'users', uid, 'meta', 'accounts'));
   if (userMeta.exists() && userMeta.data().migrated) return null;
 
-  // Check if there is any legacy data to migrate
   const legacyCatSnap  = await window.getDoc(window.doc(window.db, 'users', uid, 'settings', 'categories'));
   const legacySettSnap = await window.getDoc(window.doc(window.db, 'users', uid, 'settings', 'general'));
   const legacyTxSnap   = await _once(window.query(window.collection(window.db, 'users', uid, 'transactions')));
@@ -4317,14 +3932,12 @@ async function migrateLegacyData() {
 
   const hasLegacy = legacyCatSnap.exists() || legacyTxSnap.docs.length > 0;
   if (!hasLegacy) {
-    // New user — just mark migrated
     await window.setDoc(window.doc(window.db, 'users', uid, 'meta', 'accounts'), { migrated: true });
     return null;
   }
 
   console.log('[Accounts] Migrating legacy data → "Main Account"');
 
-  // 1. Create "Main Account" doc
   const acctRef = window.doc(acctColRef());
   await window.setDoc(acctRef, {
     name: 'Main Account',
@@ -4333,7 +3946,6 @@ async function migrateLegacyData() {
   });
   const acctId = acctRef.id;
 
-  // 2. Copy categories
   const catData = legacyCatSnap.exists()
     ? legacyCatSnap.data()
     : { income: DEFAULT_CATEGORIES.income, expense: DEFAULT_CATEGORIES.expense };
@@ -4343,7 +3955,6 @@ async function migrateLegacyData() {
     migratedAt: window.serverTimestamp(),
   });
 
-  // 3. Copy settings
   if (legacySettSnap.exists()) {
     await window.setDoc(window.doc(window.db, 'users', uid, 'accounts', acctId, 'settings', 'general'), {
       ...legacySettSnap.data(),
@@ -4351,7 +3962,6 @@ async function migrateLegacyData() {
     });
   }
 
-  // 4. Copy transactions in batches of 500
   const BATCH_SIZE = 500;
   const txDocs = legacyTxSnap.docs;
   for (let i = 0; i < txDocs.length; i += BATCH_SIZE) {
@@ -4363,7 +3973,6 @@ async function migrateLegacyData() {
     await batch.commit();
   }
 
-  // 5. Copy pending in one batch
   if (legacyPendSnap.docs.length) {
     const batch = window.writeBatch(window.db);
     legacyPendSnap.docs.forEach(d => {
@@ -4373,7 +3982,6 @@ async function migrateLegacyData() {
     await batch.commit();
   }
 
-  // 6. Mark migration done
   await window.setDoc(window.doc(window.db, 'users', uid, 'meta', 'accounts'), {
     migrated: true,
     mainAccountId: acctId,
@@ -4384,20 +3992,15 @@ async function migrateLegacyData() {
   return acctId;
 }
 
-// ── initAccounts — called once per login ───────────────────────────
 async function initAccounts() {
-  // Run migration if needed (idempotent)
   const migratedId = await migrateLegacyData();
 
-  // Load all accounts
   const snap = await _once(acctColRef());
   accounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-  // Restore last used account from localStorage, or pick first
   const saved = localStorage.getItem('activeAccountId_' + uid);
   let chosen = accounts.find(a => a.id === saved) || accounts[0];
 
-  // If still no account (brand-new user with no migration), create first account via modal
   if (!chosen) {
     const newId = await promptCreateFirstAccount();
     const newSnap = await _once(acctColRef());
@@ -4410,7 +4013,6 @@ async function initAccounts() {
   updateAccountBadge();
 }
 
-// ── Prompt new user to name their first account ────────────────────
 function promptCreateFirstAccount() {
   return new Promise(resolve => {
     const modal = document.getElementById('firstAccountModal');
@@ -4436,11 +4038,9 @@ function promptCreateFirstAccount() {
   });
 }
 
-// ── Create a new account doc and seed empty categories ────────────
 async function _createAccount(name) {
   const ref = window.doc(acctColRef());
   await window.setDoc(ref, { name, createdAt: window.serverTimestamp() });
-  // Seed default categories for the new account
   await window.setDoc(window.doc(window.db, 'users', uid, 'accounts', ref.id, 'categories', 'data'), {
     income: DEFAULT_CATEGORIES.income.map(c => ({ ...c })),
     expense: DEFAULT_CATEGORIES.expense.map(c => ({ ...c })),
@@ -4448,11 +4048,9 @@ async function _createAccount(name) {
   return ref.id;
 }
 
-// ── Switch to a different account ─────────────────────────────────
 async function switchAccount(id) {
   if (id === activeAccountId) return;
 
-  // ── Fade out main content ─────────────────────────────────────────
   const container = document.querySelector('.container');
   if (container) {
     container.style.transition = 'opacity .18s ease';
@@ -4460,11 +4058,9 @@ async function switchAccount(id) {
   }
   await new Promise(r => setTimeout(r, 180));
 
-  // Tear down existing listeners
   if (_unsubTransactions) { _unsubTransactions(); _unsubTransactions = null; }
   if (_unsubPending)      { _unsubPending(); _unsubPending = null; }
 
-  // Reset state
   transactions   = [];
   pendingAmounts = [];
   categories     = { income: [], expense: [] };
@@ -4476,14 +4072,11 @@ async function switchAccount(id) {
   localStorage.setItem('activeAccountId_' + uid, id);
   updateAccountBadge();
 
-  // Reset data-loaded flags
   window._dataLoaded = { categories: false, settings: false, transactions: false, pending: false };
 
-  // Re-render empty state immediately
   renderTxList();
   renderStats();
 
-  // Override _checkAllDataLoaded to fade back in once data is ready
   const _origCheck = window._checkAllDataLoaded;
   window._checkAllDataLoaded = function() {
     _origCheck && _origCheck();
@@ -4502,24 +4095,20 @@ async function switchAccount(id) {
   listenTransactions();
 }
 
-// ── Update the account name badge in the sidebar / settings ───────
 function updateAccountBadge() {
   const acct = accounts.find(a => a.id === activeAccountId);
   const name = acct ? acct.name : '—';
   document.querySelectorAll('.active-account-name').forEach(el => {
     el.textContent = name;
   });
-  // Update greeting bar pill
   const pill = document.getElementById('acctGreetingPill');
   if (pill) {
     pill.textContent = name;
     pill.style.opacity = name && name !== '—' ? '1' : '0';
   }
-  // Recalc sidebar expanded width for the new name
   if (window._recalcSidebarWidth) window._recalcSidebarWidth();
 }
 
-// ── Account Switcher UI ────────────────────────────────────────────
 function wireAccountSwitcher() {
   const bg    = document.getElementById('acctSwitcherBg');
   const panel = document.getElementById('acctSwitcherPanel');
@@ -4541,22 +4130,18 @@ function wireAccountSwitcher() {
   document.getElementById('acctSwitcherCloseBtn')?.addEventListener('click', closeSwitcher);
   wireBottomSheetDrag(panel, closeSwitcher);
 
-  // Desktop sidebar button
   document.getElementById('btnChangeAccount')?.addEventListener('click', () => {
     closeSidebarIfOpen();
     openSwitcher();
   });
 
-  // Settings drawer button (mobile)
   document.getElementById('btnChangeAccountMobile')?.addEventListener('click', () => {
-    // close settings drawer first
     document.getElementById('settingsDrawer')?.classList.remove('open');
     document.getElementById('settingsBackdrop')?.classList.remove('open');
     document.body.style.overflow = '';
     setTimeout(openSwitcher, 180);
   });
 
-  // "Add new account" button inside switcher
   document.getElementById('acctSwitcherAddBtn')?.addEventListener('click', () => {
     closeSwitcher();
     setTimeout(openNewAccountModal, 180);
@@ -4601,7 +4186,6 @@ function renderAccountList() {
   });
 }
 
-// ── New account modal ──────────────────────────────────────────────
 function openNewAccountModal() {
   const modal = document.getElementById('newAccountModal');
   const input = document.getElementById('newAccountNameInput');
@@ -4647,7 +4231,6 @@ document.getElementById('newAccountModal')?.addEventListener('click', e => {
   if (e.target === document.getElementById('newAccountModal')) closeNewAccountModal();
 });
 
-// ── Rename account ────────────────────────────────────────────────
 window.openRenameAccount = function(id, currentName) {
   window.closeAccountSwitcher();
   const modal = document.getElementById('renameAccountModal');
@@ -4672,7 +4255,6 @@ window.openRenameAccount = function(id, currentName) {
     accounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     updateAccountBadge();
     closeRenameAccountModal();
-    // Re-open switcher so user sees updated list
     setTimeout(() => window.openAccountSwitcher(), 180);
   };
 
@@ -4686,7 +4268,6 @@ function closeRenameAccountModal() {
 }
 window.closeRenameAccountModal = closeRenameAccountModal;
 
-// ── Delete account ────────────────────────────────────────────────
 window.confirmDeleteAccount = function(id) {
   if (accounts.length <= 1) { alert('You must have at least one account.'); return; }
   const acct = accounts.find(a => a.id === id);
@@ -4696,14 +4277,11 @@ window.confirmDeleteAccount = function(id) {
 };
 
 async function _deleteAccount(id) {
-  // If deleting active account, switch to another first
   if (id === activeAccountId) {
     const other = accounts.find(a => a.id !== id);
     if (other) await switchAccount(other.id);
   }
 
-  // Delete all subcollections (transactions, pending, categories, settings)
-  // Firestore does not auto-delete subcollections from the client; we batch-delete docs
   const subColNames = ['transactions', 'pending'];
   for (const col of subColNames) {
     const q = window.query(window.collection(window.db, 'users', uid, 'accounts', id, col));
@@ -4715,10 +4293,8 @@ async function _deleteAccount(id) {
       await batch.commit();
     }
   }
-  // Delete the account doc itself
   await window.deleteDoc(acctDocRef(id));
 
-  // Refresh account list
   const snap = await _once(acctColRef());
   accounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   updateAccountBadge();
