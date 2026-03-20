@@ -785,6 +785,7 @@ async function loadCategories() {
   }
   populateCategoryDropdowns();
   if (window._dataLoaded) {
+    window._dataLoaded.categories = true;
     renderQuickCats();
     window._checkAllDataLoaded();
   }
