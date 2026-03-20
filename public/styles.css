@@ -571,10 +571,7 @@ input[type="color"] {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 
-/* contain:layout scopes reflow to just this list — collapsing rows no longer */
-/* trigger full-page layout recalculations, critical for rapid-delete perf.   */
 .tx-list { display: flex; flex-direction: column; gap: 0; contain: layout; }
-/* Thin wrapper — owns spacing so margin-bottom can animate to 0 on delete   */
 .tx-row  { margin-bottom: 10px; }
 .tx-row:last-child { margin-bottom: 0; }
 
@@ -2213,34 +2210,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   animation: txSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Delete collapse animation —
-   Two-layer approach:
-   · .tx-row.removing       — collapses height + margin (layout, scoped by contain:layout)
-   · .tx-row.removing .tx-item — GPU-only fade+slide, zero layout cost
-
-   Timing contract (JS transitionend listens for 'height'):
-     0ms   — .removing added; .tx-item opacity/transform transition begins immediately
-     0ms   — height/margin-bottom set to 0 via rAF; height transition begins
-     180ms — .tx-item fully invisible
-     320ms — height reaches 0 → transitionend fires → row.remove()
-   ─────────────────────────────────────────────────────────────────────────── */
-
-/* Promote to its own compositor layer BEFORE .removing is added so there's
-   no layer-promotion stutter on the first frame of the animation.           */
-.tx-row { will-change: transform; }
-
 .tx-row.removing {
   overflow: hidden;
   pointer-events: none;
-  /* Only transition the two properties JS sets to 0.
-     margin-bottom shares the same duration so gaps close in sync.          */
   transition:
     height        0.32s cubic-bezier(0.4, 0, 0.2, 1),
     margin-bottom 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
-/* Item fade fires immediately when .removing is added (CSS transition from
-   current values → 0/translate). Shorter than height so the item disappears
-   first, then the gap closes — feels snappier than both happening together. */
 .tx-row.removing .tx-item {
   opacity: 0;
   transform: translateX(-10px) scale(0.97);

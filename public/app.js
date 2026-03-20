@@ -96,7 +96,6 @@ function hideLoader() {
   if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 300); }
 }
 
-// ── Undo snackbar engine ──────────────────────────────────────────────────────
 const _snack = {
   _el:   null,
   _msg:  null,
@@ -115,11 +114,16 @@ const _snack = {
   show(msg) {
     this._init();
     if (!this._el) return;
-    // Reset progress animation by toggling class
-    this._el.classList.remove('show');
-    void this._el.offsetWidth; // reflow to restart animation
     this._msg.textContent = msg;
-    this._el.classList.add('show');
+    if (this._el.classList.contains('show')) {
+      // Already visible — restart only the progress bar, no layout flush.
+      if (this._prog) {
+        this._prog.style.animation = 'none';
+        requestAnimationFrame(() => { this._prog.style.animation = ''; });
+      }
+    } else {
+      this._el.classList.add('show');
+    }
   },
 
   hide() {
@@ -2629,14 +2633,17 @@ function buildTxDiv(tx) {
 }
 
 function _preserveRemovingRows(el, rebuildFn) {
-  // Detach any currently-animating .removing rows before the rebuild wipes them,
-  // then re-attach so their CSS transition can finish naturally.
-  // They are already height:0 / opacity:0 / pointer-events:none — completely
-  // invisible — so position in the list doesn't matter.
-  const live = [...el.querySelectorAll('.tx-row.removing')];
-  live.forEach(r => r.remove()); // detach (preserves element + inline styles)
+  const live    = [...el.querySelectorAll('.tx-row.removing')];
+  const anchors = live.map(r => ({ row: r, next: r.nextSibling }));
+  live.forEach(r => r.remove());
   rebuildFn();
-  live.forEach(r => el.appendChild(r)); // re-attach at end (invisible, harmless)
+  anchors.forEach(({ row, next }) => {
+    if (next && next.parentNode === el) {
+      el.insertBefore(row, next);
+    } else {
+      el.appendChild(row);
+    }
+  });
 }
 
 function renderTxList() {
@@ -2817,17 +2824,10 @@ window.doConfirmDeleteTx = function(id, btn) {
   window.confirmDeleteTx(id);
 };
 
-// Collapses a single .tx-row element out of the list.
-// - Searches BOTH lists so the correct visible row is always found.
-// - vibrate() fires inside the second rAF so haptic is in sync with the visual.
-// - transitionend removes the element from the DOM so no ghost rows linger.
-// - Safe to call multiple times on the same id (idempotent via _removingIds guard).
 const _removingIds = new Set();
 function _animateRowOut(id) {
   if (_removingIds.has(id)) return;
 
-  // Search both lists — both exist in the DOM simultaneously.
-  // activeView-only targeting misses rows when the wrong tab is assumed.
   const row = (document.getElementById('txList')    || { querySelector: () => null })
                 .querySelector('[data-tx-id="' + id + '"]')
            || (document.getElementById('allTxList') || { querySelector: () => null })
@@ -2835,39 +2835,24 @@ function _animateRowOut(id) {
   if (!row) return;
 
   _removingIds.add(id);
-
-  // Lock the measured height so CSS has a concrete from-value to transition from.
-  const h = row.getBoundingClientRect().height;
-  row.style.height = h + 'px';
+  row.style.height = row.getBoundingClientRect().height + 'px';
   row.classList.add('removing');
 
-  // Double-rAF: frame 1 commits the locked height to the CSSOM,
-  // frame 2 sets the target values and starts the GPU transition.
-  // vibrate() lives here so haptic fires the instant the visual starts.
   requestAnimationFrame(() => requestAnimationFrame(() => {
     row.style.height       = '0';
     row.style.marginBottom = '0';
     vibrate();
-    // Self-remove after the longest transition (height: 0.32s).
-    // 'height' is the property we animate; listening for it avoids
-    // double-firing from the inner .tx-item opacity transition.
     row.addEventListener('transitionend', function onEnd(e) {
       if (e.propertyName !== 'height') return;
       row.removeEventListener('transitionend', onEnd);
       _removingIds.delete(id);
       row.remove();
     });
-    // Safety net: if transitionend never fires (display:none, tab hidden, etc.)
-    // clean up after 600ms so ghost rows can't accumulate.
-    setTimeout(() => {
-      _removingIds.delete(id);
-      if (row.parentNode) row.remove();
-    }, 600);
+    setTimeout(() => { _removingIds.delete(id); if (row.parentNode) row.remove(); }, 500);
   }));
 }
 
 window.confirmDeleteTx = async function(id) {
-  // If there's already an undo pending for a different tx, hard-delete it now.
   if (_undoPendingId && _undoPendingId !== id) {
     clearTimeout(_undoTimer);
     _undoTimer = null;
@@ -2877,23 +2862,19 @@ window.confirmDeleteTx = async function(id) {
     await window.deleteDoc(txDocRef(staleId)).catch(console.error);
   }
 
-  // Snapshot the tx data before we "delete" it (for undo re-add)
   const tx = transactions.find(t => t.id === id);
   _undoTxSnapshot = tx ? { ...tx } : null;
   _undoPendingId  = id;
 
-  // Kick off the collapse animation immediately.
   _animateRowOut(id);
 
-  // Show snackbar — description first, then category as fallback
   const label = (tx && (tx.description || tx.category)) || 'Transaction';
   _snack.show(`"${label}" deleted`);
 
-  // Start 4-second countdown before actual Firestore delete
   clearTimeout(_undoTimer);
   _undoTimer = setTimeout(async () => {
     _undoTimer = null;
-    if (_undoPendingId !== id) return; // already undone or superseded
+    if (_undoPendingId !== id) return;
     _undoPendingId  = null;
     _undoTxSnapshot = null;
     _snack.hide();
@@ -2901,7 +2882,6 @@ window.confirmDeleteTx = async function(id) {
   }, 4000);
 };
 
-// Called by the Undo button in the snackbar
 async function _undoDelete() {
   if (!_undoPendingId) return;
   clearTimeout(_undoTimer);
@@ -2910,8 +2890,6 @@ async function _undoDelete() {
   _undoPendingId  = null;
   _undoTxSnapshot = null;
   _snack.hide();
-  // The doc still exists in Firestore — just re-render with the filter lifted.
-  // Mark the ID so buildTxDiv / renderAllTxList can give it the restore animation.
   window._restoringTxId = id;
   renderTxList();
   if (activeView === 'transactions') renderAllTxList();
