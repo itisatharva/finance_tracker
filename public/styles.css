@@ -1,44 +1,31 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
-/* =============================================
-   FINANCE TRACKER — STYLES
-   Beige/Black theme, bulletproof dark mode
-   ============================================= */
-
-/* ---------- CSS VARIABLES ---------- */
 
 :root {
-  /* Backgrounds — cool neutral, iOS-inspired */
   --bg-page:        #F4F4F7;
   --bg-card:        #FFFFFF;
   --bg-input:       #F8F8FA;
   --bg-subtle:      #EDEDF0;
 
-  /* Text — cool grays, no warm tint */
   --text-1:         #111111;
   --text-2:         #6B6B6B;
   --text-3:         #AAAAAA;
 
-  /* Borders — very subtle, barely-there */
   --border:         #E6E6EA;
 
-  /* Brand / accent */
-  --ink:            #111111;   /* primary button bg in light */
-  --ink-fg:         #FFFFFF;   /* primary button text in light */
-  --muted:          #EDEDF0;   /* secondary button bg in light */
-  --muted-fg:       #111111;   /* secondary button text in light */
+  --ink:            #111111;
+  --ink-fg:         #FFFFFF;
+  --muted:          #EDEDF0;
+  --muted-fg:       #111111;
 
-  /* Data */
   --green:          #00C97A;
   --red:            #E84545;
   --orange:         #F59E0B;
 
-  /* Shadows — floaty, like cards lifted off the page */
   --shadow-sm: 0 2px 8px rgba(0,0,0,.07), 0 0px 1px rgba(0,0,0,.04);
   --shadow-md: 0 6px 24px rgba(0,0,0,.09), 0 1px 3px rgba(0,0,0,.05);
   --shadow-lg: 0 12px 40px rgba(0,0,0,.13), 0 2px 6px rgba(0,0,0,.06);
 
-  /* Radius */
   --r-sm:  8px;
   --r-md:  12px;
   --r-lg:  16px;
@@ -47,38 +34,31 @@
 }
 
 [data-theme="dark"] {
-  /* Backgrounds — pure black base, dark elevated cards */
   --bg-page:        #0C0C0C;
   --bg-card:        #181818;
   --bg-input:       #212121;
   --bg-subtle:      #1C1C1C;
 
-  /* Text — pure white primary, cool grays */
   --text-1:         #FFFFFF;
   --text-2:         #999999;
   --text-3:         #505050;
 
-  /* Borders — very subtle, barely-there */
   --border:         #262626;
 
-  /* Brand / accent */
   --ink:            #FFFFFF;
   --ink-fg:         #0C0C0C;
   --muted:          #212121;
   --muted-fg:       #FFFFFF;
 
-  /* Data — brighter green to pop on pure black */
   --green:          #00C97A;
   --red:            #E84545;
   --orange:         #E87A0F;
 
-  /* Shadows — deeper for pure black bg */
   --shadow-sm: 0 1px 6px rgba(0,0,0,.5);
   --shadow-md: 0 4px 20px rgba(0,0,0,.65);
   --shadow-lg: 0 8px 40px rgba(0,0,0,.85);
 }
 
-/* ---------- RESET ---------- */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -90,12 +70,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Import DM Sans */
 
-/* ---------- UTILITY ---------- */
 .hidden { display: none !important; }
 
-/* ---------- SETTINGS BUTTON ---------- */
 
 .btn-settings {
   position: fixed;
@@ -118,7 +95,6 @@ body {
 .btn-settings:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .btn-settings svg { width: 18px; height: 18px; stroke: var(--text-1); fill: none; }
 
-/* ---------- SETTINGS PROFILE HEADER ---------- */
 
 .settings-profile-head {
   display: flex;
@@ -157,7 +133,6 @@ body {
 }
 .profile-name-row input { flex: 1; }
 
-/* ---------- SETTINGS DRAWER ---------- */
 
 .settings-backdrop {
   position: fixed; inset: 0;
@@ -251,7 +226,6 @@ body {
 .settings-row.danger:hover { background: var(--red); color: #fff; }
 .settings-row .row-icon { color: var(--text-3); font-size: 14px; }
 
-/* ---------- MAIN CONTAINER ---------- */
 
 .container {
   max-width: 960px;
@@ -260,7 +234,6 @@ body {
   will-change: opacity;
 }
 
-/* ---------- NAVIGATION ---------- */
 
 .nav {
   display: flex;
@@ -293,13 +266,12 @@ body {
   letter-spacing: 0;
 }
 
-/* ---------- PAGE HEADERS ---------- */
 
 .view-header { margin-bottom: 28px; }
 .view-header h1 { font-size: 1.75rem; font-weight: 700; color: var(--text-1); letter-spacing: -.02em; }
 .view-header p  { font-size: .9rem; color: var(--text-3); margin-top: 2px; }
 
-/* ── Dashboard compact greeting bar ─────────────────────────────────────────── */
+
 .dash-greeting-bar {
   display: flex;
   align-items: center;
@@ -353,7 +325,7 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Account name pill beside greeting name */
+
 .acct-greeting-pill {
   display: inline-flex;
   align-items: center;
@@ -373,7 +345,6 @@ body {
   transition: opacity .3s ease;
 }
 
-/* ---------- STAT CARDS ---------- */
 
 .stats-row {
   display: grid;
@@ -399,7 +370,7 @@ body {
   transform: translateY(-2px);
 }
 
-/* Clickable stat cards (income, expense, pending) get a tap-highlight ring */
+
 .stat-card[role="button"]:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-3px);
@@ -409,7 +380,7 @@ body {
 .stat-card.pending[role="button"]:hover { box-shadow: 0 6px 24px rgba(245,158,11,.18), var(--shadow-md); }
 .stat-card[role="button"]:active { transform: translateY(0) scale(.98); transition: transform .08s; }
 
-/* Cards with sparklines: remove bottom padding so SVG sits flush */
+
 .stat-card.has-spark {
   padding-bottom: 0;
   display: flex;
@@ -426,7 +397,7 @@ body {
 .stat-card.expense .val { color: var(--red); }
 .stat-card.pending .val { color: var(--orange); }
 
-/* Highest pending item sub-line */
+
 .pending-top-item {
   display: flex;
   align-items: center;
@@ -462,7 +433,7 @@ body {
   text-align: right;
 }
 
-/* ── Stat card sparklines ──────────────────────────────────────────────────── */
+
 .stat-sparkline {
   display: block;
   width: 100%;
@@ -475,7 +446,6 @@ body {
   opacity: 1;
 }
 
-/* ---------- SECTION CARD ---------- */
 
 .card {
   background: var(--bg-card);
@@ -493,7 +463,6 @@ body {
   letter-spacing: -.01em;
 }
 
-/* ---------- FORM ELEMENTS ---------- */
 
 .form-grid {
   display: grid;
@@ -562,7 +531,6 @@ input[type="color"] {
   cursor: pointer;
 }
 
-/* ---------- BUTTONS ---------- */
 
 .btn {
   font-family: inherit;
@@ -591,7 +559,7 @@ input[type="color"] {
 
 .btn.w-full { width: 100%; }
 
-/* Spinner inside button */
+
 .btn-spinner {
   width: 15px; height: 15px;
   border: 2px solid transparent;
@@ -602,7 +570,6 @@ input[type="color"] {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ---------- TRANSACTION LIST ---------- */
 
 /* contain:layout scopes reflow to just this list — collapsing rows no longer */
 /* trigger full-page layout recalculations, critical for rapid-delete perf.   */
@@ -639,8 +606,7 @@ input[type="color"] {
 .tx-meta .tx-date { font-size: .75rem; color: var(--text-3); margin-top: 2px; }
 
 
-/* ── Transaction pending-sync pill ─────────────────────────────────────────── */
-/* Sits inline beside .tx-badge — GPU-only opacity+transform, never layout props */
+/* Inline beside .tx-badge — GPU-only opacity+transform, no layout props */
 .tx-queue-wrap {
   display: inline-flex;
   align-items: center;
@@ -688,7 +654,7 @@ input[type="color"] {
   background: rgba(15,169,116,.1);
   border: 1px solid rgba(15,169,116,.3);
 }
-/* Dark mode: brighter text so it pops on dark backgrounds */
+
 [data-theme="dark"] .tx-queue-pill.tqp-queued {
   color: #fbbf24;
   background: rgba(245,158,11,.18);
@@ -737,7 +703,6 @@ input[type="color"] {
 .btn-sm:hover { border-color: var(--ink); color: var(--text-1); background: var(--bg-subtle); }
 .btn-sm.del:hover { border-color: var(--red); color: var(--red); background: transparent; }
 
-/* ---------- PENDING ---------- */
 
 .pending-form {
   display: grid;
@@ -746,7 +711,7 @@ input[type="color"] {
   margin-bottom: 16px;
 }
 
-/* Pending card header row: title left, + button right */
+
 .pending-card-head {
   display: flex;
   align-items: center;
@@ -791,7 +756,7 @@ input[type="color"] {
   border-radius: var(--r-md);
 }
 
-/* ── Pending stat card — mobile "add pending" subtle link ─────────────────── */
+
 .pending-stat-add {
   font-size: .7rem;
   font-weight: 600;
@@ -853,7 +818,7 @@ input[type="color"] {
 .pending-item .p-name  { flex: 1; font-weight: 600; font-size: .9rem; color: var(--text-1); }
 .pending-item .p-amount { font-weight: 700; color: var(--orange); font-size: .95rem; white-space: nowrap; }
 
-/* ── Top Spending Card ─────────────────────────────────────────────────────── */
+
 .top-spending-card { display: none; } /* mobile: hidden */
 
 .top-spending-head {
@@ -924,8 +889,6 @@ input[type="color"] {
 }
 
 
-/* ---------- ANALYTICS ---------- */
-
 .period-tabs { display: flex; gap: 8px; width: fit-content; margin-bottom: 28px; }
 
 .period-tab {
@@ -956,7 +919,7 @@ input[type="color"] {
 .date-row label { font-size: .8rem; font-weight: 600; color: var(--text-3); white-space: nowrap; }
 .date-row input  { max-width: 210px; margin: 0; }
 
-/* Comparison card */
+
 .cmp-card {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
@@ -991,7 +954,7 @@ input[type="color"] {
 .cmp-result.pos { background: rgba(15,169,116,.1); color: var(--green); }
 .cmp-result.neg { background: rgba(232,69,69,.1);  color: var(--red); }
 
-/* Chart */
+
 .chart-wrap {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
@@ -1006,7 +969,7 @@ input[type="color"] {
 }
 .chart-wrap canvas { max-height: 320px; }
 
-/* Monthly breakdown */
+
 .breakdown-list { display: flex; flex-direction: column; gap: 8px; }
 .breakdown-item {
   display: flex;
@@ -1050,7 +1013,7 @@ input[type="color"] {
 }
 .b-progress-label { font-size: .75rem; font-weight: 500; }
 
-/* Yearly table */
+
 .yearly-wrap {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
@@ -1118,7 +1081,6 @@ input[type="color"] {
   border-right: none;
 }
 
-/* ---------- CATEGORY MODAL ITEMS ---------- */
 
 .cat-item {
   display: flex;
@@ -1139,6 +1101,13 @@ input[type="color"] {
 .cat-item .btn-sm.del {
   flex-shrink: 0;
   margin-left: auto;
+}
+.cat-item .tx-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .cat-info {
   display: flex;
@@ -1164,7 +1133,7 @@ input[type="color"] {
   color: var(--text-2);
 }
 
-/* Circle color picker — clicking the circle opens native color picker */
+
 .cat-color-wrap {
   position: relative;
   width: 28px;
@@ -1210,7 +1179,7 @@ input[type="color"] {
 .add-cat-row .cat-add-palette { flex-shrink: 0; }
 .add-cat-row .btn { flex-shrink: 0; }
 
-/* New cat color picker circle */
+
 .add-cat-color-wrap {
   position: relative;
   width: 42px;
@@ -1239,7 +1208,7 @@ input[type="color"] {
 }
 .add-cat-color-wrap:hover .add-cat-color-swatch { transform: scale(1.1); }
 
-/* ---------- DRAG HANDLE (mobile bottom sheets only) ---------- */
+
 @media (max-width: 599px) {
   .drag-handle {
     width: 36px;
@@ -1254,7 +1223,7 @@ input[type="color"] {
   }
 }
 
-/* ---------- IMPORT PANEL (mirrors txd-backdrop pattern exactly) ---------- */
+
 .import-backdrop {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0);
@@ -1370,7 +1339,7 @@ input[type="color"] {
   padding: 14px 20px 18px;
   border-top: 1.5px solid var(--border);
 }
-/* ---------- GENERIC MODAL BACKDROP ---------- */
+
 .modal-backdrop {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0);
@@ -1457,7 +1426,6 @@ input[type="color"] {
 }
 .section-label:first-child { margin-top: 0; }
 
-/* ---------- EMPTY STATE ---------- */
 
 .empty {
   text-align: center;
@@ -1466,7 +1434,6 @@ input[type="color"] {
   font-size: .9rem;
 }
 
-/* ---------- AUTH PAGE ---------- */
 
 .auth-page {
   min-height: 100vh;
@@ -1517,7 +1484,6 @@ input[type="color"] {
 }
 .auth-err.show { display: block; }
 
-/* ---------- PAGE LOADER ---------- */
 
 .page-loader {
   position: fixed; inset: 0;
@@ -1536,13 +1502,11 @@ input[type="color"] {
   animation: spin .8s linear infinite;
 }
 
-/* ---------- SELECT ANIMATION ---------- */
 
 select { transition: border-color .15s, box-shadow .15s, background .2s; }
 select:focus option { animation: fadeIn .1s ease; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* ---------- GOOGLE SIGN-IN BUTTON ---------- */
 
 .btn-google {
   width: 100%;
@@ -1584,14 +1548,13 @@ select:focus option { animation: fadeIn .1s ease; }
   background: var(--border);
 }
 
-/* ---------- DESKTOP GRID LAYOUT (≥ 1024px) ---------- */
 
 @media (min-width: 1024px) {
   .container { max-width: 1280px; padding: 32px 40px 60px 84px; }
   /* At 1024px+ container padding-top is 32px, greeting bar 44px + margin-bottom 24px = 100px → cards start here. */
   .sidebar { top: 100px; }
 
-  /* ── Dashboard ── */
+
   .dash-main {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1601,11 +1564,11 @@ select:focus option { animation: fadeIn .1s ease; }
   .dash-left  { display: flex; flex-direction: column; gap: 20px; }
   .dash-right { display: flex; flex-direction: column; gap: 20px; }
   .top-spending-card { display: block; }
-  /* Remove bottom margin from cards inside grid */
+
   .dash-left  .card,
   .dash-right .card { margin-bottom: 0; }
 
-  /* ── Analytics ── */
+
   .analytics-main {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1623,7 +1586,7 @@ select:focus option { animation: fadeIn .1s ease; }
   .analytics-left  .date-row,
   .analytics-right .date-row { margin-bottom: 0; }
 
-  /* Period tabs + date row side by side */
+
   .analytics-top {
     display: flex;
     align-items: center;
@@ -1634,11 +1597,10 @@ select:focus option { animation: fadeIn .1s ease; }
   .analytics-top .period-tabs { margin-bottom: 0; }
   .analytics-top .date-row    { flex: 1; margin-bottom: 0; min-width: 200px; }
 
-  /* Yearly gets its own full-width card — no 2-col needed */
+
   .yearly-full { grid-column: 1 / -1; }
 }
 
-/* ---------- RESPONSIVE ---------- */
 
 @media (max-width: 640px) {
   .container { padding: 20px 16px 60px; }
@@ -1688,18 +1650,12 @@ select:focus option { animation: fadeIn .1s ease; }
   .nav-tab { padding: 9px 18px; font-size: .85rem; }
 }
 
-/* =============================================
-   ADDITIONS — Auth cards, Monthly summary,
-   Cash Flow table, spinner removal
-   ============================================= */
 
-/* ---------- HIDE NUMBER SPINNERS ---------- */
 /* Removes the up/down arrows on number/text-number inputs */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
-/* ---------- AUTH WRAP & CARDS ---------- */
 
 .auth-wrap {
   min-height: 100vh;
@@ -1713,7 +1669,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   perspective: 1400px;
 }
 
-/* Soft background pattern */
+
 .auth-wrap::before {
   content: '';
   position: fixed;
@@ -1845,7 +1801,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:var(--border); }
 
-/* ── Forgot password link ──────────────────────────────────────────────────── */
+
 .auth-forgot-link {
   font-size: .8rem;
   color: var(--text-3);
@@ -1856,7 +1812,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .auth-forgot-link:hover { color: var(--text-1); text-decoration: underline; }
 
-/* ── Forgot password success state ────────────────────────────────────────── */
+
 .forgot-success-icon {
   width: 52px; height: 52px;
   border-radius: 50%;
@@ -1890,7 +1846,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .forgot-success-hint a:hover { text-decoration: underline; }
 
-/* ── Password input with show/hide toggle ─────────────────────────────────── */
+
 .pwd-input-wrap {
   position: relative;
   display: flex;
@@ -1924,7 +1880,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   display: block;
 }
 
-/* ── Password strength meter ──────────────────────────────────────────────── */
+
 .pwd-strength-wrap {
   display: flex;
   align-items: center;
@@ -1953,7 +1909,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   transition: color .3s;
 }
 
-/* ── Change password modal — success state ────────────────────────────────── */
+
 .cp-success-icon {
   width: 56px; height: 56px;
   border-radius: 50%;
@@ -1966,7 +1922,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border: 2px solid rgba(15,169,116,.25);
 }
 
-/* ---------- MONTHLY SUMMARY ---------- */
 
 .monthly-summary {
   display: flex;
@@ -1986,7 +1941,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .ms-expense .ms-val { color: var(--red); }
 .ms-arrow { font-size: 1.5rem; color: var(--text-3); flex-shrink: 0; }
 
-/* ---------- CASH FLOW TABLE COLOURS ---------- */
 
 .cf-tbl .cf-income  { color: var(--green) !important; font-weight: 600; }
 .cf-tbl .cf-expense { color: var(--red)   !important; font-weight: 600; }
@@ -1996,16 +1950,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .cf-tbl thead .cf-income  { color: var(--green) !important; }
 .cf-tbl thead .cf-expense { color: var(--red)   !important; }
 
-/* ---------- SETTINGS FIELD ---------- */
+
 .settings-field { padding: 4px 0; }
 
-/* Remove mobile tap highlight */
+
 * {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
 }
 
-/* Period header row */
+
 .period-header-row {
   display: flex;
   align-items: center;
@@ -2013,7 +1967,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   margin-bottom: 16px;
 }
 
-/* Type toggle buttons */
+
 .type-toggle-group {
   display: flex;
   gap: 6px;
@@ -2044,7 +1998,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--text-1);
 }
 
-/* Monthly daily line chart */
+
 .monthly-line-wrap {
   min-height: 260px !important;
   padding: 16px 8px 8px 8px;
@@ -2054,7 +2008,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--text-3);
 }
 
-/* Monthly cards side-by-side */
+
 .monthly-cards-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2062,7 +2016,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   margin-bottom: 20px;
 }
 
-/* Loading spinner — generic fallback (used outside stat cards) */
+
 .loading-spinner {
   display: inline-block;
   width: 16px;
@@ -2077,11 +2031,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   to { transform: rotate(360deg); }
 }
 
-/* ── Stat card skeleton: override spinner inside .val to be a shimmer bar ── */
-/* This means the stat cards show a shimmer placeholder (matching tx-skel)  */
-/* rather than a tiny spinner while data loads.                              */
+/* Stat card skeleton: overrides .val spinner to a shimmer bar while data loads */
 .stat-card .val .loading-spinner {
-  /* Cancel spinner appearance */
+
   display: block;
   width: 110px;
   height: 28px;
@@ -2092,7 +2044,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   animation: skel-shimmer 1.4s ease-in-out infinite;
   margin: 4px 0 2px;
 }
-/* Pending card value is a bit smaller */
+
 .stat-card.pending .val .loading-spinner {
   width: 80px;
   height: 24px;
@@ -2104,9 +2056,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* balance card has no extra class — use nth-of-type via sibling trick */
 .stats-row .stat-card:nth-child(3) .val .loading-spinner { animation-delay: .08s; }
 
-/* Mobile responsive */
+
 @media (max-width: 768px) {
-  
+
   .monthly-cards-row {
     grid-template-columns: 1fr;
   }
@@ -2118,11 +2070,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     align-items: flex-start;
     gap: 10px;
   }
-  
+
   .type-toggle-group {
     width: 100%;
   }
-  
+
   .type-toggle-btn {
     flex: 1;
     padding: 8px 12px;
@@ -2130,9 +2082,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
-/* ========== TRANSACTION ANIMATIONS ========== */
 
-/* Transaction search bar */
 .tx-search-bar {
   display: flex;
   gap: 10px;
@@ -2172,7 +2122,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
-/* Transaction date range bar */
+
 .tx-date-bar {
   display: flex;
   align-items: center;
@@ -2247,7 +2197,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .tx-date-field { flex: 1 1 100%; }
 }
 
-/* Slide-in animation for newly added transactions */
+
 @keyframes txSlideIn {
   from {
     opacity: 0;
@@ -2263,7 +2213,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   animation: txSlideIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* ── Delete collapse animation ─────────────────────────────────────────────────
+/* Delete collapse animation —
    Two-layer approach:
    · .tx-row.removing       — collapses height + margin (layout, scoped by contain:layout)
    · .tx-row.removing .tx-item — GPU-only fade+slide, zero layout cost
@@ -2297,7 +2247,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   transition: opacity 0.15s ease, transform 0.18s ease;
 }
 
-/* Restore animation for undone transactions */
+
 @keyframes txRestoreIn {
   from {
     opacity: 0;
@@ -2313,15 +2263,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 
-/* Inline delete confirm row */
-/* ── tx-actions two-state: normal ↔ confirm ───────────── */
 /* JS controls display via inline style — CSS is just for animation + layout */
 .txa-normal {
   display: flex;
   gap: 6px;
   align-items: center;
 }
-/* Confirm row: always hidden by default via inline style="display:none" on element */
+
 .txa-confirm {
   display: none;          /* JS overrides to flex */
   width: 100%;
@@ -2371,7 +2319,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   margin: 0;
 }
 
-/* Description suggestions dropdown */
+
 .desc-suggestions {
   position: absolute;
   top: calc(100% + 4px);
@@ -2400,9 +2348,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-top: 1px solid var(--border);
 }
 
-/* .tx-row.removing handles delete animation — see rule above near .tx-adding */
 
-/* ── Transaction skeleton loader ─────────────────────────────────────────── */
 @keyframes skel-shimmer {
   0%   { background-position: -400px 0; }
   100% { background-position:  400px 0; }
@@ -2449,7 +2395,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   flex-shrink: 0;
 }
 
-/* ── Undo snackbar ────────────────────────────────────────────────────────── */
+
 .undo-snackbar {
   position: fixed;
   bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 12px);
@@ -2477,7 +2423,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   transform: translateX(-50%) translateY(0);
   pointer-events: all;
 }
-/* On desktop (no bottom nav), sit closer to bottom edge */
+
 @media (min-width: 600px) {
   .undo-snackbar {
     bottom: 24px;
@@ -2525,8 +2471,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   to   { transform: scaleX(0); }
 }
 
-/* ── Sign-out confirmation toast ───────────────────────────────────────────── */
-/* ── Sign-out confirmation modal ───────────────────────────────────────────── */
+
 .signout-backdrop {
   position: fixed;
   inset: 0;
@@ -2544,7 +2489,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 .signout-toast {
-  /* override undo-snackbar positioning — centered modal */
+
   position: fixed;
   top: 50%;
   left: 50%;
@@ -2553,16 +2498,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   opacity: 0;
   pointer-events: none;
   z-index: 1301;
-  /* layout */
+
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  /* sizing */
+
   min-width: 280px;
   max-width: calc(100vw - 48px);
   width: max-content;
-  /* style */
+
   background: var(--bg-card);
   border: 1.5px solid var(--border);
   border-radius: 20px;
@@ -2609,7 +2554,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   background: #d03030;
 }
 
-/* ── Monthly Spending Insights ─────────────────────────────────────────────── */
+
 .insights-header {
   display: flex;
   align-items: center;
@@ -2669,7 +2614,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 @media (max-width: 600px) {
   .insights-grid { grid-template-columns: 1fr; }
 }
-/* ── Transaction Detail Panel ──────────────────────────────────────────────── */
+
 .txd-backdrop {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0);
@@ -2770,7 +2715,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--red) !important;
   border-color: var(--red) !important;
 }
-/* Desktop: center as modal instead of bottom sheet */
+
 @media (min-width: 600px) {
   .txd-backdrop { align-items: center; }
   .txd-panel {
@@ -2782,7 +2727,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .txd-backdrop.open .txd-panel { transform: scale(1) translateY(0); }
 }
 
-/* Mobile: lift panel content above the bottom navbar */
+
 @media (max-width: 599px) {
   .txd-panel {
     padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
@@ -2790,13 +2735,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     overflow-y: auto;
   }
 }
-/* =============================================
-   MOBILE BOTTOM NAV BAR
-   Frosted glass, icon+label tabs, active pill
-   ============================================= */
 
-/* Hide on desktop — only show bottom nav on mobile */
-/* ── Desktop Sidebar ────────────────────────────────────────────────────────── */
+
 .sidebar {
   display: none;
 }
@@ -2925,19 +2865,19 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   body.sidebar-expanded .container { padding-left: calc(var(--sidebar-open-w, 176px) + 32px); /* 16 + width + 16 */ }
 }
 
-/* ── Bottom nav (mobile only) ───────────────────────────────────────────────── */
+
 .bottom-nav { display: none; }
 
 @media (max-width: 768px) {
 
-  /* ── Hide the old top nav and floating settings button ── */
+
   .nav        { display: none !important; }
   .btn-settings { display: none !important; }
 
-  /* ── Breathing room so content doesn't hide under the bar ── */
+
   .container { padding-bottom: 96px; }
 
-  /* ── The bar itself ── */
+
   .bottom-nav {
     display: flex;
     position: fixed;
@@ -2964,10 +2904,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
       0 2px 8px  rgba(0, 0, 0, 0.40);
   }
 
-  /* ── Settings drawer → bottom sheet on mobile ── */
 
   .settings-drawer {
-    /* Reset desktop side-drawer positioning */
+
     top: auto;
     right: 0;
     left: 0;
@@ -2975,17 +2914,17 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     width: 100%;
     max-width: 100%;
 
-    /* Match navbar look: same pill radius on top corners, flat on bottom */
+
     border-radius: 28px 28px 0 0;
     border-left: none;
     border-top: 1.5px solid var(--border);
 
-    /* Slide up from bottom instead of in from side */
+
     transform: translateY(100%);
     transition: transform .42s cubic-bezier(0.22, 1, 0.36, 1);
     will-change: transform;
 
-    /* Leave space so Sign Out is never under the navbar */
+
     padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
     max-height: 92dvh;
   }
@@ -2994,23 +2933,23 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     transform: translateY(0);
   }
 
-  /* Tighten top bar padding on mobile — drag pill sits above it */
+
   .settings-drawer .settings-top {
     padding: 10px 20px;
   }
 
-  /* Hide × button on mobile — drag-to-dismiss replaces it */
+
   .settings-drawer .btn-close-settings {
     display: none;
   }
 
-  /* Compact body padding on mobile */
+
   .settings-drawer .settings-body {
     padding: 20px 20px 8px;
     gap: 22px;
   }
 
-  /* ── Each tab button ── */
+
   .bn-tab {
     width: 68px;
     flex-shrink: 0;
@@ -3030,7 +2969,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     min-width: 0;
   }
 
-  /* ── Icon wrapper — the pill that highlights when active ── */
+
   .bn-icon {
     width: 44px;
     height: 34px;
@@ -3052,7 +2991,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     display: block;
   }
 
-  /* ── Label ── */
+
   .bn-label {
     font-size: 10px;
     font-weight: 600;
@@ -3063,7 +3002,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     white-space: nowrap;
   }
 
-  /* ── Active state — subtle tint, not solid ink pill ── */
+
   .bn-tab.active .bn-icon {
     background: rgba(28, 28, 28, 0.09);
     box-shadow: none;
@@ -3085,12 +3024,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     font-weight: 700;
   }
 
-  /* ── Tap press effect ── */
+
   .bn-tab:active .bn-icon {
     transform: scale(.88);
   }
 
-  /* ── FAB: Add Transaction ── */
+
   .bn-fab {
     width: 50px;
     height: 50px;
@@ -3125,7 +3064,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     transform: scale(.88);
     box-shadow: 0 2px 8px rgba(0,0,0,.22);
   }
-  /* Rotate + to × when sheet is open */
+
   .bn-fab.open {
     background: #111;
     transform: rotate(45deg);
@@ -3140,24 +3079,23 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     transform: rotate(45deg) scale(.88);
   }
 
-  /* Hide the desktop trigger card on mobile */
+
   .add-tx-desktop-card {
     display: none !important;
   }
 
-  /* On mobile: hide pending-card when JS has ≤1 items (controlled by .pending-card-mobile-hidden) */
+
   .pending-card-mobile-hidden {
     display: none !important;
   }
 
-  /* Show the subtle "add pending" link inside the stat card on mobile */
+
   .pending-stat-add {
     display: block;
   }
 
 } /* end @media max-width 768px */
 
-/* ─── Add Transaction Sheet ───────────────────────────────────────────────── */
 
 /*
  * Backdrop: opacity-only transition — never animate backdrop-filter,
@@ -3252,7 +3190,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .addtx-title { font-size: 1rem; font-weight: 700; color: var(--text-1); }
 .addtx-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 12px; }
 
-/* ─── Desktop-only Add Transaction trigger card ───────────────────────────── */
+
 .add-tx-desktop-card {
   cursor: default;
 }
@@ -3287,7 +3225,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .add-tx-desktop-icon svg { stroke: var(--ink-fg); }
 
-/* Quick category pills */
+
 .quick-cats {
   display: flex;
   align-items: center;
@@ -3323,11 +3261,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-radius: 50%;
   flex-shrink: 0;
 }
-/* ═══════════════════════════════════════════════════════════════════
-   MULTI-ACCOUNT SYSTEM STYLES
-   ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Sidebar account badge ─────────────────────────────────────── */
+
 .sidebar-account-wrap {
   display: flex;
   align-items: center;
@@ -3379,7 +3314,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .sidebar-account-change:hover { border-color: var(--text-2); color: var(--text-1); }
 
-/* ── Settings drawer active account display ─────────────────────── */
+
 .settings-active-account {
   display: flex;
   align-items: center;
@@ -3397,7 +3332,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   flex: 1;
 }
 
-/* ── Account Switcher Panel (bottom sheet on mobile, modal on desktop) */
+
 .acct-switcher-backdrop {
   position: fixed;
   inset: 0;
@@ -3495,7 +3430,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-top: 1.5px solid var(--border);
 }
 
-/* On desktop, show the switcher as a centered dialog — identical to txd-panel */
+
 @media (min-width: 600px) {
   .acct-switcher-backdrop {
     align-items: center;
@@ -3511,14 +3446,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 }
 
-/* ── First-account setup modal — always centered ─────────────────── */
+
 #firstAccountModal.open,
 #newAccountModal.open,
 #renameAccountModal.open {
   display: flex !important;
 }
 
-/* ── Sheet NLP input ──────────────────────────────────────────────────────── */
+
 .sheet-nlp-wrap {
   margin-bottom: 4px;
 }
@@ -3568,7 +3503,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   min-width: 0;
   width: auto;
 }
-/* Prevent global input:focus from adding border/shadow inside the row */
+
 .sheet-nlp-input:focus {
   border: none !important;
   outline: none !important;
@@ -3622,11 +3557,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   background: var(--border);
 }
 
-/* ── Confirm mode: hide AI input section when NLP has pre-filled the form ── */
+
 .addtx-panel.confirm-mode .sheet-nlp-wrap,
 .addtx-panel.confirm-mode .sheet-nlp-divider { display: none; }
 
-/* ── Sheet NLP inline status + preview ────────────────────────────────────── */
+
 .sheet-nlp-status {
   font-size: .8rem;
   font-weight: 500;
@@ -3645,13 +3580,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .sheet-nlp-preview-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 
-/* ── Sheet NLP status & success ──────────────────────────────────────────── */
 .sheet-nlp-success .sheet-nlp-row {
   border-color: var(--green) !important;
   box-shadow: 0 0 0 3px rgba(15,169,116,.22), 0 0 18px rgba(15,169,116,.14) !important;
 }
 
-/* ── Form fill flash ─────────────────────────────────────────────────────── */
+
 @keyframes nlpFillPulse {
   0%   { box-shadow: 0 0 0 0 rgba(15,169,116,.4); }
   70%  { box-shadow: 0 0 0 8px rgba(15,169,116,0); }
@@ -3659,13 +3593,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .nlp-filled { animation: nlpFillPulse .75s ease forwards; border-radius: var(--r-md); }
 
-/* ══════════════════════════════════════════════════════════════════════════════
-   ── NLP Category Suggestion Modal ──────────────────────────────────────────
-   Shown when NLP detects a category that isn't in the user's list.
-   Injected into <body> once by app.js; toggled via opacity + display.
-   ══════════════════════════════════════════════════════════════════════════════ */
 
-/* Backdrop */
 #catSuggestionModal {
   position: fixed;
   inset: 0;
@@ -3681,7 +3609,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   transition: opacity .18s ease;
 }
 
-/* Card */
+
 .cat-suggest-card {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
@@ -3695,12 +3623,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   transition: transform .2s cubic-bezier(.34,1.28,.64,1);
 }
 
-/* When modal is shown, card slides up */
+
 #catSuggestionModal[style*="flex"] .cat-suggest-card {
   transform: translateY(0);
 }
 
-/* ── Header icon circle ─────────────────────────────────────────────────── */
+
 .cat-suggest-icon-circle {
   width: 48px;
   height: 48px;
@@ -3715,7 +3643,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   color: #E84545;
 }
 
-/* Pulsing ring on the icon — draws attention without being obnoxious */
+
 @keyframes cat-suggest-ring {
   0%   { box-shadow: 0 0 0 0 rgba(232, 69, 69, .35); }
   70%  { box-shadow: 0 0 0 8px rgba(232, 69, 69, 0); }
@@ -3723,7 +3651,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .cat-suggest-icon-circle { animation: cat-suggest-ring 1.6s ease 0.2s; }
 
-/* ── Title & subtitle ───────────────────────────────────────────────────── */
+
 .cat-suggest-title {
   font-size: 1.1rem;
   font-weight: 700;
@@ -3739,7 +3667,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   margin: 0 auto;
 }
 
-/* ── Field label shared style ──────────────────────────────────────────── */
+
 .cat-suggest-label {
   font-size: .75rem;
   font-weight: 700;
@@ -3756,7 +3684,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   letter-spacing: 0;
 }
 
-/* ── Name input ─────────────────────────────────────────────────────────── */
+
 #catSuggestName {
   width: 100%;
   box-sizing: border-box;
@@ -3772,7 +3700,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   box-shadow: 0 0 0 3px rgba(232, 69, 69, .18) !important;
 }
 
-/* ── Type toggle row ────────────────────────────────────────────────────── */
+
 .cat-suggest-type-row {
   display: flex;
   gap: 8px;
@@ -3783,13 +3711,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   padding: 10px 16px;
 }
 
-/* ── Budget input ───────────────────────────────────────────────────────── */
+
 #catSuggestBudget {
   width: 100%;
   box-sizing: border-box;
 }
 
-/* ── Footer actions ─────────────────────────────────────────────────────── */
+
 .cat-suggest-actions {
   display: flex;
   gap: 10px;
@@ -3799,7 +3727,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   flex: 1;
 }
 
-/* ── Fallback hint below actions ────────────────────────────────────────── */
+
 .cat-suggest-fallback {
   text-align: center;
   margin-top: 11px;
@@ -3812,20 +3740,20 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   font-weight: 600;
 }
 
-/* ── Section spacing within card ────────────────────────────────────────── */
+
 .cat-suggest-field {
   margin-bottom: 16px;
 }
 .cat-suggest-field:last-of-type { margin-bottom: 0; }
 
-/* ── Divider ────────────────────────────────────────────────────────────── */
+
 .cat-suggest-divider {
   height: 1px;
   background: var(--border);
   margin: 18px 0 20px;
 }
 
-/* ── Dark mode tweaks ───────────────────────────────────────────────────── */
+
 [data-theme="dark"] #catSuggestionModal {
   background: rgba(0, 0, 0, .68);
 }
@@ -3833,7 +3761,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   box-shadow: 0 0 0 3px rgba(255,255,255,.08);
 }
 
-/* ── Mobile ─────────────────────────────────────────────────────────────── */
+
 @media (max-width: 480px) {
   .cat-suggest-card {
     padding: 26px 20px 22px;
@@ -3842,20 +3770,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .cat-suggest-title { font-size: 1rem; }
 }
 
-/* ══════════════════════════════════════════════════════════════════════════════
-   ── Inline Color Palette System
-   Used in: Manage Categories modal, Category Setup page
-   ══════════════════════════════════════════════════════════════════════════════ */
 
-/* ── The swatch circle button on each existing cat-item ─────────────────── */
-/* ── Compact colour-picker button ──────────────────────────────────────────── */
 .color-pick-wrap {
   position: relative;
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
 }
-/* Circle button — height matches a standard input field (~36px) */
+
 .color-pick-btn {
   display: inline-flex;
   align-items: center;
@@ -3882,7 +3804,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 [data-theme="dark"] .color-pick-btn.open {
   box-shadow: 0 0 0 3px rgba(255,255,255,.08);
 }
-/* Dot fills most of the circle button */
+
 .color-pick-dot {
   width: 24px;
   height: 24px;
@@ -3894,10 +3816,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   transition: transform .13s;
 }
 .color-pick-btn:hover .color-pick-dot { transform: scale(1.08); }
-/* Hide chevron — not needed on circle button */
+
 .color-pick-chevron { display: none; }
 
-/* ── Floating colour popover ────────────────────────────────────────────────── */
+
 .color-pick-popover {
   position: fixed;
   z-index: 10200;
@@ -3923,7 +3845,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-top: 1px solid var(--border);
 }
 
-/* cat-item keeps wrap for tight screens but no inline panel needed */
+
 .cat-item { flex-wrap: wrap; align-items: center; }
 
 .cat-color-panel-row-label {
@@ -3942,7 +3864,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   margin-bottom: 10px;
 }
 
-/* Individual dot — used in both panel and add-new strip */
+
 .cat-palette-dot {
   width: 20px;
   height: 20px;
@@ -3966,7 +3888,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px #ffffff;
 }
 
-/* ── Footer: hex row + done button ──────────────────────────────────────── */
+
 .cat-color-panel-footer {
   display: flex;
   flex-direction: column;
@@ -3976,14 +3898,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   display: flex;
   align-items: center;
   gap: 6px;
-  /* prevent overflow — hex input flexes to fill remaining space */
+
 }
 .color-pick-hex-row .cat-color-hex-input {
   flex: 1 1 0;
   width: 0;
   min-width: 0;
 }
-/* Small colour preview circle beside the hex input */
+
 .color-pick-hex-preview {
   width: 22px;
   height: 22px;
@@ -3994,7 +3916,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border: 1.5px solid rgba(0,0,0,.15);
   box-shadow: 0 1px 3px rgba(0,0,0,.2);
 }
-/* Done button row */
+
 .color-pick-done-row {
   display: flex;
   justify-content: flex-end;
@@ -4039,7 +3961,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-color: var(--red);
 }
 
-/* Dropper / colour-wheel icon button */
+
 .cat-color-native-wrap {
   position: relative;
   width: 32px;
@@ -4070,7 +3992,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   padding: 0;
   border: none;
 }
-/* The dropper SVG icon — pointer-events:none so clicks pass through to the input */
+
 .cat-color-native-icon {
   width: 15px;
   height: 15px;
@@ -4081,13 +4003,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   fill: currentColor;
 }
 
-/* ── Add-new colour button mount ─────────────────────────────────────────── */
+
 .cat-add-palette {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
 }
-/* ── Mobile ─────────────────────────────────────────────────────────────── */
+
 @media (max-width: 480px) {
   .cat-palette-dot { width: 20px; height: 20px; }
   .cat-color-hex-input { font-size: .78rem; width: 80px; flex: 0 0 80px; }
