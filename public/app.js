@@ -8,6 +8,11 @@ let startingBalance = 0;
 let editTxId        = null;
 let activeView      = 'dashboard';
 
+// —— Undo-delete state ——————————————————————————————————————
+let _undoPendingId   = null;  // ID currently held back from Firestore delete
+let _undoTimer       = null;  // 4s countdown before hard-delete fires
+let _undoTxSnapshot  = null;  // snapshot of deleted tx data (for re-adds if needed)
+
 
 function txCol()        { return window.collection(window.db, 'users', uid, 'accounts', activeAccountId, 'transactions'); }
 function pendingCol()   { return window.collection(window.db, 'users', uid, 'accounts', activeAccountId, 'pending'); }
