@@ -893,18 +893,14 @@ function renderQuickCats() {
       ${esc(cat.name)}
     </button>`).join('');
 
-  el.addEventListener('click', e => {
-    if (!e.target.closest('.quick-cat-pill')) {
-      e.stopPropagation();
-      window.openAddTxSheet && window.openAddTxSheet();
-    }
-  });
-
-  el.querySelectorAll('.quick-cat-pill').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const selectedCat = btn.dataset.cat;
-      window.openAddTxSheet && window.openAddTxSheet();
+  // Single delegated handler — overwrites the previous one instead of stacking.
+  // Handles both pill clicks and bare-container clicks in one place.
+  el.onclick = e => {
+    e.stopPropagation();
+    const pill = e.target.closest('.quick-cat-pill');
+    window.openAddTxSheet && window.openAddTxSheet();
+    if (pill) {
+      const selectedCat = pill.dataset.cat;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const sel = document.getElementById('txCategory');
@@ -913,8 +909,8 @@ function renderQuickCats() {
           if (amt) amt.focus();
         });
       });
-    });
-  });
+    }
+  };
 }
 window.openCatsModal = function() {
   renderCatLists();
