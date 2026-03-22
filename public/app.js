@@ -17,6 +17,7 @@ const _syncTimers   = {};        // cleanup timers per txId
 let activeAccountId    = null;  // currently selected bank account ID
 let accounts           = [];    // [{id, name, createdAt}]
 let _unsubTransactions = null;  // unsubscribe fn for transaction listener
+let _unsubAccounts     = null;  // unsubscribe fn for accounts listener
 let _unsubPending      = null;  // unsubscribe fn for pending listener
 
 // —— Undo-delete state ——————————————————————————————————————
@@ -132,6 +133,8 @@ window.firebaseReady.then(() => {
     }
     uid = user.uid;
     document.body.classList.remove('auth-pending');
+    // Tear down any previous account listener from a prior auth session
+    if (_unsubAccounts) { _unsubAccounts(); _unsubAccounts = null; }
     isFirstLoad = true;
     window._allDataLoaded = false;
     window._dataLoaded = {
@@ -4024,6 +4027,37 @@ async function initAccounts() {
   activeAccountId = chosen.id;
   localStorage.setItem('activeAccountId_' + uid, activeAccountId);
   updateAccountBadge();
+
+  // Start real-time listener so accounts added/renamed/deleted on any
+  // device or tab are reflected immediately without a page reload.
+  listenAccounts();
+}
+
+function listenAccounts() {
+  if (_unsubAccounts) { _unsubAccounts(); _unsubAccounts = null; }
+
+  _unsubAccounts = window.onSnapshot(acctColRef(), snap => {
+    const updated = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    accounts = updated;
+
+    // Keep the badge / sidebar name current for renames.
+    updateAccountBadge();
+
+    // If the account switcher panel is currently open, refresh its list
+    // so the user sees changes without closing and reopening.
+    const switcherBg = document.getElementById('acctSwitcherBg');
+    if (switcherBg && switcherBg.classList.contains('open')) {
+      renderAccountList();
+    }
+
+    // If our active account was deleted from another device, auto-switch
+    // to the first remaining account so the app does not break.
+    if (activeAccountId && !accounts.find(a => a.id === activeAccountId)) {
+      const fallback = accounts[0];
+      if (fallback) switchAccount(fallback.id);
+    }
+  });
 }
 
 function promptCreateFirstAccount() {
