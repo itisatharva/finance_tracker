@@ -3685,8 +3685,11 @@ _chartThemeObserver.observe(document.documentElement, {
   attributes: true,
   attributeFilter: ['data-theme'],
 });
-function registerChartThemeCallback(container, cb) {
-  _chartThemeCallbacks.set(container, cb);
+// Key by the stable wrap-element id (a string), not the transient container
+// node. Map.set overwrites the previous entry for the same key, so stale
+// references to detached DOM nodes are released automatically on each redraw.
+function registerChartThemeCallback(key, cb) {
+  _chartThemeCallbacks.set(key, cb);
 }
 
 function renderMonthlyLineChart(year, month, txList, type) {
@@ -3787,7 +3790,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
 
   Plotly.react(container, trace, layout, config);
 
-  registerChartThemeCallback(container, () => {
+  registerChartThemeCallback('monthlyLineWrap', () => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const nl = nowDark ? '#E8E6E1' : '#1c1c1c';
     const nb = nowDark ? '#1c1c1c' : '#ffffff';
@@ -3896,7 +3899,7 @@ function renderPieChart(wrapId, txList, type) {
 
   Plotly.react(container, data, layout, config);
 
-  registerChartThemeCallback(container, () => {
+  registerChartThemeCallback(wrapId, () => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const newTextColor = nowDark ? '#E8E6E1' : '#2D2D2D';
     const newBgColor = nowDark ? '#1c1c1c' : '#ffffff';
