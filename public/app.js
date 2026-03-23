@@ -2332,7 +2332,23 @@ function _animateTxPill(txId, hasPending) {
   }
 }
 
-function buildTxDiv(tx) {
+// Compute the running account balance immediately AFTER each transaction.
+// Uses ALL transactions (unfiltered) so filtered views still show the true
+// balance at that point in time.
+// Returns Map<txId, number>.
+function computeRunningBalances() {
+  const balMap = new Map();
+  // Sort oldest-first so we can accumulate forward
+  const chronological = txSorted(transactions).slice().reverse();
+  let running = startingBalance;
+  for (const tx of chronological) {
+    running += tx.type === 'income' ? tx.amount : -tx.amount;
+    balMap.set(tx.id, running);
+  }
+  return balMap;
+}
+
+function buildTxDiv(tx, balanceAfter) {
   const d     = toDate(tx.selectedDate);
   const dateLabel = d
     ? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})
@@ -2354,7 +2370,10 @@ function buildTxDiv(tx) {
       ${tx.description ? `<div class="tx-note">${esc(tx.description)}</div>` : ''}
       <div class="tx-date">${dateLabel}</div>
     </div>
-    <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+    <div class="tx-right">
+      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
+      ${balanceAfter != null ? `<div class="tx-bal-after" title="Balance after this transaction">${balanceAfter >= 0 ? '' : '-'}${fmt(Math.abs(balanceAfter))}</div>` : ''}
+    </div>
     <div class="tx-actions">
       <div class="txa-normal">
         <button class="btn-sm" onclick="event.stopPropagation();openEditModal('${tx.id}')">Edit</button>
@@ -2402,13 +2421,14 @@ function renderTxList() {
     return;
   }
 
+  const balMap = window._allDataLoaded ? computeRunningBalances() : new Map();
   const isFirstRender = el.children.length === 0 || el.querySelector('.empty') !== null || el.querySelector('.tx-skel') !== null;
   const newIds = window._newTxIds || new Set();
 
   if (isFirstRender) {
     el.innerHTML = '';
     sorted.forEach((tx, index) => {
-      const div = buildTxDiv(tx);
+      const div = buildTxDiv(tx, balMap.get(tx.id));
       div.style.opacity = '0';
       div.style.transition = 'opacity 0.3s ease';
       el.appendChild(div);
@@ -2418,7 +2438,7 @@ function renderTxList() {
     _preserveRemovingRows(el, () => {
       el.innerHTML = '';
       sorted.forEach(tx => {
-        const div = buildTxDiv(tx);
+        const div = buildTxDiv(tx, balMap.get(tx.id));
         if (newIds.has(tx.id)) div.classList.add('tx-adding');
         el.appendChild(div);
       });
@@ -2426,7 +2446,7 @@ function renderTxList() {
   } else {
     _preserveRemovingRows(el, () => {
       el.innerHTML = '';
-      sorted.forEach(tx => el.appendChild(buildTxDiv(tx)));
+      sorted.forEach(tx => el.appendChild(buildTxDiv(tx, balMap.get(tx.id))));
     });
   }
 
@@ -2486,9 +2506,10 @@ function renderAllTxList() {
     return;
   }
 
+  const balMap = computeRunningBalances();
   _preserveRemovingRows(el, () => {
     el.innerHTML = '';
-    sorted.forEach(tx => el.appendChild(buildTxDiv(tx)));
+    sorted.forEach(tx => el.appendChild(buildTxDiv(tx, balMap.get(tx.id))));
   });
 }
 
