@@ -2372,7 +2372,7 @@ function buildTxDiv(tx, balanceAfter) {
     </div>
     <div class="tx-right">
       <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)}</div>
-      ${balanceAfter != null ? `<div class="tx-bal-after" title="Balance after this transaction">${balanceAfter >= 0 ? '' : '-'}${fmt(Math.abs(balanceAfter))}</div>` : ''}
+      ${balanceAfter != null ? `<div class="tx-bal-after" title="Balance after this transaction"><span class=\"tx-bal-label\">Balance:</span> ${balanceAfter >= 0 ? '' : '-'}${fmt(Math.abs(balanceAfter))}</div>` : ''}
     </div>
     <div class="tx-actions">
       <div class="txa-normal">
