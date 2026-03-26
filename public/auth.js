@@ -112,11 +112,12 @@ document.getElementById('signinGoogleBtn').addEventListener('click', async e => 
     btn.innerHTML = GOOGLE_ICON + ' ✓ Signed in!';
     redirect(isNew ? 'category-setup.html' : 'index.html');
   } catch (err) {
+    // Always reset the button — including when the user closes the popup.
+    resetGoogleBtn(btn, 'Continue with Google');
     const msg = ERR[err.code];
     if (err.code !== 'auth/popup-closed-by-user' && msg !== null) {
       showErr('signinErr', msg || `Sign-in failed (${err.code}).`);
     }
-    resetGoogleBtn(btn, 'Continue with Google');
   }
 });
 
@@ -132,11 +133,12 @@ document.getElementById('signupGoogleBtn').addEventListener('click', async e => 
     btn.innerHTML = GOOGLE_ICON + ' ✓ Joined!';
     redirect(isNew ? 'category-setup.html' : 'index.html');
   } catch (err) {
+    // Always reset the button — including when the user closes the popup.
+    resetGoogleBtn(btn, 'Join with Google');
     const msg = ERR[err.code];
     if (err.code !== 'auth/popup-closed-by-user' && msg !== null) {
       showErr('signupErr', msg || `Sign-in failed (${err.code}).`);
     }
-    resetGoogleBtn(btn, 'Join with Google');
   }
 });
 
@@ -169,6 +171,9 @@ function _resetForgotCard() {
   succ.style.transform = 'translateY(8px)';
   document.getElementById('forgotBtn').disabled = false;
   document.getElementById('forgotBtn').innerHTML = 'Send Reset Link';
+  // Clear the email field so a stale address from a previous attempt is not
+  // silently re-used if the user wants to correct it.
+  document.getElementById('fpEmail').value = '';
   showErr('forgotErr', '');
 }
 

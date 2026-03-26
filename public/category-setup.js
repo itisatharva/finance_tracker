@@ -183,6 +183,9 @@ function _makeSetupColorBtn(initialColor, onPick) {
     _openPopover = popover;
 
     function _position() {
+      // Guard: popover may have been closed while the async callbacks were queued
+      if (!document.body.contains(popover)) return;
+
       const margin = 8;
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -252,7 +255,7 @@ function renderLists() {
       if (type === 'expense') {
         infoEl.innerHTML = `<span class="cat-name">${cat.name}</span>
           <input type="number" value="${cat.budget || ''}" placeholder="Budget" class="cat-budget-input" min="0" step="0.01"
-                 oninput="updateBudget('${type}',${i},this.value)">`;
+                 oninput="updateBudget('${type}','${cat.name.replace(/'/g, "\\'")}',this.value)">`;
       } else {
         infoEl.innerHTML = `<span class="cat-name">${cat.name}</span>`;
       }
@@ -283,7 +286,9 @@ function renderLists() {
   });
 }
 
-window.updateBudget = function(type, idx, budget) {
+window.updateBudget = function(type, name, budget) {
+  const idx = cats[type].findIndex(c => c.name === name);
+  if (idx === -1) return;
   cats[type][idx].budget = budget ? parseFloat(budget) : null;
 };
 

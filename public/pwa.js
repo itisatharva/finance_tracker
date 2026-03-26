@@ -164,12 +164,31 @@
   function _placeBadge() {
     if (_placed) return;
     const nameEl = document.getElementById('dashGreetingName');
-    if (!nameEl) return;
-    _placed = true;
-    nameEl.appendChild(_wrap());
+    if (nameEl) {
+      // Preferred location: inline next to the greeting name (index.html)
+      _placed = true;
+      nameEl.appendChild(_wrap());
+    } else {
+      // Fallback: float in the top-right corner on pages without the greeting
+      const w = _wrap();
+      if (!w) return;
+      _placed = true;
+      w.style.cssText = 'position:fixed;top:14px;right:14px;z-index:8000;';
+      document.body.appendChild(w);
+    }
   }
 
   async function _confirmOffline() {
+    // In standalone/installed PWA mode the service worker always serves
+    // /manifest.json from the shell cache, so a successful fetch() does NOT
+    // prove network connectivity.  Fall back to navigator.onLine which is
+    // reliable for the installed-app case.
+    const isStandalone =
+      window.matchMedia('(display-mode:standalone)').matches ||
+      window.navigator.standalone === true;
+    if (isStandalone) {
+      return !navigator.onLine;
+    }
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 2500);

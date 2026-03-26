@@ -943,7 +943,13 @@ window.closeCatsModal = function() {
   const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
   if (activeEl) activeEl.classList.add('active');
   populateCategoryDropdowns();
-  saveCategories().catch(e => console.error('auto-save categories failed:', e));
+  // Snapshot the doc reference NOW (synchronously) so a concurrent
+  // switchAccount() cannot change activeAccountId before the write lands.
+  const _savedCatRef = catDocRef();
+  window.setDoc(
+    _savedCatRef,
+    { income: categories.income, expense: categories.expense, updatedAt: window.serverTimestamp() }
+  ).catch(e => console.error('auto-save categories failed:', e));
 };
 
 (function wireImport() {
@@ -1452,7 +1458,7 @@ function listenTransactions() {
     txCol(),
     window.orderBy('selectedDate', 'desc')
   );
-  let firstLoad = true;
+  let _txFirstSnap = true;
   _unsubTransactions = window.onSnapshot(q, snap => {
     snap.docs.forEach(d => {
       const isPending = d.metadata.hasPendingWrites;
@@ -1495,8 +1501,8 @@ function listenTransactions() {
     populateTxCategoryFilter();
     if (activeView === 'transactions') renderAllTxList();
 
-    if (firstLoad && window._dataLoaded) {
-      firstLoad = false;
+    if (_txFirstSnap && window._dataLoaded) {
+      _txFirstSnap = false;
       window._dataLoaded.transactions = true;
       window._checkAllDataLoaded();
     }
@@ -2634,13 +2640,28 @@ async function _undoDelete() {
   clearTimeout(_undoTimer);
   _undoTimer      = null;
   const id        = _undoPendingId;
+  const snapshot  = _undoTxSnapshot;   // capture before clearing
   _undoPendingId  = null;
   _undoTxSnapshot = null;
   _snack.hide();
+
+  // Optimistically restore in the UI immediately
   window._restoringTxId = id;
   renderTxList();
   if (activeView === 'transactions') renderAllTxList();
   setTimeout(() => { window._restoringTxId = null; }, 500);
+
+  // Defensively re-write the document to Firestore in case the 4-second
+  // timer won the race and already deleted it. setDoc with the original
+  // data restores it idempotently; if the doc still exists this is a no-op.
+  if (snapshot) {
+    const { id: _ignoredId, hasPendingWrites: _hw, ...firestoreData } = snapshot;
+    try {
+      await window.setDoc(txDocRef(id), firestoreData);
+    } catch (e) {
+      console.error('_undoDelete Firestore restore failed:', e);
+    }
+  }
 }
 
 let _txDetailId = null;
@@ -3097,14 +3118,14 @@ function listenPending() {
     pendingCol(),
     window.orderBy('createdAt', 'desc')
   );
-  let firstLoad = true;
+  let _pendingFirstSnap = true;
   _unsubPending = window.onSnapshot(q, snap => {
     pendingAmounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderPendingList();
     renderStats();
 
-    if (firstLoad && window._dataLoaded) {
-      firstLoad = false;
+    if (_pendingFirstSnap && window._dataLoaded) {
+      _pendingFirstSnap = false;
       window._dataLoaded.pending = true;
       window._checkAllDataLoaded();
     }
@@ -4043,9 +4064,13 @@ async function initAccounts() {
 
   if (!chosen) {
     const newId = await promptCreateFirstAccount();
+    // Re-fetch accounts, but also build a fallback object from newId in case
+    // the Firestore snapshot hasn't propagated to the client yet.
     const newSnap = await _once(acctColRef());
     accounts = newSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    chosen = accounts.find(a => a.id === newId) || accounts[0];
+    chosen = accounts.find(a => a.id === newId)
+          || accounts[0]
+          || { id: newId, name: 'Main Account' }; // safe fallback
   }
 
   activeAccountId = chosen.id;

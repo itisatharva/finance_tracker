@@ -76,6 +76,8 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   if (BYPASS_HOSTS.some(h => url.hostname.includes(h))) return;
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
+  // Skip connectivity-probe requests so pwa.js gets a real network response.
+  if (url.search.includes('_ping=')) return;
 
   // 2. Navigation requests (HTML pages) → Network-first, fallback to cache.
   if (request.mode === 'navigate') {
