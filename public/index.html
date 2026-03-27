@@ -366,6 +366,18 @@ body.auth-pending .btn-settings {
       </button>
     </div>
 
+    <div class="settings-group" id="installAppGroup">
+      <h3>App</h3>
+      <button class="settings-row" id="btnInstallApp" style="display:none;" onclick="window.triggerPWAInstall()">
+        <span>Install App</span>
+        <span class="row-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v13M7 11l5 5 5-5"/><rect x="3" y="19" width="18" height="2" rx="1"/>
+          </svg>
+        </span>
+      </button>
+    </div>
+
     <div class="settings-group">
       <h3>Session</h3>
       <button class="settings-row danger" id="btnSignOut">

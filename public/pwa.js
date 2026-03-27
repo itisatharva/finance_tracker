@@ -472,6 +472,41 @@
     });
   }
 
+  // ── Settings install button helpers ──────────────────────────────────────
+
+  function _showSettingsInstallBtn() {
+    const _apply = () => {
+      const btn = document.getElementById('btnInstallApp');
+      if (btn) btn.style.display = '';
+    };
+    document.readyState === 'loading'
+      ? document.addEventListener('DOMContentLoaded', _apply)
+      : _apply();
+  }
+
+  function _hideSettingsInstallBtn() {
+    const btn = document.getElementById('btnInstallApp');
+    if (btn) btn.style.display = 'none';
+  }
+
+  // ── Global trigger — called by the settings drawer "Install App" button ──
+  window.triggerPWAInstall = function () {
+    if (_deferredPrompt) {
+      // Android / Chrome / Desktop — native install prompt
+      _deferredPrompt.prompt();
+      _deferredPrompt.userChoice.then(({ outcome }) => {
+        if (outcome === 'accepted') {
+          localStorage.setItem(INSTALL_KEY, '1');
+          _hideSettingsInstallBtn();
+        }
+        _deferredPrompt = null;
+      });
+    } else if (_isIOS || _isIPadOS) {
+      // iOS — show manual instructions banner
+      _showIOSBanner();
+    }
+  };
+
   // ── Wire up events ────────────────────────────────────────────────────────
 
   // Android / Chrome / Desktop: browser fires beforeinstallprompt when installable.
@@ -479,12 +514,16 @@
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     _deferredPrompt = e;
+    // Always reveal the settings button so the user can install on demand.
+    _showSettingsInstallBtn();
     if (localStorage.getItem(INSTALL_KEY)) return;
     setTimeout(_showInstallBanner, 3000);
   });
 
-  // iOS: beforeinstallprompt never fires — trigger our manual-instructions banner instead.
+  // iOS: beforeinstallprompt never fires — reveal the settings button so
+  // the user can tap it to see manual install instructions.
   if ((_isIOS || _isIPadOS) && !_isStandalone && !localStorage.getItem(INSTALL_KEY)) {
+    _showSettingsInstallBtn();
     const _iosRun = fn => document.body ? fn() : document.addEventListener('DOMContentLoaded', fn);
     _iosRun(() => setTimeout(_showIOSBanner, 3000));
   }
