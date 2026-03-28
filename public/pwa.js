@@ -508,41 +508,56 @@
   };
 
   // ── 4. Back-button trap ──────────────────────────────────────────────────
-  // On mobile, pressing the hardware/gesture back button should never exit
-  // the app or navigate away to a previous page — it should always land the
-  // user on the dashboard.
+  // Prevents the hardware/gesture back button from exiting the app or
+  // navigating to a previous page.  Works in both installed PWA (standalone)
+  // and browser tab modes on Android and iOS.
   //
-  // Strategy: push a sentinel history entry on every page load so there is
-  // always something to pop.  When popstate fires:
-  //   • On the dashboard (index.html)  → re-push the sentinel to keep the
-  //     stack alive (prevents the OS from closing the app).
-  //   • On any other page              → redirect to index.html.
+  // The core trick: push a sentinel history entry so the browser always has
+  // something to pop before it would close the app.  Re-push every time
+  // popstate fires so the sentinel is never consumed permanently.
   //
-  // Auth pages (login, category-setup) are excluded so the user can still
-  // reach them from a fresh install; once they reach the dashboard the trap
-  // is active.
+  // IMPORTANT: pushState called synchronously in <head> can be silently
+  // discarded on some mobile browsers before the page is committed.
+  // We therefore defer until DOMContentLoaded so the page is settled first.
+  //
+  // Auth / onboarding pages are excluded — back there should work normally.
 
   (function _initBackTrap() {
-    const path     = window.location.pathname;
-    const isDash   = path === '/' || /\/index\.html$/i.test(path);
-    // Pages where back-trap should NOT redirect to dashboard
-    // (let the OS/browser handle back naturally on these flows).
-    const isAuthPage = /\/(login|category-setup)\.html$/i.test(path);
+    // Pages where we intentionally do NOT intercept back navigation.
+    const _PASS_THROUGH = /\/(login|category-setup|landing)\.html$/i;
+    if (_PASS_THROUGH.test(window.location.pathname)) return;
 
-    if (isAuthPage) return;
+    function _arm() {
+      // Push a sentinel entry at the current URL so there is always at
+      // least one entry to pop before the browser would exit the app.
+      history.pushState({ __pwaTrap: true }, '', window.location.href);
+    }
 
-    // Push the sentinel so there is always a "previous" entry to pop.
-    history.pushState({ __pwaTrap: true }, '');
+    function _onPopState() {
+      const p = window.location.pathname;
+      const onDash = (p === '/' || /\/index\.html$/i.test(p));
 
-    window.addEventListener('popstate', function _onPop(e) {
-      if (isDash) {
-        // Re-arm the trap — keep pushing so repeated back presses stay here.
-        history.pushState({ __pwaTrap: true }, '');
+      if (onDash) {
+        // Stay on the dashboard — re-arm so the next press is also trapped.
+        _arm();
       } else {
-        // Any other page: send the user to the dashboard.
+        // We drifted to a non-dashboard page; send user back to the dashboard.
+        // Replace so this entry doesn't itself become a back-navigation target.
         window.location.replace('index.html');
       }
-    });
+    }
+
+    // Defer until the page is fully committed to avoid the early-discard bug.
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        _arm();
+        window.addEventListener('popstate', _onPopState);
+      });
+    } else {
+      // DOMContentLoaded already fired (e.g. script is deferred or loaded late).
+      _arm();
+      window.addEventListener('popstate', _onPopState);
+    }
   })();
 
   // ── Wire up events ────────────────────────────────────────────────────────
