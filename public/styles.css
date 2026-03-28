@@ -2848,6 +2848,61 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .sidebar.collapsed .toggle-arrow  { transform: rotate(0deg); }
   .sidebar:not(.collapsed) .toggle-arrow { transform: rotate(180deg); }
   .btn-settings { display: none !important; }
+
+  /* ── Collapsed sidebar tooltips ───────────────────────────────────────────── */
+  /* Allow pseudo-element tooltips to escape the pill boundary */
+  .sidebar.collapsed { overflow: visible; }
+  .sidebar.collapsed .sidebar-item,
+  .sidebar.collapsed .sidebar-toggle {
+    position: relative;
+    overflow: visible;
+  }
+  .sidebar.collapsed .sidebar-item::after,
+  .sidebar.collapsed .sidebar-toggle::after {
+    content: attr(aria-label);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+    background: var(--ink);
+    color: var(--ink-fg);
+    padding: 5px 11px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.14s ease, transform 0.14s ease;
+    z-index: 1100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+  /* Small arrow pointing left toward the icon */
+  .sidebar.collapsed .sidebar-item::before,
+  .sidebar.collapsed .sidebar-toggle::before {
+    content: '';
+    position: absolute;
+    left: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-4px);
+    border: 5px solid transparent;
+    border-right-color: var(--ink);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.14s ease, transform 0.14s ease;
+    z-index: 1100;
+  }
+  .sidebar.collapsed .sidebar-item:hover::after,
+  .sidebar.collapsed .sidebar-toggle:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+  .sidebar.collapsed .sidebar-item:hover::before,
+  .sidebar.collapsed .sidebar-toggle:hover::before {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
   /* Pill is at left:16px, width:52px → right edge at 68px. Add 16px gap = 84px */
   .container {
     /* 16px left offset + 52px pill + 16px gap = 84px */
