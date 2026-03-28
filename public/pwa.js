@@ -507,6 +507,44 @@
     }
   };
 
+  // ── 4. Back-button trap ──────────────────────────────────────────────────
+  // On mobile, pressing the hardware/gesture back button should never exit
+  // the app or navigate away to a previous page — it should always land the
+  // user on the dashboard.
+  //
+  // Strategy: push a sentinel history entry on every page load so there is
+  // always something to pop.  When popstate fires:
+  //   • On the dashboard (index.html)  → re-push the sentinel to keep the
+  //     stack alive (prevents the OS from closing the app).
+  //   • On any other page              → redirect to index.html.
+  //
+  // Auth pages (login, category-setup) are excluded so the user can still
+  // reach them from a fresh install; once they reach the dashboard the trap
+  // is active.
+
+  (function _initBackTrap() {
+    const path     = window.location.pathname;
+    const isDash   = path === '/' || /\/index\.html$/i.test(path);
+    // Pages where back-trap should NOT redirect to dashboard
+    // (let the OS/browser handle back naturally on these flows).
+    const isAuthPage = /\/(login|category-setup)\.html$/i.test(path);
+
+    if (isAuthPage) return;
+
+    // Push the sentinel so there is always a "previous" entry to pop.
+    history.pushState({ __pwaTrap: true }, '');
+
+    window.addEventListener('popstate', function _onPop(e) {
+      if (isDash) {
+        // Re-arm the trap — keep pushing so repeated back presses stay here.
+        history.pushState({ __pwaTrap: true }, '');
+      } else {
+        // Any other page: send the user to the dashboard.
+        window.location.replace('index.html');
+      }
+    });
+  })();
+
   // ── Wire up events ────────────────────────────────────────────────────────
 
   // Android / Chrome / Desktop: browser fires beforeinstallprompt when installable.
