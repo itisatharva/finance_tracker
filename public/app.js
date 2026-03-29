@@ -262,19 +262,23 @@ function wireBottomSheetDrag(panel, closeFn) {
   let startY = 0;
   let lastY  = 0;
   let dragging = false;
+  let startedOnHandle = false;
 
   panel.addEventListener("touchstart", function(e) {
     if (window.innerWidth >= 600) return;
     startY   = e.touches[0].clientY;
     lastY    = startY;
     dragging = false;
+    // Only allow drag-to-close when the finger starts on the handle pill
+    startedOnHandle = handle.contains(e.target) || e.target === handle;
   }, { passive: true });
 
   panel.addEventListener("touchmove", function(e) {
     if (window.innerWidth >= 600) return;
     lastY = e.touches[0].clientY;
     var dy = lastY - startY;
-    if (!dragging && dy > 8 && panel.scrollTop <= 0) {
+    // Dragging is only initiated when the touch originated on the drag handle
+    if (!dragging && dy > 8 && startedOnHandle) {
       dragging = true;
     }
     if (!dragging) return;
