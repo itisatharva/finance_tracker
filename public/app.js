@@ -269,8 +269,13 @@ function wireBottomSheetDrag(panel, closeFn) {
     startY   = e.touches[0].clientY;
     lastY    = startY;
     dragging = false;
-    // Only allow drag-to-close when the finger starts on the handle pill
-    startedOnHandle = handle.contains(e.target) || e.target === handle;
+    // The handle has pointer-events:none so e.target is never the handle element.
+    // Instead, check whether the touch Y coordinate falls within the handle's
+    // rendered area (expanded by a generous hit-zone so it's easy to grab).
+    var hr = handle.getBoundingClientRect();
+    var hitTop    = hr.top    - 16;
+    var hitBottom = hr.bottom + 16;
+    startedOnHandle = startY >= hitTop && startY <= hitBottom;
   }, { passive: true });
 
   panel.addEventListener("touchmove", function(e) {
