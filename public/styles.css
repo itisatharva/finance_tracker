@@ -3098,7 +3098,15 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
       0 4px 16px rgba(0,0,0,0.28),
       0 1px 4px  rgba(0,0,0,0.18),
       inset 0 1px 0 rgba(255,255,255,0.12);
-    transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, background .2s ease;
+    /*
+     * PERF: Only animate transform — it runs entirely on the GPU compositor.
+     * box-shadow and background were removed from the transition list because
+     * they trigger a main-thread repaint on every frame, which competes with
+     * the panel's translateY animation and causes visible jank. Color/shadow
+     * changes happen instantly (imperceptible at tap speed).
+     */
+    transition: transform .2s cubic-bezier(.34, 1.56, .64, 1);
+    will-change: transform;          /* pre-promote to compositor layer */
     -webkit-tap-highlight-color: transparent;
     z-index: 2;
   }
@@ -3106,15 +3114,19 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     stroke: var(--ink-fg);
     display: block;
     flex-shrink: 0;
+    /* Inherit layer from parent — no separate promotion needed */
+    pointer-events: none;
   }
   .bn-fab:active {
     transform: scale(.88);
-    box-shadow: 0 2px 8px rgba(0,0,0,.22);
   }
 
   .bn-fab.open {
-    background: #111;
+    background: #111;          /* instant — no repaint during animation */
     transform: rotate(45deg);
+    box-shadow:
+      0 2px 10px rgba(0,0,0,0.22),
+      0 1px 3px  rgba(0,0,0,0.14);
   }
   [data-theme="dark"] .bn-fab.open {
     background: #fff;
@@ -3168,11 +3180,27 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   pointer-events: all;
 }
 
-/* Panel: single GPU-composited property (translateY) on its own layer.
-   overflow is intentionally NOT set here — setting overflow:hidden on the
-   base rule then overriding with overflow-y:auto on mobile creates a
-   mid-animation stacking-context change that forces an extra repaint.
-   Each breakpoint sets the overflow it actually needs.              */
+/*
+ * Panel — every property here is chosen to keep the animation entirely
+ * on the GPU compositor thread, never touching the main thread mid-flight.
+ *
+ * translate3d(0, 102%, 0)  — identical to translateY but the explicit Z=0
+ *   guarantees a compositing layer is created even on some older WebKit builds
+ *   that skipped it for pure 2-D transforms.
+ *
+ * contain: layout style   — tells the browser this panel's layout and style
+ *   changes cannot affect anything outside it.  Without this, resizing /
+ *   reflowing content inside the panel (e.g. NLP suggestions appearing) can
+ *   bubble up and invalidate the ancestor stacking context mid-animation.
+ *
+ * will-change: transform  — pre-promotes to compositor layer at render time
+ *   so there is zero promotion cost when .open is added.
+ *
+ * cubic-bezier(0.32, 0.72, 0, 1) — fast acceleration out of the starting
+ *   position (feels instant), gentle deceleration at rest (feels natural).
+ *   Tighter than the previous (0.22, 1, 0.36, 1) so the sheet arrives ~20 ms
+ *   sooner, reducing perceived latency.
+ */
 .addtx-panel {
   background: var(--bg-card);
   border: 1.5px solid var(--border);
@@ -3180,14 +3208,15 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   width: 100%;
   max-width: 620px;
   box-shadow: 0 -4px 40px rgba(0,0,0,.18);
-  transform: translateY(102%); /* 102% = panel + shadow fully offscreen */
-  will-change: transform;      /* promote to compositor layer before open */
-  transition: transform .4s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translate3d(0, 102%, 0); /* panel + shadow fully offscreen */
+  will-change: transform;             /* pre-promote before first open */
+  contain: layout style;              /* isolate from ancestor invalidations */
+  transition: transform .36s cubic-bezier(0.32, 0.72, 0, 1);
   /* keyboard-lift offset, set by JS via visualViewport */
   margin-bottom: 0;
 }
 .addtx-backdrop.open .addtx-panel {
-  transform: translateY(0);
+  transform: translate3d(0, 0, 0);
 }
 
 /* Desktop: centred modal — blur is fine here, desktop GPU handles it easily */
@@ -3205,17 +3234,17 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
   .addtx-panel {
     border-radius: var(--r-xl);
-    transform: scale(.95) translateY(8px);
+    transform: scale(.96) translate3d(0, 10px, 0);
     opacity: 0;
     max-height: 88vh;
     overflow-y: auto;
     box-shadow: 0 8px 48px rgba(0,0,0,.28);
-    transition: transform .32s cubic-bezier(0.22, 1, 0.36, 1),
-                opacity .22s ease;
+    transition: transform .28s cubic-bezier(0.32, 0.72, 0, 1),
+                opacity .2s ease;
     will-change: transform, opacity;
   }
   .addtx-backdrop.open .addtx-panel {
-    transform: scale(1) translateY(0);
+    transform: scale(1) translate3d(0, 0, 0);
     opacity: 1;
   }
 }

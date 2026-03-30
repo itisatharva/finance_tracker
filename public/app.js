@@ -288,24 +288,46 @@ function wireBottomSheetDrag(panel, closeFn) {
     }
     if (!dragging) return;
     var offset = Math.max(0, dy);
+    // translate3d keeps the element on its GPU compositor layer during drag;
+    // transition:none removes the easing so drag tracking is 1:1 with finger.
     panel.style.transition = "none";
-    panel.style.transform  = "translateY(" + offset + "px)";
+    panel.style.transform  = "translate3d(0," + offset + "px,0)";
   }, { passive: true });
 
   function onDragEnd() {
     if (!dragging) return;
     dragging = false;
     var dy = lastY - startY;
-    panel.style.transition = "";
-    panel.style.transform  = "";
-    if (dy > 80) closeFn();
+    if (dy > 80) {
+      // Dismissed — clear inline styles before closeFn triggers CSS transition
+      panel.style.transition = "";
+      panel.style.transform  = "";
+      closeFn();
+    } else {
+      // Partial drag: spring back with a fast elastic ease instead of an
+      // abrupt snap. Use a slightly shorter duration than the open animation
+      // so the spring-back feels responsive, not sluggish.
+      panel.style.transition = "transform .32s cubic-bezier(0.32, 0.72, 0, 1)";
+      panel.style.transform  = "translate3d(0,0,0)";
+      // Remove the inline transition once it completes so the CSS rule takes over
+      var _t = setTimeout(function() { panel.style.transition = ""; }, 340);
+      // Guard: if another drag starts before the timer fires, cancel it
+      panel.addEventListener("touchstart", function _cleanup() {
+        clearTimeout(_t);
+        panel.style.transition = "";
+        panel.removeEventListener("touchstart", _cleanup);
+      }, { once: true, passive: true });
+    }
   }
 
   panel.addEventListener("touchend",    onDragEnd);
   panel.addEventListener("touchcancel", function() {
+    if (!dragging) return;
     dragging = false;
-    panel.style.transition = "";
-    panel.style.transform  = "";
+    // Same spring-back on cancel
+    panel.style.transition = "transform .32s cubic-bezier(0.32, 0.72, 0, 1)";
+    panel.style.transform  = "translate3d(0,0,0)";
+    setTimeout(function() { panel.style.transition = ""; }, 340);
   });
 }
 
@@ -1530,16 +1552,30 @@ function wireAddTxForm() {
   let _openOverflowTimer = null; // tracks the deferred overflow=hidden
 
   function openAddTxSheet(confirmMode = false) {
-    bg.classList.add('open');
-    if (fab) fab.classList.add('open');
+    // Prep non-visual state synchronously (no layout impact)
     const panel = document.getElementById('addTxSheet');
+    const sni   = document.getElementById('sheetNlpInput');
+    if (sni)   sni.value = '';
     if (panel) panel.classList.toggle('confirm-mode', !!confirmMode);
-    const sni = document.getElementById('sheetNlpInput');
-    if (sni) sni.value = '';
+
+    // Double-rAF: first frame lets the browser commit the panel's current
+    // transform (translate3d(0,102%,0)) to the compositor before we add
+    // .open.  Without this the transition can start from an undefined state
+    // on the first open, causing a visible snap/flash on slow devices.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        bg.classList.add('open');
+        if (fab) fab.classList.add('open');
+      });
+    });
+
     clearTimeout(_openOverflowTimer);
+    // Delay overflow:hidden until well after the animation completes (360ms)
+    // so the scrollbar disappearance never causes a layout shift mid-flight.
     _openOverflowTimer = setTimeout(() => {
       document.body.style.overflow = 'hidden';
-    }, 420);
+    }, 440);
+
     ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.classList.remove('active');
