@@ -298,8 +298,17 @@
   const _isStandalone = window.matchMedia('(display-mode:standalone)').matches
                         || window.navigator.standalone === true;
 
-  // Once installed (standalone mode), permanently suppress the prompt.
-  if (_isStandalone) localStorage.setItem(INSTALL_KEY, '1');
+  // Once installed (standalone mode), permanently suppress the prompt and hide the install group.
+  if (_isStandalone) {
+    localStorage.setItem(INSTALL_KEY, '1');
+    const _hideGroup = () => {
+      const group = document.getElementById('installAppGroup');
+      if (group) group.style.display = 'none';
+    };
+    document.readyState === 'loading'
+      ? document.addEventListener('DOMContentLoaded', _hideGroup)
+      : _hideGroup();
+  }
 
   // ── Shared banner styles (injected once) ──────────────────────────────────
   function _injectBannerStyles() {
@@ -476,8 +485,10 @@
 
   function _showSettingsInstallBtn() {
     const _apply = () => {
-      const btn = document.getElementById('btnInstallApp');
-      if (btn) btn.style.display = '';
+      const group = document.getElementById('installAppGroup');
+      const btn   = document.getElementById('btnInstallApp');
+      if (group) group.style.display = '';
+      if (btn)   btn.style.display   = '';
     };
     document.readyState === 'loading'
       ? document.addEventListener('DOMContentLoaded', _apply)
@@ -485,8 +496,10 @@
   }
 
   function _hideSettingsInstallBtn() {
-    const btn = document.getElementById('btnInstallApp');
-    if (btn) btn.style.display = 'none';
+    const group = document.getElementById('installAppGroup');
+    const btn   = document.getElementById('btnInstallApp');
+    if (group) group.style.display = 'none';
+    if (btn)   btn.style.display   = 'none';
   }
 
   // ── Global trigger — called by the settings drawer "Install App" button ──
