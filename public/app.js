@@ -3910,12 +3910,20 @@ function renderPieChart(wrapId, txList, type) {
   const values = Object.values(totals);
   const colorArray = Object.values(colors);
   const pull = labels.map(() => 0.04);
+  const n = labels.length;
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
+
+  // Remove any previous hint
   const _prevHint = wrap.previousElementSibling;
   if (_prevHint && _prevHint.classList.contains('pie-mobile-hint')) _prevHint.remove();
 
-  if (isMobile) {
+  // Use legend layout when: mobile (always) OR many categories on desktop (>7).
+  // Outside labels work fine for small counts; beyond that they collide and clip.
+  const useLegend = isMobile || n > 7;
+
+  // For outside-label mode show the mobile tap hint; legend is self-explanatory.
+  if (isMobile && !useLegend) {
     const hint = document.createElement('p');
     hint.className = 'pie-mobile-hint';
     hint.textContent = 'Tap a slice to see details';
@@ -3923,82 +3931,127 @@ function renderPieChart(wrapId, txList, type) {
     wrap.parentNode.insertBefore(hint, wrap);
   }
 
-  wrap.innerHTML = '<div style="width:100%;height:100%;min-height:450px;"></div>';
+  // ── Dynamic height ────────────────────────────────────────────────────────
+  // Legend mode: pie gets ~340 px; each horizontal legend row (~3 items wide on
+  // desktop, ~2 on mobile) adds ~26 px.  Outside-label mode: scale with n so
+  // labels at 12 o'clock and 6 o'clock always have room.
+  let minHeight;
+  if (useLegend) {
+    const itemsPerRow = isMobile ? 2 : 3;
+    const legendRows  = Math.ceil(n / itemsPerRow);
+    minHeight = Math.max(400, 320 + legendRows * 28 + 40);
+  } else {
+    // Outside labels: each extra category beyond 4 needs ~20 px more clearance
+    minHeight = Math.max(450, 300 + n * 24);
+  }
+
+  wrap.innerHTML = `<div style="width:100%;min-height:${minHeight}px;"></div>`;
   const container = wrap.firstChild;
 
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
-  const bgColor = isDark ? '#1c1c1c' : '#ffffff';
-  const borderColor = isDark ? '#3a3a3a' : '#ffffff';
+  const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor  = isDark ? '#E8E6E1' : '#2D2D2D';
+  const bgColor    = isDark ? '#1c1c1c' : '#ffffff';
+  const borderColor= isDark ? '#3a3a3a' : '#ffffff';
 
-
+  // ── Trace ─────────────────────────────────────────────────────────────────
   const data = [{
     type: 'pie',
-    labels: labels,
-    values: values,
+    labels,
+    values,
     marker: {
       colors: colorArray,
       line: { color: borderColor, width: 2 }
     },
-    textposition: isMobile ? 'none' : 'outside',
-    textinfo: isMobile ? 'none' : 'label+percent',
-    pull: pull,
+    // Legend mode: show % inside each slice; outside-label mode: label+percent.
+    textposition: useLegend ? 'inside' : 'outside',
+    textinfo:     useLegend ? 'percent' : 'label+percent',
+    pull,
     hole: 0,
-    hovertemplate: '<b>%{label}</b><br>' +
-                   '₹%{value:,.2f}<br>' +
-                   '%{percent}<extra></extra>',
+    hovertemplate: '<b>%{label}</b><br>₹%{value:,.2f}<br>%{percent}<extra></extra>',
     sort: false,
+    insidetextfont: {
+      size: 11,
+      family: 'DM Sans, sans-serif',
+      color: '#ffffff',
+    },
     textfont: {
       size: 13,
       family: 'DM Sans, sans-serif',
-      color: textColor
+      color: textColor,
     },
     outsidetextfont: {
       size: 13,
       family: 'DM Sans, sans-serif',
-      color: textColor
-    }
+      color: textColor,
+    },
   }];
 
+  // ── Margins ───────────────────────────────────────────────────────────────
+  // Outside-label mode: scale horizontal margin to the longest label text, and
+  // vertical margin to the category count so top/bottom labels never clip.
+  let margin;
+  if (useLegend) {
+    // Bottom margin accommodates the horizontal legend rows.
+    const itemsPerRow  = isMobile ? 2 : 3;
+    const legendRows   = Math.ceil(n / itemsPerRow);
+    const legendHeight = legendRows * 28 + 20;
+    margin = { t: 20, b: legendHeight, l: 20, r: 20 };
+  } else {
+    const maxLabelLen = labels.reduce((m, l) => Math.max(m, l.length), 0);
+    const hm = Math.max(120, Math.min(220, maxLabelLen * 7 + 40));
+    const vm = Math.max(80,  Math.min(180, n * 10 + 30));
+    margin = { t: vm, b: vm, l: hm, r: hm };
+  }
+
+  // ── Layout ────────────────────────────────────────────────────────────────
   const layout = {
-    showlegend: false,
-    margin: isMobile
-      ? { t: 20, b: 20, l: 20, r: 20 }
-      : { t: 80, b: 80, l: 120, r: 120 },
+    showlegend: useLegend,
+    ...(useLegend && {
+      legend: {
+        orientation: 'h',
+        x: 0.5,
+        xanchor: 'center',
+        // Negative y pushes it below the plot area; paper coords go 0→1 top→bottom.
+        y: -0.02,
+        yanchor: 'top',
+        font: { size: 12, family: 'DM Sans, sans-serif', color: textColor },
+        bgcolor: 'transparent',
+        borderwidth: 0,
+        itemclick: 'toggleothers',
+        itemdoubleclick: 'toggle',
+        tracegroupgap: 4,
+      },
+    }),
+    margin,
     paper_bgcolor: bgColor,
-    plot_bgcolor: bgColor,
-    font: {
-      family: 'DM Sans, sans-serif',
-      size: 13,
-      color: textColor
-    },
+    plot_bgcolor:  bgColor,
+    font: { family: 'DM Sans, sans-serif', size: 13, color: textColor },
     autosize: true,
-    uniformtext: isMobile ? {} : {
-      minsize: 10,
-      mode: 'hide'
-    }
+    uniformtext: { minsize: 9, mode: 'hide' },
   };
 
   const config = {
     responsive: true,
-    displayModeBar: false
+    displayModeBar: false,
   };
 
   Plotly.react(container, data, layout, config);
 
   registerChartThemeCallback(wrapId, () => {
-    const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const newTextColor = nowDark ? '#E8E6E1' : '#2D2D2D';
-    const newBgColor = nowDark ? '#1c1c1c' : '#ffffff';
-    const newBorderColor = nowDark ? '#3a3a3a' : '#ffffff';
+    const nowDark      = document.documentElement.getAttribute('data-theme') === 'dark';
+    const newTextColor  = nowDark ? '#E8E6E1' : '#2D2D2D';
+    const newBgColor    = nowDark ? '#1c1c1c' : '#ffffff';
+    const newBorderColor= nowDark ? '#3a3a3a' : '#ffffff';
     Plotly.update(container, {
-      'marker.line.color': newBorderColor,
-      'textfont.color': newTextColor,
-      'outsidetextfont.color': newTextColor
+      'marker.line.color':     newBorderColor,
+      'textfont.color':        newTextColor,
+      'outsidetextfont.color': newTextColor,
+      'insidetextfont.color':  '#ffffff',
     }, {
-      'paper_bgcolor': newBgColor,
-      'plot_bgcolor': newBgColor,
-      'font.color': newTextColor
+      'paper_bgcolor':   newBgColor,
+      'plot_bgcolor':    newBgColor,
+      'font.color':      newTextColor,
+      'legend.font.color': newTextColor,
     });
   });
 }
