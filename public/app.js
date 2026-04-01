@@ -1562,6 +1562,7 @@ function wireAddTxForm() {
     // transform (translate3d(0,102%,0)) to the compositor before we add
     // .open.  Without this the transition can start from an undefined state
     // on the first open, causing a visible snap/flash on slow devices.
+    _hideSparkTip();   // dismiss any sparkline tooltip before sheet animates in
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         bg.classList.add('open');
@@ -2179,14 +2180,44 @@ function wireAddTxForm() {
       }, 150);
     }
 
-    function scrollPanelToBottom() {
+    // Scroll panel so the focused field stays above the keyboard.
+    // We debounce aggressively: the visualViewport fires on EVERY pixel the
+    // keyboard animates (60 fps on iOS), which without debouncing creates a
+    // constant scroll-jitter fight between the browser and JS.
+    // Strategy: wait for the viewport to *stop* changing (150 ms silence),
+    // then do ONE layout read + ONE scroll write.
+    let _vpResizeTimer = null;
+    let _lastVvHeight  = window.visualViewport.height;
+
+    function _doKeyboardScroll() {
       if (!bg.classList.contains('open')) return;
-      setTimeout(() => { panel.scrollTop = panel.scrollHeight; }, 60);
+      const vvH = window.visualViewport.height;
+      // Only scroll if keyboard is meaningfully present (>80 px)
+      const kbHeight = window.screen.height - vvH - window.visualViewport.offsetTop;
+      if (kbHeight < 80) return;
+
+      // Find the currently focused field inside the sheet
+      const focused = panel.contains(document.activeElement) ? document.activeElement : null;
+      if (focused) {
+        const rect    = focused.getBoundingClientRect();
+        const PADDING = 24;
+        if (rect.bottom > vvH - PADDING) {
+          // Single DOM write: shift panel scroll so field is visible
+          panel.scrollTop += rect.bottom - (vvH - PADDING);
+        }
+      } else {
+        // No focused field — scroll to bottom so the submit button is visible
+        panel.scrollTop = panel.scrollHeight;
+      }
     }
 
     function onViewportResize() {
-      const kbHeight = window.screen.height - window.visualViewport.height - window.visualViewport.offsetTop;
-      if (kbHeight > 80) scrollPanelToBottom();
+      const vvH = window.visualViewport.height;
+      // Skip frames where height didn't actually change (prevents spurious calls)
+      if (vvH === _lastVvHeight) return;
+      _lastVvHeight = vvH;
+      clearTimeout(_vpResizeTimer);
+      _vpResizeTimer = setTimeout(_doKeyboardScroll, 150);
     }
 
     window.visualViewport.addEventListener('resize', onViewportResize);
@@ -3120,11 +3151,20 @@ const _sparkTip = (() => {
   return el;
 })();
 
+// Hide pill on any touch outside a sparkline hit area (e.g. tapping the card to open drawer)
+document.addEventListener('touchstart', e => {
+  if (_sparkTip.style.opacity !== '0' && !e.target.closest('[id$="_hit"]')) {
+    _hideSparkTip();
+  }
+}, { passive: true });
+
 function _showSparkTip(dateStr, amtStr, pillColor, clientX, svgTop) {
-  // Pill: matches .tx-badge exactly — padding 4px 12px, r-pill, font .78rem 600
-  const alphaColor = pillColor
-    ? pillColor + (pillColor.length === 7 ? '26' : '')  // 15% opacity bg
-    : 'rgba(100,100,100,.15)';
+  // Solid opaque bg so text behind the card never bleeds through.
+  // Use the chart colour at full saturation for text; derive a dark/muted bg from theme.
+  const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+  const solidBg     = isDarkTheme ? '#2a2a2a' : '#ffffff';
+  const borderC     = pillColor ? pillColor + '66' : 'var(--border)';
+
   _sparkTip.innerHTML =
     `<span style="
       display:inline-flex;align-items:center;gap:6px;
@@ -3133,13 +3173,12 @@ function _showSparkTip(dateStr, amtStr, pillColor, clientX, svgTop) {
       font-size:.78rem;font-weight:600;
       font-family:'DM Sans',sans-serif;
       white-space:nowrap;
-      background:${alphaColor};
+      background:${solidBg};
       color:${pillColor || 'var(--text-1)'};
-      border:1.5px solid ${pillColor ? pillColor + '55' : 'var(--border)'};
-      box-shadow:0 2px 8px rgba(0,0,0,.18);
-      backdrop-filter:blur(4px);
+      border:1.5px solid ${borderC};
+      box-shadow:0 2px 12px rgba(0,0,0,.32);
     ">` +
-    (dateStr ? `<span style="opacity:.65;font-weight:500">${dateStr}</span><span style="opacity:.35;font-size:.65rem">|</span>` : '') +
+    (dateStr ? `<span style="opacity:.6;font-weight:500">${dateStr}</span><span style="opacity:.25;font-size:.65rem;margin:0 1px">|</span>` : '') +
     `<span>${amtStr}</span></span>`;
 
   _sparkTip.style.opacity = '1';

@@ -3252,10 +3252,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* Mobile: sit above navbar, scroll inside the panel (not the page) */
 @media (max-width: 599px) {
   .addtx-panel {
-    max-height: 92dvh;
-    overflow-y: auto;          /* only set here — no conflict with base rule */
-    overscroll-behavior: contain; /* prevents pull-to-refresh hijacking scroll */
-    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    /* Use vh (not dvh) so the panel height stays fixed while the keyboard
+       animates — dvh shrinks in real-time causing jitter on every frame. */
+    max-height: 92vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Extra bottom padding so the submit button is never hidden behind
+       the navbar or safe-area notch. */
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   }
 }
 .addtx-head {
