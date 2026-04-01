@@ -3068,6 +3068,15 @@ function renderSparklines() {
   const DAYS = 30;
   const now  = new Date();
 
+  function bucketDates(n) {
+    return Array.from({ length: n }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (n - 1 - i));
+      d.setHours(0, 0, 0, 0);
+      return d;
+    });
+  }
+
   function dailyTotals(type, n) {
     const buckets = new Array(n).fill(0);
     transactions.forEach(t => {
@@ -3095,13 +3104,59 @@ function renderSparklines() {
   }
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const dates  = bucketDates(DAYS);
 
-  drawSparkline('sparkIncome',  dailyTotals('income',  DAYS), '#0FA974', isDark);
-  drawSparkline('sparkExpense', dailyTotals('expense', DAYS), '#E84545', isDark);
-  drawSparkline('sparkBalance', dailyBalance(DAYS),            null,     isDark);
+  drawSparkline('sparkIncome',  dailyTotals('income',  DAYS), '#0FA974', isDark, dates);
+  drawSparkline('sparkExpense', dailyTotals('expense', DAYS), '#E84545', isDark, dates);
+  drawSparkline('sparkBalance', dailyBalance(DAYS),            null,     isDark, dates);
 }
 
-function drawSparkline(id, data, color, isDark) {
+// ── Sparkline pill tooltip (singleton) ──────────────────────────────────────
+const _sparkTip = (() => {
+  const el = document.createElement('div');
+  el.id = 'sparkTooltip';
+  el.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;opacity:0;transition:opacity .12s ease;display:flex;align-items:center;gap:7px;';
+  document.body.appendChild(el);
+  return el;
+})();
+
+function _showSparkTip(dateStr, amtStr, pillColor, clientX, svgTop) {
+  // Pill: matches .tx-badge exactly — padding 4px 12px, r-pill, font .78rem 600
+  const alphaColor = pillColor
+    ? pillColor + (pillColor.length === 7 ? '26' : '')  // 15% opacity bg
+    : 'rgba(100,100,100,.15)';
+  _sparkTip.innerHTML =
+    `<span style="
+      display:inline-flex;align-items:center;gap:6px;
+      padding:4px 12px;
+      border-radius:999px;
+      font-size:.78rem;font-weight:600;
+      font-family:'DM Sans',sans-serif;
+      white-space:nowrap;
+      background:${alphaColor};
+      color:${pillColor || 'var(--text-1)'};
+      border:1.5px solid ${pillColor ? pillColor + '55' : 'var(--border)'};
+      box-shadow:0 2px 8px rgba(0,0,0,.18);
+      backdrop-filter:blur(4px);
+    ">` +
+    (dateStr ? `<span style="opacity:.65;font-weight:500">${dateStr}</span><span style="opacity:.35;font-size:.65rem">|</span>` : '') +
+    `<span>${amtStr}</span></span>`;
+
+  _sparkTip.style.opacity = '1';
+
+  const TW = _sparkTip.firstChild.offsetWidth + 2;
+  const TH = _sparkTip.firstChild.offsetHeight + 2;
+  const vw = window.innerWidth;
+  const MARGIN = 10;
+  let left = clientX - TW / 2;
+  if (left + TW > vw - MARGIN) left = vw - TW - MARGIN;
+  if (left < MARGIN) left = MARGIN;
+  _sparkTip.style.left = left + 'px';
+  _sparkTip.style.top  = (svgTop - TH - 8) + 'px';
+}
+function _hideSparkTip() { _sparkTip.style.opacity = '0'; }
+
+function drawSparkline(id, data, color, isDark, dates) {
   const svg = document.getElementById(id);
   if (!svg) return;
 
@@ -3113,8 +3168,8 @@ function drawSparkline(id, data, color, isDark) {
 
   const W = Math.round(svg.getBoundingClientRect().width) || 300;
   const H = 56;
-  const PAD_T = 8;   // gap above the peak so the line isn't clipped
-  const PAD_B = 4;   // enough room for stroke-width/2 so zero values aren't clipped
+  const PAD_T = 8;
+  const PAD_B = 4;
   const range = (max - min) || 1;
 
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
@@ -3152,7 +3207,50 @@ function drawSparkline(id, data, color, isDark) {
     <path d="${linePath}" fill="none" stroke="${resolvedColor}"
           stroke-width="3" stroke-linecap="round" stroke-linejoin="round"
           opacity="${lineOpacity}"/>
+    <line id="${id}_ch" x1="0" y1="0" x2="0" y2="${H}"
+          stroke="${resolvedColor}" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>
+    <circle id="${id}_dot" cx="0" cy="0" r="4"
+            fill="${resolvedColor}" stroke="var(--bg-card,#1c1c1c)" stroke-width="2" opacity="0"/>
+    <rect x="0" y="0" width="${W}" height="${H}" fill="transparent" style="cursor:crosshair"
+          id="${id}_hit"/>
   `;
+
+  const hitEl = svg.getElementById(`${id}_hit`);
+  const chEl  = svg.getElementById(`${id}_ch`);
+  const dotEl = svg.getElementById(`${id}_dot`);
+
+  function onMove(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width) * W;
+    const idx  = Math.min(n - 1, Math.max(0, Math.round((svgX / W) * (n - 1))));
+    const px   = pts[idx][0];
+    const py   = pts[idx][1];
+    const val  = data[idx];
+
+    chEl.setAttribute('x1', px.toFixed(1));
+    chEl.setAttribute('x2', px.toFixed(1));
+    chEl.setAttribute('opacity', '0.4');
+    dotEl.setAttribute('cx', px.toFixed(1));
+    dotEl.setAttribute('cy', py.toFixed(1));
+    dotEl.setAttribute('opacity', '1');
+
+    const dateStr = (dates && dates[idx])
+      ? dates[idx].toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+      : '';
+    const amtStr  = val === 0 ? '—' : fmt(val);
+    _showSparkTip(dateStr, amtStr, resolvedColor, clientX, rect.top);
+  }
+
+  function onLeave() {
+    chEl.setAttribute('opacity', '0');
+    dotEl.setAttribute('opacity', '0');
+    _hideSparkTip();
+  }
+
+  hitEl.addEventListener('mousemove',  e => onMove(e.clientX, e.clientY));
+  hitEl.addEventListener('mouseleave', onLeave);
+  hitEl.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+  hitEl.addEventListener('touchend',   onLeave);
 
   svg.classList.add('loaded');
 }
@@ -3910,20 +4008,12 @@ function renderPieChart(wrapId, txList, type) {
   const values = Object.values(totals);
   const colorArray = Object.values(colors);
   const pull = labels.map(() => 0.04);
-  const n = labels.length;
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
-
-  // Remove any previous hint
   const _prevHint = wrap.previousElementSibling;
   if (_prevHint && _prevHint.classList.contains('pie-mobile-hint')) _prevHint.remove();
 
-  // Use legend layout when: mobile (always) OR many categories on desktop (>7).
-  // Outside labels work fine for small counts; beyond that they collide and clip.
-  const useLegend = isMobile || n > 7;
-
-  // For outside-label mode show the mobile tap hint; legend is self-explanatory.
-  if (isMobile && !useLegend) {
+  if (isMobile) {
     const hint = document.createElement('p');
     hint.className = 'pie-mobile-hint';
     hint.textContent = 'Tap a slice to see details';
@@ -3931,127 +4021,82 @@ function renderPieChart(wrapId, txList, type) {
     wrap.parentNode.insertBefore(hint, wrap);
   }
 
-  // ── Dynamic height ────────────────────────────────────────────────────────
-  // Legend mode: pie gets ~340 px; each horizontal legend row (~3 items wide on
-  // desktop, ~2 on mobile) adds ~26 px.  Outside-label mode: scale with n so
-  // labels at 12 o'clock and 6 o'clock always have room.
-  let minHeight;
-  if (useLegend) {
-    const itemsPerRow = isMobile ? 2 : 3;
-    const legendRows  = Math.ceil(n / itemsPerRow);
-    minHeight = Math.max(400, 320 + legendRows * 28 + 40);
-  } else {
-    // Outside labels: each extra category beyond 4 needs ~20 px more clearance
-    minHeight = Math.max(450, 300 + n * 24);
-  }
-
-  wrap.innerHTML = `<div style="width:100%;min-height:${minHeight}px;"></div>`;
+  wrap.innerHTML = '<div style="width:100%;height:100%;min-height:450px;"></div>';
   const container = wrap.firstChild;
 
-  const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor  = isDark ? '#E8E6E1' : '#2D2D2D';
-  const bgColor    = isDark ? '#1c1c1c' : '#ffffff';
-  const borderColor= isDark ? '#3a3a3a' : '#ffffff';
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
+  const bgColor = isDark ? '#1c1c1c' : '#ffffff';
+  const borderColor = isDark ? '#3a3a3a' : '#ffffff';
 
-  // ── Trace ─────────────────────────────────────────────────────────────────
+
   const data = [{
     type: 'pie',
-    labels,
-    values,
+    labels: labels,
+    values: values,
     marker: {
       colors: colorArray,
       line: { color: borderColor, width: 2 }
     },
-    // Legend mode: show % inside each slice; outside-label mode: label+percent.
-    textposition: useLegend ? 'inside' : 'outside',
-    textinfo:     useLegend ? 'percent' : 'label+percent',
-    pull,
+    textposition: isMobile ? 'none' : 'outside',
+    textinfo: isMobile ? 'none' : 'label+percent',
+    pull: pull,
     hole: 0,
-    hovertemplate: '<b>%{label}</b><br>₹%{value:,.2f}<br>%{percent}<extra></extra>',
+    hovertemplate: '<b>%{label}</b><br>' +
+                   '₹%{value:,.2f}<br>' +
+                   '%{percent}<extra></extra>',
     sort: false,
-    insidetextfont: {
-      size: 11,
-      family: 'DM Sans, sans-serif',
-      color: '#ffffff',
-    },
     textfont: {
       size: 13,
       family: 'DM Sans, sans-serif',
-      color: textColor,
+      color: textColor
     },
     outsidetextfont: {
       size: 13,
       family: 'DM Sans, sans-serif',
-      color: textColor,
-    },
+      color: textColor
+    }
   }];
 
-  // ── Margins ───────────────────────────────────────────────────────────────
-  // Outside-label mode: scale horizontal margin to the longest label text, and
-  // vertical margin to the category count so top/bottom labels never clip.
-  let margin;
-  if (useLegend) {
-    // Bottom margin accommodates the horizontal legend rows.
-    const itemsPerRow  = isMobile ? 2 : 3;
-    const legendRows   = Math.ceil(n / itemsPerRow);
-    const legendHeight = legendRows * 28 + 20;
-    margin = { t: 20, b: legendHeight, l: 20, r: 20 };
-  } else {
-    const maxLabelLen = labels.reduce((m, l) => Math.max(m, l.length), 0);
-    const hm = Math.max(120, Math.min(220, maxLabelLen * 7 + 40));
-    const vm = Math.max(80,  Math.min(180, n * 10 + 30));
-    margin = { t: vm, b: vm, l: hm, r: hm };
-  }
-
-  // ── Layout ────────────────────────────────────────────────────────────────
   const layout = {
-    showlegend: useLegend,
-    ...(useLegend && {
-      legend: {
-        orientation: 'h',
-        x: 0.5,
-        xanchor: 'center',
-        // Negative y pushes it below the plot area; paper coords go 0→1 top→bottom.
-        y: -0.02,
-        yanchor: 'top',
-        font: { size: 12, family: 'DM Sans, sans-serif', color: textColor },
-        bgcolor: 'transparent',
-        borderwidth: 0,
-        itemclick: 'toggleothers',
-        itemdoubleclick: 'toggle',
-        tracegroupgap: 4,
-      },
-    }),
-    margin,
+    showlegend: false,
+    margin: isMobile
+      ? { t: 20, b: 20, l: 20, r: 20 }
+      : { t: 80, b: 80, l: 120, r: 120 },
     paper_bgcolor: bgColor,
-    plot_bgcolor:  bgColor,
-    font: { family: 'DM Sans, sans-serif', size: 13, color: textColor },
+    plot_bgcolor: bgColor,
+    font: {
+      family: 'DM Sans, sans-serif',
+      size: 13,
+      color: textColor
+    },
     autosize: true,
-    uniformtext: { minsize: 9, mode: 'hide' },
+    uniformtext: isMobile ? {} : {
+      minsize: 10,
+      mode: 'hide'
+    }
   };
 
   const config = {
     responsive: true,
-    displayModeBar: false,
+    displayModeBar: false
   };
 
   Plotly.react(container, data, layout, config);
 
   registerChartThemeCallback(wrapId, () => {
-    const nowDark      = document.documentElement.getAttribute('data-theme') === 'dark';
-    const newTextColor  = nowDark ? '#E8E6E1' : '#2D2D2D';
-    const newBgColor    = nowDark ? '#1c1c1c' : '#ffffff';
-    const newBorderColor= nowDark ? '#3a3a3a' : '#ffffff';
+    const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const newTextColor = nowDark ? '#E8E6E1' : '#2D2D2D';
+    const newBgColor = nowDark ? '#1c1c1c' : '#ffffff';
+    const newBorderColor = nowDark ? '#3a3a3a' : '#ffffff';
     Plotly.update(container, {
-      'marker.line.color':     newBorderColor,
-      'textfont.color':        newTextColor,
-      'outsidetextfont.color': newTextColor,
-      'insidetextfont.color':  '#ffffff',
+      'marker.line.color': newBorderColor,
+      'textfont.color': newTextColor,
+      'outsidetextfont.color': newTextColor
     }, {
-      'paper_bgcolor':   newBgColor,
-      'plot_bgcolor':    newBgColor,
-      'font.color':      newTextColor,
-      'legend.font.color': newTextColor,
+      'paper_bgcolor': newBgColor,
+      'plot_bgcolor': newBgColor,
+      'font.color': newTextColor
     });
   });
 }
