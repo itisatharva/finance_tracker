@@ -229,7 +229,13 @@ window.firebaseReady.then(() => {
   });
 });
 
-function toInputDate(d) { return d ? d.toISOString().split('T')[0] : ''; }
+function toInputDate(d) {
+  if (!d) return '';
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
+  const dy = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dy}`;
+}
 function toDate(v) {
   if (v == null) return null;
   if (v.toDate) return v.toDate();
@@ -3433,7 +3439,9 @@ window.clearPending = async function(id) {
 function renderDaily() {
   const dateVal = document.getElementById('dailyDate').value;
   if (!dateVal) return;
-  const sel  = new Date(dateVal);
+  // Parse as local midnight — new Date('YYYY-MM-DD') treats the string as UTC
+  // which shifts the date back a day in any UTC+ timezone (e.g. IST UTC+5:30).
+  const sel  = new Date(dateVal + 'T00:00:00');
   const prev = new Date(sel); prev.setDate(prev.getDate() - 1);
 
   const selExp  = transactions.filter(t => { const d = toDate(t.selectedDate); return t.type==='expense' && d && d.toDateString()===sel.toDateString(); });
@@ -4081,17 +4089,19 @@ function renderPieChart(wrapId, txList, type) {
     textinfo: isMobile ? 'none' : 'label+percent',
     pull: pull,
     hole: 0,
+    // Shrink the pie domain so outside labels never get clipped at the edges
+    domain: isMobile ? {} : { x: [0.08, 0.92], y: [0.08, 0.92] },
     hovertemplate: '<b>%{label}</b><br>' +
-                   '₹%{value:,.2f}<br>' +
+                   '\u20b9%{value:,.2f}<br>' +
                    '%{percent}<extra></extra>',
     sort: false,
     textfont: {
-      size: 13,
+      size: 12,
       family: 'DM Sans, sans-serif',
       color: textColor
     },
     outsidetextfont: {
-      size: 13,
+      size: 12,
       family: 'DM Sans, sans-serif',
       color: textColor
     }
@@ -4101,17 +4111,19 @@ function renderPieChart(wrapId, txList, type) {
     showlegend: false,
     margin: isMobile
       ? { t: 20, b: 20, l: 20, r: 20 }
-      : { t: 80, b: 80, l: 120, r: 120 },
+      : { t: 60, b: 60, l: 80, r: 80 },
     paper_bgcolor: bgColor,
     plot_bgcolor: bgColor,
     font: {
       family: 'DM Sans, sans-serif',
-      size: 13,
+      size: 12,
       color: textColor
     },
     autosize: true,
+    // Let Plotly grow margins automatically when labels overflow
+    automargin: true,
     uniformtext: isMobile ? {} : {
-      minsize: 10,
+      minsize: 9,
       mode: 'hide'
     }
   };
