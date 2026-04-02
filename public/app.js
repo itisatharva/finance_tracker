@@ -4037,94 +4037,116 @@ function renderMonthlyLineChart(year, month, txList, type) {
   });
 }
 
+// Inject pie-chart legend styles once
+(function _injectPieStyles() {
+  if (document.getElementById('pie-legend-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'pie-legend-styles';
+  s.textContent = `
+    .pie-chart-inner { display:flex; flex-direction:column; width:100%; gap:0; }
+    .pie-plot-wrap   { width:100%; flex-shrink:0; }
+    .pie-legend      { display:flex; flex-wrap:wrap; gap:6px 16px; padding:12px 4px 4px; justify-content:center; }
+    .pie-legend-item { display:flex; align-items:center; gap:7px; min-width:130px; max-width:220px; flex:1 1 130px; }
+    .pie-legend-dot  { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .pie-legend-name { font-size:.82rem; font-family:'DM Sans',sans-serif; font-weight:500;
+                       white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; }
+    .pie-legend-pct  { font-size:.78rem; font-family:'DM Sans',sans-serif; flex-shrink:0; }
+    @media (max-width:480px) {
+      .pie-legend-item { min-width:110px; }
+      .pie-legend-name { font-size:.78rem; }
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
 function renderPieChart(wrapId, txList, type) {
   const wrap = document.getElementById(wrapId);
+  if (wrap._pieResizeObserver) { wrap._pieResizeObserver.disconnect(); delete wrap._pieResizeObserver; }
+
   if (!txList.length) {
-    if (wrap._pieResizeObserver) { wrap._pieResizeObserver.disconnect(); delete wrap._pieResizeObserver; }
     wrap.innerHTML = `<div class="empty">No ${type} for this period</div>`;
     return;
   }
 
   const totals = {};
-  const colors = {};
+  const catColors = {};
   txList.forEach(t => {
     totals[t.category] = (totals[t.category] || 0) + t.amount;
-    colors[t.category] = catColorByName(type, t.category);
+    catColors[t.category] = catColorByName(type, t.category);
   });
 
-  const labels = Object.keys(totals);
-  const values = Object.values(totals);
-  const colorArray = Object.values(colors);
-  const pull = labels.map(() => 0.04);
+  // Sort descending so legend reads largest → smallest
+  const sorted     = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+  const labels     = sorted.map(([k]) => k);
+  const values     = sorted.map(([, v]) => v);
+  const colorArray = labels.map(l => catColors[l]);
+  const grandTotal = values.reduce((s, v) => s + v, 0);
+  const pull       = labels.map(() => 0.04);
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
+
+  // Remove mobile hint — no longer needed (legend replaces it)
   const _prevHint = wrap.previousElementSibling;
   if (_prevHint && _prevHint.classList.contains('pie-mobile-hint')) _prevHint.remove();
 
-  if (isMobile) {
-    const hint = document.createElement('p');
-    hint.className = 'pie-mobile-hint';
-    hint.textContent = 'Tap a slice to see details';
-    hint.style.cssText = 'text-align:center;font-size:.8rem;color:var(--text-3);margin:0 0 6px;letter-spacing:.01em;';
-    wrap.parentNode.insertBefore(hint, wrap);
-  }
-
-  // Measure available container width (exclude padding: chart-wrap has 24px each side)
-  const containerW = Math.max((wrap.offsetWidth || 400) - 48, 200);
-
-  // Estimate the widest label in pixels (~7px per char at 12px DM Sans + 16px connector line)
-  const maxLabelPx = isMobile ? 0 : Math.min(Math.max(...labels.map(l => l.length)) * 7 + 24, Math.floor(containerW * 0.28));
-
-  // Vertical margin: enough for top/bottom labels (two lines of 16px each + gap)
-  const vMargin = isMobile ? 16 : 52;
-  const hMargin = isMobile ? 16 : Math.max(maxLabelPx, 60);
-
-  // Shrink pie domain so the connector lines + text fit within the canvas
-  const domainHInset = hMargin / containerW;
-  const domainX = isMobile ? [0, 1] : [Math.min(domainHInset, 0.22), Math.max(1 - domainHInset, 0.78)];
-  const domainY = isMobile ? [0, 1] : [0.04, 0.96];
-
-  // Dynamic chart height: base + a bit per category so crowded charts breathe
-  const chartH = isMobile ? 300 : Math.max(420, 360 + labels.length * 10);
-
-  wrap.innerHTML = `<div style="width:100%;height:${chartH}px;"></div>`;
-  const container = wrap.firstChild;
-
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const isDark      = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor   = isDark ? '#E8E6E1' : '#2D2D2D';
+  const text3Color  = isDark ? '#9A9791' : '#6B7280';
   const bgColor     = isDark ? '#1c1c1c' : '#ffffff';
   const borderColor = isDark ? '#3a3a3a' : '#ffffff';
+
+  // Pie only needs room for the circle — no outside labels means tight margins
+  const chartH = isMobile ? 260 : 320;
+
+  wrap.innerHTML = `
+    <div class="pie-chart-inner">
+      <div class="pie-plot-wrap" style="height:${chartH}px;"></div>
+      <div class="pie-legend"></div>
+    </div>`;
+
+  const container = wrap.querySelector('.pie-plot-wrap');
+  const legendEl  = wrap.querySelector('.pie-legend');
+
+  function buildLegend(tColor, t3Color) {
+    legendEl.innerHTML = labels.map((label, i) => {
+      const pct = ((values[i] / grandTotal) * 100).toFixed(1);
+      return `<div class="pie-legend-item">
+        <span class="pie-legend-dot" style="background:${colorArray[i]}"></span>
+        <span class="pie-legend-name" style="color:${tColor}" title="${label}">${label}</span>
+        <span class="pie-legend-pct" style="color:${t3Color}">${pct}%</span>
+      </div>`;
+    }).join('');
+  }
+  buildLegend(textColor, text3Color);
 
   const data = [{
     type: 'pie',
     labels,
     values,
     marker: { colors: colorArray, line: { color: borderColor, width: 2 } },
-    textposition: isMobile ? 'none' : 'outside',
-    textinfo: isMobile ? 'none' : 'label+percent',
+    textposition: 'inside',
+    textinfo: 'percent',
+    insidetextanchor: 'middle',
     pull,
     hole: 0,
-    domain: { x: domainX, y: domainY },
     hovertemplate: '<b>%{label}</b><br>\u20b9%{value:,.2f}<br>%{percent}<extra></extra>',
     sort: false,
-    textfont:      { size: 12, family: 'DM Sans, sans-serif', color: textColor },
-    outsidetextfont: { size: 12, family: 'DM Sans, sans-serif', color: textColor }
+    textfont: { size: 11, family: 'DM Sans, sans-serif', color: '#ffffff' },
   }];
 
   const layout = {
     showlegend: false,
-    margin: { t: vMargin, b: vMargin, l: hMargin, r: hMargin },
+    margin: { t: 12, b: 12, l: 12, r: 12 },
     paper_bgcolor: bgColor,
     plot_bgcolor:  bgColor,
     font: { family: 'DM Sans, sans-serif', size: 12, color: textColor },
     autosize: true,
-    uniformtext: isMobile ? {} : { minsize: 9, mode: 'hide' }
+    uniformtext: { minsize: 9, mode: 'hide' },
   };
 
   Plotly.react(container, data, layout, { responsive: true, displayModeBar: false });
 
-  // Re-render only when container WIDTH changes (avoids height-change infinite loops)
-  if (wrap._pieResizeObserver) wrap._pieResizeObserver.disconnect();
+  // Re-render only on width change — height changes don't need a re-render
   let _lastW = wrap.offsetWidth;
   const ro = new ResizeObserver(() => {
     const newW = wrap.offsetWidth;
@@ -4136,19 +4158,16 @@ function renderPieChart(wrapId, txList, type) {
   wrap._pieResizeObserver = ro;
 
   registerChartThemeCallback(wrapId, () => {
-    const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const newTextColor   = nowDark ? '#E8E6E1' : '#2D2D2D';
-    const newBgColor     = nowDark ? '#1c1c1c' : '#ffffff';
-    const newBorderColor = nowDark ? '#3a3a3a' : '#ffffff';
-    Plotly.update(container, {
-      'marker.line.color':    newBorderColor,
-      'textfont.color':       newTextColor,
-      'outsidetextfont.color': newTextColor
-    }, {
-      'paper_bgcolor': newBgColor,
-      'plot_bgcolor':  newBgColor,
-      'font.color':    newTextColor
-    });
+    const nowDark  = document.documentElement.getAttribute('data-theme') === 'dark';
+    const nText    = nowDark ? '#E8E6E1' : '#2D2D2D';
+    const nText3   = nowDark ? '#9A9791' : '#6B7280';
+    const nBg      = nowDark ? '#1c1c1c' : '#ffffff';
+    const nBorder  = nowDark ? '#3a3a3a' : '#ffffff';
+    Plotly.update(container,
+      { 'marker.line.color': nBorder },
+      { 'paper_bgcolor': nBg, 'plot_bgcolor': nBg, 'font.color': nText }
+    );
+    buildLegend(nText, nText3);
   });
 }
 
