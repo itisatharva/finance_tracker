@@ -4040,14 +4040,15 @@ function renderMonthlyLineChart(year, month, txList, type) {
 function renderPieChart(wrapId, txList, type) {
   const wrap = document.getElementById(wrapId);
   if (!txList.length) {
-    wrap.innerHTML=`<div class="empty">No ${type} for this period</div>`;
+    if (wrap._pieResizeObserver) { wrap._pieResizeObserver.disconnect(); delete wrap._pieResizeObserver; }
+    wrap.innerHTML = `<div class="empty">No ${type} for this period</div>`;
     return;
   }
 
   const totals = {};
   const colors = {};
   txList.forEach(t => {
-    totals[t.category] = (totals[t.category]||0) + t.amount;
+    totals[t.category] = (totals[t.category] || 0) + t.amount;
     colors[t.category] = catColorByName(type, t.category);
   });
 
@@ -4068,86 +4069,85 @@ function renderPieChart(wrapId, txList, type) {
     wrap.parentNode.insertBefore(hint, wrap);
   }
 
-  wrap.innerHTML = '<div style="width:100%;height:100%;min-height:450px;"></div>';
+  // Measure available container width (exclude padding: chart-wrap has 24px each side)
+  const containerW = Math.max((wrap.offsetWidth || 400) - 48, 200);
+
+  // Estimate the widest label in pixels (~7px per char at 12px DM Sans + 16px connector line)
+  const maxLabelPx = isMobile ? 0 : Math.min(Math.max(...labels.map(l => l.length)) * 7 + 24, Math.floor(containerW * 0.28));
+
+  // Vertical margin: enough for top/bottom labels (two lines of 16px each + gap)
+  const vMargin = isMobile ? 16 : 52;
+  const hMargin = isMobile ? 16 : Math.max(maxLabelPx, 60);
+
+  // Shrink pie domain so the connector lines + text fit within the canvas
+  const domainHInset = hMargin / containerW;
+  const domainX = isMobile ? [0, 1] : [Math.min(domainHInset, 0.22), Math.max(1 - domainHInset, 0.78)];
+  const domainY = isMobile ? [0, 1] : [0.04, 0.96];
+
+  // Dynamic chart height: base + a bit per category so crowded charts breathe
+  const chartH = isMobile ? 300 : Math.max(420, 360 + labels.length * 10);
+
+  wrap.innerHTML = `<div style="width:100%;height:${chartH}px;"></div>`;
   const container = wrap.firstChild;
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#E8E6E1' : '#2D2D2D';
-  const bgColor = isDark ? '#1c1c1c' : '#ffffff';
+  const textColor   = isDark ? '#E8E6E1' : '#2D2D2D';
+  const bgColor     = isDark ? '#1c1c1c' : '#ffffff';
   const borderColor = isDark ? '#3a3a3a' : '#ffffff';
-
 
   const data = [{
     type: 'pie',
-    labels: labels,
-    values: values,
-    marker: {
-      colors: colorArray,
-      line: { color: borderColor, width: 2 }
-    },
+    labels,
+    values,
+    marker: { colors: colorArray, line: { color: borderColor, width: 2 } },
     textposition: isMobile ? 'none' : 'outside',
     textinfo: isMobile ? 'none' : 'label+percent',
-    pull: pull,
+    pull,
     hole: 0,
-    // Shrink the pie domain so outside labels never get clipped at the edges
-    domain: isMobile ? {} : { x: [0.08, 0.92], y: [0.08, 0.92] },
-    hovertemplate: '<b>%{label}</b><br>' +
-                   '\u20b9%{value:,.2f}<br>' +
-                   '%{percent}<extra></extra>',
+    domain: { x: domainX, y: domainY },
+    hovertemplate: '<b>%{label}</b><br>\u20b9%{value:,.2f}<br>%{percent}<extra></extra>',
     sort: false,
-    textfont: {
-      size: 12,
-      family: 'DM Sans, sans-serif',
-      color: textColor
-    },
-    outsidetextfont: {
-      size: 12,
-      family: 'DM Sans, sans-serif',
-      color: textColor
-    }
+    textfont:      { size: 12, family: 'DM Sans, sans-serif', color: textColor },
+    outsidetextfont: { size: 12, family: 'DM Sans, sans-serif', color: textColor }
   }];
 
   const layout = {
     showlegend: false,
-    margin: isMobile
-      ? { t: 20, b: 20, l: 20, r: 20 }
-      : { t: 60, b: 60, l: 80, r: 80 },
+    margin: { t: vMargin, b: vMargin, l: hMargin, r: hMargin },
     paper_bgcolor: bgColor,
-    plot_bgcolor: bgColor,
-    font: {
-      family: 'DM Sans, sans-serif',
-      size: 12,
-      color: textColor
-    },
+    plot_bgcolor:  bgColor,
+    font: { family: 'DM Sans, sans-serif', size: 12, color: textColor },
     autosize: true,
-    // Let Plotly grow margins automatically when labels overflow
-    automargin: true,
-    uniformtext: isMobile ? {} : {
-      minsize: 9,
-      mode: 'hide'
-    }
+    uniformtext: isMobile ? {} : { minsize: 9, mode: 'hide' }
   };
 
-  const config = {
-    responsive: true,
-    displayModeBar: false
-  };
+  Plotly.react(container, data, layout, { responsive: true, displayModeBar: false });
 
-  Plotly.react(container, data, layout, config);
+  // Re-render only when container WIDTH changes (avoids height-change infinite loops)
+  if (wrap._pieResizeObserver) wrap._pieResizeObserver.disconnect();
+  let _lastW = wrap.offsetWidth;
+  const ro = new ResizeObserver(() => {
+    const newW = wrap.offsetWidth;
+    if (Math.abs(newW - _lastW) < 4) return;
+    _lastW = newW;
+    renderPieChart(wrapId, txList, type);
+  });
+  ro.observe(wrap);
+  wrap._pieResizeObserver = ro;
 
   registerChartThemeCallback(wrapId, () => {
     const nowDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const newTextColor = nowDark ? '#E8E6E1' : '#2D2D2D';
-    const newBgColor = nowDark ? '#1c1c1c' : '#ffffff';
+    const newTextColor   = nowDark ? '#E8E6E1' : '#2D2D2D';
+    const newBgColor     = nowDark ? '#1c1c1c' : '#ffffff';
     const newBorderColor = nowDark ? '#3a3a3a' : '#ffffff';
     Plotly.update(container, {
-      'marker.line.color': newBorderColor,
-      'textfont.color': newTextColor,
+      'marker.line.color':    newBorderColor,
+      'textfont.color':       newTextColor,
       'outsidetextfont.color': newTextColor
     }, {
       'paper_bgcolor': newBgColor,
-      'plot_bgcolor': newBgColor,
-      'font.color': newTextColor
+      'plot_bgcolor':  newBgColor,
+      'font.color':    newTextColor
     });
   });
 }
