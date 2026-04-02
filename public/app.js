@@ -4045,15 +4045,60 @@ function renderMonthlyLineChart(year, month, txList, type) {
   s.textContent = `
     .pie-chart-inner { display:flex; flex-direction:column; width:100%; gap:0; }
     .pie-plot-wrap   { width:100%; flex-shrink:0; }
-    .pie-legend      { display:flex; flex-wrap:wrap; gap:6px 16px; padding:12px 4px 4px; justify-content:center; }
-    .pie-legend-item { display:flex; align-items:center; gap:7px; min-width:130px; max-width:220px; flex:1 1 130px; }
-    .pie-legend-dot  { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-    .pie-legend-name { font-size:.82rem; font-family:'DM Sans',sans-serif; font-weight:500;
-                       white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; }
-    .pie-legend-pct  { font-size:.78rem; font-family:'DM Sans',sans-serif; flex-shrink:0; }
-    @media (max-width:480px) {
-      .pie-legend-item { min-width:110px; }
-      .pie-legend-name { font-size:.78rem; }
+
+    .pie-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin-top: 12px;
+      border-top: 1.5px solid var(--border);
+    }
+    .pie-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .pie-legend-item:last-child { border-bottom: none; }
+    .pie-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .pie-legend-name {
+      font-size: .875rem;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      color: var(--text-1);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pie-legend-pct {
+      font-size: .82rem;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      color: var(--text-2);
+      flex-shrink: 0;
+      min-width: 44px;
+      text-align: right;
+    }
+
+    @media (max-width: 768px) {
+      .pie-legend { display: none; }
+    }
+    .pie-mobile-hint {
+      text-align: center;
+      font-size: .75rem;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--text-3);
+      letter-spacing: .01em;
+      padding: 6px 0 2px;
+      opacity: .7;
     }
   `;
   document.head.appendChild(s);
@@ -4100,6 +4145,7 @@ function renderPieChart(wrapId, txList, type) {
 
   wrap.innerHTML = `
     <div class="pie-chart-inner">
+      ${isMobile ? '<div class="pie-mobile-hint">Tap a slice to see details</div>' : ''}
       <div class="pie-plot-wrap" style="height:${chartH}px;"></div>
       <div class="pie-legend"></div>
     </div>`;
@@ -4107,17 +4153,17 @@ function renderPieChart(wrapId, txList, type) {
   const container = wrap.querySelector('.pie-plot-wrap');
   const legendEl  = wrap.querySelector('.pie-legend');
 
-  function buildLegend(tColor, t3Color) {
+  function buildLegend() {
     legendEl.innerHTML = labels.map((label, i) => {
       const pct = ((values[i] / grandTotal) * 100).toFixed(1);
       return `<div class="pie-legend-item">
         <span class="pie-legend-dot" style="background:${colorArray[i]}"></span>
-        <span class="pie-legend-name" style="color:${tColor}" title="${label}">${label}</span>
-        <span class="pie-legend-pct" style="color:${t3Color}">${pct}%</span>
+        <span class="pie-legend-name" title="${label}">${label}</span>
+        <span class="pie-legend-pct">${pct}%</span>
       </div>`;
     }).join('');
   }
-  buildLegend(textColor, text3Color);
+  buildLegend();
 
   const data = [{
     type: 'pie',
@@ -4167,7 +4213,7 @@ function renderPieChart(wrapId, txList, type) {
       { 'marker.line.color': nBorder },
       { 'paper_bgcolor': nBg, 'plot_bgcolor': nBg, 'font.color': nText }
     );
-    buildLegend(nText, nText3);
+    buildLegend();
   });
 }
 
