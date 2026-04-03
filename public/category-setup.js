@@ -233,7 +233,31 @@ window.addEventListener('resize', _closeSetupPicker);
 
 // Tracks chosen "add new" color per type (color-pick button nodes stored here)
 const _addColorBtns = { expense: null, income: null };
-const _addColor     = { expense: '#E84545', income: '#0FA974' };
+
+// All palette colours available for random picking
+const _ALL_PALETTE = [
+  '#E84545','#f97316','#ec4899','#f59e0b','#a855f7',
+  '#14b8a6','#3b82f6','#06b6d4','#0FA974','#8b5cf6',
+  '#6366f1','#ef4444','#22c55e','#eab308','#64748b',
+  '#fca5a5','#fdba74','#f9a8d4','#fde68a','#e9d5ff',
+  '#99f6e4','#bfdbfe','#a5f3fc','#bbf7d0','#c7d2fe',
+];
+
+/**
+ * Pick a random colour that isn't already used by any category of the given type.
+ * Falls back to a random colour from the full palette if all are taken.
+ */
+function _pickFreshColor(type) {
+  const usedColors = new Set(cats[type].map(c => c.color.toLowerCase()));
+  const available  = _ALL_PALETTE.filter(c => !usedColors.has(c.toLowerCase()));
+  const pool       = available.length > 0 ? available : _ALL_PALETTE;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+const _addColor = {
+  expense: _pickFreshColor('expense'),
+  income:  _pickFreshColor('income'),
+};
 
 function renderLists() {
   ['expense', 'income'].forEach(type => {
@@ -309,6 +333,8 @@ window.addCat = function(type) {
   }
 
   cats[type].push(newCat);
+  // Advance to a fresh random colour before renderLists re-creates the button
+  _addColor[type] = _pickFreshColor(type);
   renderLists();
   document.getElementById(nameId).value = '';
   if (type === 'expense') document.getElementById('newExpBudget').value = '';
