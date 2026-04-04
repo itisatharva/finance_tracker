@@ -1224,15 +1224,28 @@ input[type="color"] {
 
 @media (max-width: 599px) {
   .drag-handle {
+    /* Full-width transparent hit zone — easy to grab without precise aiming */
+    width: 100%;
+    padding: 14px 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    user-select: none;
+    touch-action: none;          /* tell browser: don't scroll on this target */
+    -webkit-tap-highlight-color: transparent;
+    cursor: grab;
+    box-sizing: border-box;
+  }
+  .drag-handle::before {
+    content: '';
     width: 36px;
     height: 4px;
     background: var(--border);
     border-radius: 999px;
-    margin: 10px auto 6px;
+    display: block;
     flex-shrink: 0;
     pointer-events: none;
-    user-select: none;
-    position: relative;
   }
 }
 

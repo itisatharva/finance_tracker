@@ -265,72 +265,66 @@ function wireBottomSheetDrag(panel, closeFn) {
   handle.className = "drag-handle";
   panel.insertBefore(handle, panel.firstChild);
 
-  let startY = 0;
-  let lastY  = 0;
+  let startY   = 0;
+  let lastY    = 0;
   let dragging = false;
-  let startedOnHandle = false;
 
-  panel.addEventListener("touchstart", function(e) {
+  // Attach all drag listeners to the handle element, not the whole panel.
+  // The handle has touch-action:none (CSS) so the browser won't try to
+  // scroll the panel content at the same time we're translating it —
+  // that simultaneous motion was the source of visible jitter.
+
+  handle.addEventListener("touchstart", function(e) {
     if (window.innerWidth >= 600) return;
     startY   = e.touches[0].clientY;
     lastY    = startY;
     dragging = false;
-    // The handle has pointer-events:none so e.target is never the handle element.
-    // Instead, check whether the touch Y coordinate falls within the handle's
-    // rendered area (expanded by a generous hit-zone so it's easy to grab).
-    var hr = handle.getBoundingClientRect();
-    var hitTop    = hr.top    - 16;
-    var hitBottom = hr.bottom + 16;
-    startedOnHandle = startY >= hitTop && startY <= hitBottom;
   }, { passive: true });
 
-  panel.addEventListener("touchmove", function(e) {
+  handle.addEventListener("touchmove", function(e) {
     if (window.innerWidth >= 600) return;
     lastY = e.touches[0].clientY;
-    var dy = lastY - startY;
-    // Dragging is only initiated when the touch originated on the drag handle
-    if (!dragging && dy > 8 && startedOnHandle) {
-      dragging = true;
-    }
+    const dy = lastY - startY;
+    if (!dragging && dy > 6) dragging = true;
     if (!dragging) return;
-    var offset = Math.max(0, dy);
-    // translate3d keeps the element on its GPU compositor layer during drag;
-    // transition:none removes the easing so drag tracking is 1:1 with finger.
+    // Non-passive — prevent the panel's overflow scroll from also firing
+    // while we're translating the whole panel downward.
+    e.preventDefault();
+    const offset = Math.max(0, dy);
+    // translate3d keeps motion on the GPU compositor; transition:none gives
+    // 1:1 finger tracking with zero easing lag.
     panel.style.transition = "none";
     panel.style.transform  = "translate3d(0," + offset + "px,0)";
-  }, { passive: true });
+  }, { passive: false });
 
   function onDragEnd() {
     if (!dragging) return;
     dragging = false;
-    var dy = lastY - startY;
+    const dy = lastY - startY;
     if (dy > 80) {
       // Dismissed — clear inline styles before closeFn triggers CSS transition
       panel.style.transition = "";
       panel.style.transform  = "";
       closeFn();
     } else {
-      // Partial drag: spring back with a fast elastic ease instead of an
-      // abrupt snap. Use a slightly shorter duration than the open animation
-      // so the spring-back feels responsive, not sluggish.
+      // Partial drag: spring back
       panel.style.transition = "transform .32s cubic-bezier(0.32, 0.72, 0, 1)";
       panel.style.transform  = "translate3d(0,0,0)";
-      // Remove the inline transition once it completes so the CSS rule takes over
-      var _t = setTimeout(function() { panel.style.transition = ""; }, 340);
-      // Guard: if another drag starts before the timer fires, cancel it
-      panel.addEventListener("touchstart", function _cleanup() {
+      // Remove the inline transition once it completes so the CSS rule takes over.
+      // Cancel early if another drag starts before the timer fires.
+      const _t = setTimeout(function() { panel.style.transition = ""; }, 340);
+      handle.addEventListener("touchstart", function _cleanup() {
         clearTimeout(_t);
         panel.style.transition = "";
-        panel.removeEventListener("touchstart", _cleanup);
+        handle.removeEventListener("touchstart", _cleanup);
       }, { once: true, passive: true });
     }
   }
 
-  panel.addEventListener("touchend",    onDragEnd);
-  panel.addEventListener("touchcancel", function() {
+  handle.addEventListener("touchend",    onDragEnd);
+  handle.addEventListener("touchcancel", function() {
     if (!dragging) return;
     dragging = false;
-    // Same spring-back on cancel
     panel.style.transition = "transform .32s cubic-bezier(0.32, 0.72, 0, 1)";
     panel.style.transform  = "translate3d(0,0,0)";
     setTimeout(function() { panel.style.transition = ""; }, 340);
@@ -1564,6 +1558,13 @@ function wireAddTxForm() {
     if (sni)   sni.value = '';
     if (panel) panel.classList.toggle('confirm-mode', !!confirmMode);
 
+    // Lock body scroll immediately so it can't compete with the panel's
+    // translateY animation. The previous 440 ms delay left the body scrollable
+    // during the whole open transition, which caused jank on devices where the
+    // main-thread scroll and the compositor animation ran simultaneously.
+    clearTimeout(_openOverflowTimer);
+    document.body.style.overflow = 'hidden';
+
     // Double-rAF: first frame lets the browser commit the panel's current
     // transform (translate3d(0,102%,0)) to the compositor before we add
     // .open.  Without this the transition can start from an undefined state
@@ -1575,13 +1576,6 @@ function wireAddTxForm() {
         if (fab) fab.classList.add('open');
       });
     });
-
-    clearTimeout(_openOverflowTimer);
-    // Delay overflow:hidden until well after the animation completes (360ms)
-    // so the scrollbar disappearance never causes a layout shift mid-flight.
-    _openOverflowTimer = setTimeout(() => {
-      document.body.style.overflow = 'hidden';
-    }, 440);
 
     ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
       const el = document.getElementById(id);
@@ -2223,15 +2217,18 @@ function wireAddTxForm() {
       if (vvH === _lastVvHeight) return;
       _lastVvHeight = vvH;
       clearTimeout(_vpResizeTimer);
-      _vpResizeTimer = setTimeout(_doKeyboardScroll, 150);
+      // Use a short debounce: wait for the keyboard to finish animating, then
+      // do ONE layout read + ONE scroll write. 100 ms is enough on both iOS and
+      // Android without the user noticing a delay.
+      _vpResizeTimer = setTimeout(_doKeyboardScroll, 100);
     }
 
     window.visualViewport.addEventListener('resize', onViewportResize);
 
-    ['txDate', 'txCategory', 'txAmount', 'txNote'].forEach(fId => {
-      const el = document.getElementById(fId);
-      if (el) el.addEventListener('focus', () => scrollFieldIntoView(el));
-    });
+    // Do NOT add focus listeners here — they would call scrollIntoView before the
+    // keyboard has appeared, then onViewportResize fires ~100 ms later and scrolls
+    // again, creating a visible two-step jitter. The viewport resize handler alone
+    // is sufficient and always fires after the keyboard is actually present.
   }
 
   if (fab) fab.addEventListener('click', () => {
