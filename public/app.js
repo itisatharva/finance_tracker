@@ -1552,34 +1552,44 @@ function wireAddTxForm() {
   let _openOverflowTimer = null; // tracks the deferred overflow=hidden
 
   function openAddTxSheet(confirmMode = false) {
-    // Prep non-visual state synchronously (no layout impact)
+    // Prep non-visual state synchronously — touch only things with zero layout impact.
     const panel = document.getElementById('addTxSheet');
     const sni   = document.getElementById('sheetNlpInput');
     if (sni)   sni.value = '';
     if (panel) panel.classList.toggle('confirm-mode', !!confirmMode);
 
-    // Lock body scroll immediately so it can't compete with the panel's
-    // translateY animation. The previous 440 ms delay left the body scrollable
-    // during the whole open transition, which caused jank on devices where the
-    // main-thread scroll and the compositor animation ran simultaneously.
     clearTimeout(_openOverflowTimer);
     document.body.style.overflow = 'hidden';
 
-    // Double-rAF: first frame lets the browser commit the panel's current
-    // transform (translate3d(0,102%,0)) to the compositor before we add
-    // .open.  Without this the transition can start from an undefined state
-    // on the first open, causing a visible snap/flash on slow devices.
-    _hideSparkTip();   // dismiss any sparkline tooltip before sheet animates in
+    _hideSparkTip();
+
+    // Hide the bottom-nav for the duration of the open animation.
+    // The nav has transform:translateX(-50%) which promotes it to its own
+    // compositor layer. While the panel slides up that layer must be
+    // re-composited every frame — setting visibility:hidden removes it from
+    // the compositor stack entirely for the ~360ms transition.
+    // The backdrop (z-index:960) covers the nav when open anyway.
+    const nav = document.getElementById('bottomNav');
+    if (nav) nav.style.visibility = 'hidden';
+
+    // Double-rAF: first frame commits the panel's current transform to the
+    // compositor before .open is added, preventing a snap on first open.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         bg.classList.add('open');
         if (fab) fab.classList.add('open');
-      });
-    });
 
-    ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.classList.remove('active');
+        // Batch all nav-button class changes here so they share one style
+        // resolution pass with the .open add, instead of forcing a separate
+        // recalculation synchronously before the animation starts.
+        ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.classList.remove('active');
+        });
+
+        // Restore nav after slide-up transition finishes (360ms + small buffer).
+        setTimeout(() => { if (nav) nav.style.visibility = ''; }, 420);
+      });
     });
   }
 
@@ -1592,6 +1602,9 @@ function wireAddTxForm() {
     document.getElementById('addTxSheet')?.classList.remove('confirm-mode');
     if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
+    // Always restore nav visibility (may have been hidden during open animation)
+    const nav = document.getElementById('bottomNav');
+    if (nav) nav.style.visibility = '';
     const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
     const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
     if (activeEl) activeEl.classList.add('active');

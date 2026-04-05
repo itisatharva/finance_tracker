@@ -3170,26 +3170,39 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 
 /*
- * Backdrop: opacity-only transition — never animate backdrop-filter,
- * it forces a new compositing layer on every frame and causes jank.
- * The blur is applied instantly on open; only the dim fades in.
+ * Backdrop container — no background, no paint-triggering transition.
+ * z-index 960 puts it above the bottom-nav (z: 950) so the nav is
+ * naturally covered when the sheet is open and doesn't compete as a
+ * separate compositor layer during the animation.
+ *
+ * The dim is handled entirely by ::before with an opacity transition —
+ * opacity is a compositor-only property (zero per-frame paint), unlike
+ * animating `background` which triggered a full repaint every frame.
  */
 .addtx-backdrop {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0);
-  z-index: 900;
+  background: transparent;   /* never changes — no paint ever */
+  z-index: 960;              /* above bottom-nav z-index:950 */
   display: flex;
   align-items: flex-end;
   justify-content: center;
   pointer-events: none;
-  /* Animate background only — NO backdrop-filter on mobile.
-     blur() forces a full-screen GPU repaint on the same frame the
-     translateY animation starts, stealing compositor budget and causing
-     the visible chop. A simple dim is visually identical and costs nothing. */
-  transition: background .3s ease;
+}
+
+/* Dim overlay as pseudo-element so opacity change never affects the panel */
+.addtx-backdrop::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.52);
+  opacity: 0;
+  transition: opacity .3s ease;  /* opacity = compositor, no paint */
+  will-change: opacity;
+  pointer-events: none;
+}
+.addtx-backdrop.open::before {
+  opacity: 1;
 }
 .addtx-backdrop.open {
-  background: rgba(0,0,0,.52);
   pointer-events: all;
 }
 
@@ -3234,10 +3247,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Desktop: centred modal — blur is fine here, desktop GPU handles it easily */
 @media (min-width: 600px) {
+  /* On desktop we use backdrop-filter blur for the dim instead of ::before opacity */
+  .addtx-backdrop::before { display: none; }
   .addtx-backdrop {
     align-items: center;
     padding: 20px;
-    transition: background .28s ease, backdrop-filter .28s ease;
+    transition: backdrop-filter .28s ease;
     backdrop-filter: blur(0px);
     -webkit-backdrop-filter: blur(0px);
   }
