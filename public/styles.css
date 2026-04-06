@@ -3189,14 +3189,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   pointer-events: none;
 }
 
-/* Dim overlay as pseudo-element so opacity change never affects the panel */
+/* Dim overlay — opacity-only transition, no will-change so it doesn't
+   create a competing compositor layer alongside the panel's own layer. */
 .addtx-backdrop::before {
   content: '';
   position: absolute; inset: 0;
   background: rgba(0,0,0,.52);
   opacity: 0;
-  transition: opacity .3s ease;  /* opacity = compositor, no paint */
-  will-change: opacity;
+  transition: opacity .3s ease;
   pointer-events: none;
 }
 .addtx-backdrop.open::before {

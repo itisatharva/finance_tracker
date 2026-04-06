@@ -1552,59 +1552,40 @@ function wireAddTxForm() {
   let _openOverflowTimer = null; // tracks the deferred overflow=hidden
 
   function openAddTxSheet(confirmMode = false) {
-    // Prep non-visual state synchronously — touch only things with zero layout impact.
+    // Reset non-visual state first — zero layout impact.
     const panel = document.getElementById('addTxSheet');
     const sni   = document.getElementById('sheetNlpInput');
     if (sni)   sni.value = '';
     if (panel) panel.classList.toggle('confirm-mode', !!confirmMode);
-
-    clearTimeout(_openOverflowTimer);
-    document.body.style.overflow = 'hidden';
-
     _hideSparkTip();
 
-    // Hide the bottom-nav for the duration of the open animation.
-    // The nav has transform:translateX(-50%) which promotes it to its own
-    // compositor layer. While the panel slides up that layer must be
-    // re-composited every frame — setting visibility:hidden removes it from
-    // the compositor stack entirely for the ~360ms transition.
-    // The backdrop (z-index:960) covers the nav when open anyway.
-    const nav = document.getElementById('bottomNav');
-    if (nav) nav.style.visibility = 'hidden';
-
-    // Double-rAF: first frame commits the panel's current transform to the
-    // compositor before .open is added, preventing a snap on first open.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        bg.classList.add('open');
-        if (fab) fab.classList.add('open');
-
-        // Batch all nav-button class changes here so they share one style
-        // resolution pass with the .open add, instead of forcing a separate
-        // recalculation synchronously before the animation starts.
-        ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.classList.remove('active');
-        });
-
-        // Restore nav after slide-up transition finishes (360ms + small buffer).
-        setTimeout(() => { if (nav) nav.style.visibility = ''; }, 420);
-      });
+    // All visual changes in ONE synchronous block so the browser batches them
+    // into a single style resolution + single paint before transitions start.
+    // This mirrors exactly how openDrawer() works for the settings panel.
+    //
+    // The previous double-rAF approach set overflow:hidden + nav.visibility
+    // synchronously, then waited 2 frames before adding .open — causing 3
+    // separate style recalculations across 3 frames before the animation even
+    // began. On mobile that produces the "freeze then lurch" jitter.
+    // will-change:transform on .addtx-panel pre-promotes it at page-render
+    // time, so there is no first-open snap risk without the rAF delay.
+    bg.classList.add('open');
+    if (fab) fab.classList.add('open');
+    ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('active');
     });
+    document.body.style.overflow = 'hidden';
   }
 
   function closeAddTxSheet() {
     clearTimeout(_autoCloseTimer);
-    clearTimeout(_openOverflowTimer);
     _autoCloseTimer = null;
     _txSuccessMode  = false;
     bg.classList.remove('open');
     document.getElementById('addTxSheet')?.classList.remove('confirm-mode');
     if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
-    // Always restore nav visibility (may have been hidden during open animation)
-    const nav = document.getElementById('bottomNav');
-    if (nav) nav.style.visibility = '';
     const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
     const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
     if (activeEl) activeEl.classList.add('active');
