@@ -1552,30 +1552,42 @@ function wireAddTxForm() {
   let _openOverflowTimer = null; // tracks the deferred overflow=hidden
 
   function openAddTxSheet(confirmMode = false) {
-    // Reset non-visual state first — zero layout impact.
+    // Reset non-visual state — zero layout impact.
     const panel = document.getElementById('addTxSheet');
     const sni   = document.getElementById('sheetNlpInput');
     if (sni)   sni.value = '';
     if (panel) panel.classList.toggle('confirm-mode', !!confirmMode);
     _hideSparkTip();
 
-    // All visual changes in ONE synchronous block so the browser batches them
-    // into a single style resolution + single paint before transitions start.
-    // This mirrors exactly how openDrawer() works for the settings panel.
+    // Frame 0: ONLY start the panel animation. Nothing else.
+    // ─────────────────────────────────────────────────────
+    // The jitter was caused by doing bg.classList.add('open') AND
+    // fab.classList.add('open') AND 4× classList.remove('active') all in the
+    // same synchronous block. Even though background/box-shadow were removed
+    // from .bn-fab's transition list, adding .open still forces an instant
+    // rasterisation of the FAB's compositor layer (background + box-shadow
+    // change). That re-rasterisation invalidates the entire .bottom-nav
+    // stacking-context layer on the exact frame the panel starts moving —
+    // the GPU is busy painting the nav instead of running the animation.
     //
-    // The previous double-rAF approach set overflow:hidden + nav.visibility
-    // synchronously, then waited 2 frames before adding .open — causing 3
-    // separate style recalculations across 3 frames before the animation even
-    // began. On mobile that produces the "freeze then lurch" jitter.
-    // will-change:transform on .addtx-panel pre-promotes it at page-render
-    // time, so there is no first-open snap risk without the rAF delay.
+    // The settings drawer is smooth because openDrawer() touches nothing in
+    // the nav at all. We now match that: panel animation starts alone on
+    // frame 0, then nav/FAB changes are deferred to frame 1 via rAF so they
+    // never compete with the first frame of the slide.
     bg.classList.add('open');
-    if (fab) fab.classList.add('open');
-    ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.classList.remove('active');
-    });
     document.body.style.overflow = 'hidden';
+
+    // Frame 1: FAB rotation + nav-tab active-state changes.
+    // These only affect the nav compositor layer, which is separate from the
+    // panel layer. By the time this runs the panel transition is already
+    // underway and the browser only needs to composite, not paint.
+    requestAnimationFrame(() => {
+      if (fab) fab.classList.add('open');
+      ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+      });
+    });
   }
 
   function closeAddTxSheet() {

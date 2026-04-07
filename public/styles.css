@@ -3135,17 +3135,11 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   }
 
   .bn-fab.open {
-    background: #111;          /* instant — no repaint during animation */
+    /* background and box-shadow intentionally omitted — even an "instant"
+       change forces a rasterisation of the FAB's compositor layer on the
+       same frame the panel animation starts, invalidating the entire nav
+       layer and causing the jitter. The rotation alone makes the × clear. */
     transform: rotate(45deg);
-    box-shadow:
-      0 2px 10px rgba(0,0,0,0.22),
-      0 1px 3px  rgba(0,0,0,0.14);
-  }
-  [data-theme="dark"] .bn-fab.open {
-    background: #fff;
-  }
-  [data-theme="dark"] .bn-fab.open svg {
-    stroke: #111;
   }
   .bn-fab.open:active {
     transform: rotate(45deg) scale(.88);
