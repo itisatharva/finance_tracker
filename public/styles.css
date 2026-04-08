@@ -3184,17 +3184,21 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 /* Dim overlay — opacity-only transition, no will-change so it doesn't
-   create a competing compositor layer alongside the panel's own layer. */
+   create a competing compositor layer alongside the panel's own layer.
+   The .06s delay on the base rule applies only when .open is removed (close
+   path) — gives the panel a head-start so the overlay doesn't vanish before
+   the sheet has left the screen. */
 .addtx-backdrop::before {
   content: '';
   position: absolute; inset: 0;
   background: rgba(0,0,0,.52);
   opacity: 0;
-  transition: opacity .3s ease;
+  transition: opacity .3s ease .06s;  /* delay only on close */
   pointer-events: none;
 }
 .addtx-backdrop.open::before {
   opacity: 1;
+  transition: opacity .25s ease;      /* no delay on open */
 }
 .addtx-backdrop.open {
   pointer-events: all;

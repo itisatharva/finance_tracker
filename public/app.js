@@ -302,10 +302,19 @@ function wireBottomSheetDrag(panel, closeFn) {
     dragging = false;
     const dy = lastY - startY;
     if (dy > 80) {
-      // Dismissed — clear inline styles before closeFn triggers CSS transition
-      panel.style.transition = "";
-      panel.style.transform  = "";
-      closeFn();
+      // Dismissed — continue the momentum off-screen, THEN clean up state.
+      // Previously we cleared inline styles first which caused an instant
+      // snap back to the CSS default (102%) before closeFn could remove .open.
+      // Now we animate to 110vh from the current drag position, wait for that
+      // to finish, strip the inline styles (CSS default 102% = still off-screen),
+      // then call closeFn so no visible pop ever occurs.
+      panel.style.transition = "transform .2s cubic-bezier(0.4, 0, 1, 1)";
+      panel.style.transform  = "translate3d(0, 110vh, 0)";
+      setTimeout(function() {
+        panel.style.transition = "";
+        panel.style.transform  = "";
+        closeFn();
+      }, 220);
     } else {
       // Partial drag: spring back
       panel.style.transition = "transform .32s cubic-bezier(0.32, 0.72, 0, 1)";
@@ -1596,11 +1605,19 @@ function wireAddTxForm() {
     _txSuccessMode  = false;
     bg.classList.remove('open');
     document.getElementById('addTxSheet')?.classList.remove('confirm-mode');
-    if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
-    const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
-    const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
-    if (activeEl) activeEl.classList.add('active');
+
+    // Mirror the open path: defer FAB rotation and nav active-state to rAF
+    // so they never compete with the first frame of the panel's slide-away
+    // animation.  Doing both synchronously was the jitter source on close —
+    // rotating the FAB forces a rasterisation of the nav compositor layer on
+    // the exact frame the panel starts moving.
+    requestAnimationFrame(() => {
+      if (fab) fab.classList.remove('open');
+      const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
+      const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
+      if (activeEl) activeEl.classList.add('active');
+    });
   }
 
   function resetToAddForm(shouldFocus = true) {
