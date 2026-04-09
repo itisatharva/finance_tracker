@@ -333,7 +333,7 @@ window.addCat = function(type) {
   }
 
   cats[type].push(newCat);
-  // Advance to a fresh random colour before renderLists re-creates the button
+  
   _addColor[type] = _pickFreshColor(type);
   renderLists();
   document.getElementById(nameId).value = '';
