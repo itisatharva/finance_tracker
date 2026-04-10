@@ -2981,7 +2981,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 
     transform: translateY(100%);
-    transition: transform .42s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.44s cubic-bezier(0.16, 1, 0.3, 1);
     will-change: transform;
 
 
@@ -3165,9 +3165,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /*
  * Backdrop container — no background, no paint-triggering transition.
- * z-index 960 puts it above the bottom-nav (z: 950) so the nav is
- * naturally covered when the sheet is open and doesn't compete as a
- * separate compositor layer during the animation.
+ * z-index 800 puts it below the bottom-nav (z: 950) so the nav stays
+ * visible and tappable while a drawer is open. The nav's FAB becomes the
+ * close button (rotates to ×) so the user always has a way to dismiss.
  *
  * The dim is handled entirely by ::before with an opacity transition —
  * opacity is a compositor-only property (zero per-frame paint), unlike
@@ -3176,7 +3176,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .addtx-backdrop {
   position: fixed; inset: 0;
   background: transparent;   /* never changes — no paint ever */
-  z-index: 960;              /* above bottom-nav z-index:950 */
+  /*
+   * z-index 800 — intentionally below bottom-nav (z:950) so the nav stays
+   * visible and interactive when a drawer is open. Full-screen modals that
+   * legitimately need to cover the nav use higher values (960+).
+   */
+  z-index: 800;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -3193,12 +3198,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   position: absolute; inset: 0;
   background: rgba(0,0,0,.52);
   opacity: 0;
-  transition: opacity .3s ease .06s;  /* delay only on close */
+  transition: opacity .35s ease .05s;  /* slight delay only on close */
   pointer-events: none;
 }
 .addtx-backdrop.open::before {
   opacity: 1;
-  transition: opacity .25s ease;      /* no delay on open */
+  transition: opacity .22s ease;       /* no delay on open — snap to dim */
 }
 .addtx-backdrop.open {
   pointer-events: all;
@@ -3235,7 +3240,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   transform: translate3d(0, 102%, 0); /* panel + shadow fully offscreen */
   will-change: transform;             /* pre-promote before first open */
   contain: layout style;              /* isolate from ancestor invalidations */
-  transition: transform .36s cubic-bezier(0.32, 0.72, 0, 1);
+  /*
+   * cubic-bezier(0.16, 1, 0.3, 1) — iOS-style spring: blazing fast out of
+   * the starting position, soft deceleration at rest. Feels 120fps-smooth
+   * even on 60Hz displays because the curve front-loads velocity.
+   */
+  transition: transform 0.44s cubic-bezier(0.16, 1, 0.3, 1);
   /* keyboard-lift offset, set by JS via visualViewport */
   margin-bottom: 0;
 }
@@ -3265,8 +3275,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     max-height: 88vh;
     overflow-y: auto;
     box-shadow: 0 8px 48px rgba(0,0,0,.28);
-    transition: transform .28s cubic-bezier(0.32, 0.72, 0, 1),
-                opacity .2s ease;
+    transition: transform .32s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity .22s ease;
     will-change: transform, opacity;
   }
   .addtx-backdrop.open .addtx-panel {
@@ -3283,9 +3293,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
     max-height: 92vh;
     overflow-y: auto;
     overscroll-behavior: contain;
-    /* Extra bottom padding so the submit button is never hidden behind
-       the navbar or safe-area notch. */
-    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    /* Extra bottom padding so the submit button clears the visible bottom
+       nav (z-index:1000) which stays on top of the open drawer. */
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
   }
 }
 .addtx-head {

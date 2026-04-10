@@ -959,8 +959,6 @@ window.openCatsModal = function() {
   renderCatLists();
   document.getElementById('catsModalBg').classList.add('open');
   document.body.style.overflow = 'hidden';
-  const nav = document.getElementById('bottomNav');
-  if (nav) nav.style.display = 'none';
 };
 (function() {
   var panel = document.querySelector('#catsModalBg .modal');
@@ -973,8 +971,6 @@ window.closeCatsModal = function() {
   _closeColorPicker();
   document.getElementById('catsModalBg').classList.remove('open');
   document.body.style.overflow = '';
-  const nav = document.getElementById('bottomNav');
-  if (nav) nav.style.display = '';
   const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
   ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
     const el = document.getElementById(id);
@@ -1586,16 +1582,11 @@ function wireAddTxForm() {
     bg.classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    // Frame 1: FAB rotation + nav-tab active-state changes.
-    // These only affect the nav compositor layer, which is separate from the
-    // panel layer. By the time this runs the panel transition is already
-    // underway and the browser only needs to composite, not paint.
+    // Frame 1: FAB rotation only — deferred so it never competes with the
+    // panel's first animation frame. Nav tabs are left highlighted since the
+    // nav stays visible (z-index:1000) above the open drawer.
     requestAnimationFrame(() => {
       if (fab) fab.classList.add('open');
-      ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('active');
-      });
     });
   }
 
@@ -1607,11 +1598,9 @@ function wireAddTxForm() {
     document.getElementById('addTxSheet')?.classList.remove('confirm-mode');
     document.body.style.overflow = '';
 
-    // Mirror the open path: defer FAB rotation and nav active-state to rAF
-    // so they never compete with the first frame of the panel's slide-away
-    // animation.  Doing both synchronously was the jitter source on close —
-    // rotating the FAB forces a rasterisation of the nav compositor layer on
-    // the exact frame the panel starts moving.
+    // Mirror the open path: defer FAB rotation to rAF so it never competes
+    // with the panel's slide-away animation. Nav active state is restored
+    // in case it was cleared by another code path.
     requestAnimationFrame(() => {
       if (fab) fab.classList.remove('open');
       const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
@@ -3346,26 +3335,33 @@ function wireAddPending() {
   const openBtn  = document.getElementById('btnOpenPending');
 
   function openPendingSheet() {
+    // Frame 0: start panel animation only — no nav/FAB paint on this frame.
     bg.classList.add('open');
     if (openBtn) openBtn.classList.add('open');
-    const fab = document.getElementById('bnAddTx');
-    if (fab) fab.classList.add('open');
     document.body.style.overflow = 'hidden';
-    ['bnDash','bnAnalytics','bnTransactions','bnSettings'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.classList.remove('active');
+
+    // Frame 1: FAB rotation only — nav tabs stay active since the nav
+    // stays visible above the open drawer.
+    requestAnimationFrame(() => {
+      const fab = document.getElementById('bnAddTx');
+      if (fab) fab.classList.add('open');
     });
   }
 
   function closePendingSheet() {
+    // Frame 0: start panel close animation only.
     bg.classList.remove('open');
     if (openBtn) openBtn.classList.remove('open');
-    const fab = document.getElementById('bnAddTx');
-    if (fab) fab.classList.remove('open');
     document.body.style.overflow = '';
-    const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
-    const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
-    if (activeEl) activeEl.classList.add('active');
+
+    // Frame 1: restore FAB and nav active state.
+    requestAnimationFrame(() => {
+      const fab = document.getElementById('bnAddTx');
+      if (fab) fab.classList.remove('open');
+      const bnMap = { dashboard: 'bnDash', analytics: 'bnAnalytics', transactions: 'bnTransactions' };
+      const activeEl = document.getElementById(bnMap[activeView] || 'bnDash');
+      if (activeEl) activeEl.classList.add('active');
+    });
   }
 
   window.openPendingSheet  = openPendingSheet;
