@@ -930,6 +930,11 @@ function renderQuickCats() {
 
   if (!top.length) { el.innerHTML = ''; return; }
 
+  // Skip DOM rebuild if pills haven't changed.
+  const cacheKey = top.map(c => `${c.name}:${c.color}`).join('|');
+  if (renderQuickCats._lastKey === cacheKey) return;
+  renderQuickCats._lastKey = cacheKey;
+
   el.innerHTML = top.map(cat => `
     <button class="quick-cat-pill" data-cat="${esc(cat.name)}" title="Add ${esc(cat.name)} transaction">
       <span class="quick-cat-dot" style="background:${cat.color}"></span>
@@ -937,7 +942,6 @@ function renderQuickCats() {
     </button>`).join('');
 
   // Single delegated handler — overwrites the previous one instead of stacking.
-  // Handles both pill clicks and bare-container clicks in one place.
   el.onclick = e => {
     e.stopPropagation();
     const pill = e.target.closest('.quick-cat-pill');
@@ -1409,7 +1413,7 @@ document.addEventListener('pointerdown', e => {
 window.addEventListener('scroll', (e) => {
   if (document.activeElement && document.activeElement.type === 'color') return;
   _closeColorPicker();
-}, true);
+}, { passive: true, capture: true });
 window.addEventListener('resize', _closeColorPicker);
 
 const _addPaletteColor = { expense: '#E84545', income: '#0FA974' };
@@ -3016,14 +3020,20 @@ function renderStats() {
     setTimeout(() => {
       elements.forEach(el => {
         el.innerHTML = valueMap.get(el);
-        el.style.opacity = '0'; // ensure we start from invisible
+        el.style.opacity = '0';
       });
       requestAnimationFrame(() => requestAnimationFrame(() => {
         elements.forEach(el => { el.style.opacity = '1'; });
       }));
     }, 200);
   } else {
-    elements.forEach(el => el.innerHTML = valueMap.get(el));
+    // Only write to the DOM when the displayed value actually changed.
+    // Skipping no-op innerHTML assignments avoids style recalc + repaint
+    // on every Firestore snapshot even when nothing moved.
+    elements.forEach(el => {
+      const next = valueMap.get(el);
+      if (el.textContent !== next) el.innerHTML = next;
+    });
   }
 
   const cfEl = document.getElementById('cfStartBal');
@@ -3077,6 +3087,11 @@ function renderTopSpending() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
 
+  // Build a cheap cache key — skip full DOM rebuild when nothing changed.
+  const cacheKey = sorted.map(([n, v]) => `${n}:${v}`).join('|');
+  if (renderTopSpending._lastKey === cacheKey) return;
+  renderTopSpending._lastKey = cacheKey;
+
   const maxAmt = sorted[0][1];
 
   el.innerHTML = sorted.map(([name, spent]) => {
@@ -3111,6 +3126,16 @@ function renderTopSpending() {
 
 function renderSparklines() {
   if (!transactions) return;
+
+  // Cheap fingerprint: count + sum + newest id. Skips full recompute when
+  // a Firestore snapshot fires but no tx actually changed (e.g. only pending
+  // changed, or a category was renamed).
+  const fp = transactions.length + '|' +
+    transactions.reduce((s, t) => s + t.amount, 0).toFixed(2) + '|' +
+    (transactions[0]?.id || '');
+  if (renderSparklines._fp === fp) return;
+  renderSparklines._fp = fp;
+
   const DAYS = 30;
   const now  = new Date();
 
@@ -3136,17 +3161,41 @@ function renderSparklines() {
   }
 
   function dailyBalance(n) {
-    return Array.from({ length: n }, (_, i) => {
-      const dayEnd = new Date(now);
-      dayEnd.setDate(dayEnd.getDate() - (n - 1 - i));
-      dayEnd.setHours(23, 59, 59, 999);
-      let bal = startingBalance;
-      transactions.forEach(t => {
-        const d = toDate(t.selectedDate);
-        if (d && d <= dayEnd) bal += t.type === 'income' ? t.amount : -t.amount;
-      });
-      return bal;
+    // O(n log n) single pass instead of O(30n) nested loops.
+    // Sort once, accumulate forward, assign to the correct bucket.
+    const buckets = new Array(n).fill(0);
+    const cutoff = new Date(now);
+    cutoff.setDate(cutoff.getDate() - (n - 1));
+    cutoff.setHours(0, 0, 0, 0);
+
+    // Compute running balance up to (but not including) our window.
+    let runningBal = startingBalance;
+    transactions.forEach(t => {
+      const d = toDate(t.selectedDate);
+      if (d && d < cutoff) {
+        runningBal += t.type === 'income' ? t.amount : -t.amount;
+      }
     });
+
+    // Build per-day delta array for the window.
+    const deltas = new Array(n).fill(0);
+    transactions.forEach(t => {
+      const d = toDate(t.selectedDate);
+      if (!d) return;
+      const diff = Math.floor((now - d) / 86_400_000);
+      if (diff >= 0 && diff < n) {
+        const idx = n - 1 - diff;
+        deltas[idx] += t.type === 'income' ? t.amount : -t.amount;
+      }
+    });
+
+    // Accumulate forward to get end-of-day balance per bucket.
+    let bal = runningBal;
+    for (let i = 0; i < n; i++) {
+      bal += deltas[i];
+      buckets[i] = bal;
+    }
+    return buckets;
   }
 
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
