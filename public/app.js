@@ -3020,7 +3020,6 @@ function renderStats() {
     setTimeout(() => {
       elements.forEach(el => {
         el.innerHTML = valueMap.get(el);
-        el.style.opacity = '0';
       });
       requestAnimationFrame(() => requestAnimationFrame(() => {
         elements.forEach(el => { el.style.opacity = '1'; });
