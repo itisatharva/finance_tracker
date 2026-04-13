@@ -19,5 +19,5 @@ window.toggleTheme = function() {
   _updateThemeLabel();
 };
 
-// Set correct label once DOM is ready
+
 document.addEventListener('DOMContentLoaded', _updateThemeLabel);
