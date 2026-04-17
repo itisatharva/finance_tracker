@@ -20,6 +20,15 @@ let _unsubTransactions = null;  // unsubscribe fn for transaction listener
 let _unsubAccounts     = null;  // unsubscribe fn for accounts listener
 let _unsubPending      = null;  // unsubscribe fn for pending listener
 
+// —— Render memoization ——————————————————————————————————————
+let _txVersion        = 0;      // bumped whenever transactions[] is replaced
+let _txSortedCache    = null;
+let _txSortedCacheVer = -1;
+let _runBalCache      = null;
+let _runBalCacheVer   = -1;
+let _runBalCacheStart = null;
+let _renderPending    = false;  // RAF-gate: coalesce burst renders into one frame
+
 // —— Undo-delete state ——————————————————————————————————————
 let _undoPendingId   = null;  // ID currently held back from Firestore delete
 let _undoTimer       = null;  // 4s countdown before hard-delete fires
@@ -218,8 +227,7 @@ window.firebaseReady.then(() => {
     document.getElementById('cashflowYear').value  = today.getFullYear();
 
     await initAccounts();
-    await loadCategories();
-    await loadSettings();
+    await Promise.all([loadCategories(), loadSettings()]);
     listenPending();
     listenTransactions();
     wireSettingsDrawer();
@@ -236,17 +244,34 @@ function toInputDate(d) {
   const dy = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dy}`;
 }
+// WeakMap lets GC collect Timestamp objects freely once Firestore discards them.
+const _toDateCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 function toDate(v) {
   if (v == null) return null;
-  if (v.toDate) return v.toDate();
+  if (v.toDate) {
+    if (_toDateCache) {
+      let cached = _toDateCache.get(v);
+      if (!cached) { cached = v.toDate(); _toDateCache.set(v, cached); }
+      return cached;
+    }
+    return v.toDate();
+  }
   if (v instanceof Date) return v;
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d;
 }
+// fmt() is called on every transaction in every render pass. Cache the 200
+// most-recently-used values (typical finance amounts repeat constantly).
+const _fmtCache = new Map();
+const _FMT_MAX  = 200;
 function fmt(n) {
+  if (_fmtCache.has(n)) return _fmtCache.get(n);
   const abs = Math.abs(n);
   const str = '₹' + abs.toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
-  return n < 0 ? '-' + str : str;
+  const result = n < 0 ? '-' + str : str;
+  if (_fmtCache.size >= _FMT_MAX) _fmtCache.delete(_fmtCache.keys().next().value);
+  _fmtCache.set(n, result);
+  return result;
 }
 function vibrate() { if (navigator.vibrate) navigator.vibrate(40); }
 function esc(s) {
@@ -850,6 +875,7 @@ function triggerNewTransactionAnimations() {
 }
 
 async function saveCategories() {
+  _bustCatColorCache();
   await window.setDoc(
     catDocRef(),
     { income: categories.income, expense: categories.expense, updatedAt: window.serverTimestamp() }
@@ -882,9 +908,15 @@ function catType(name) {
   return null;
 }
 
+const _catColorCache = { income: new Map(), expense: new Map() };
+function _bustCatColorCache() { _catColorCache.income.clear(); _catColorCache.expense.clear(); }
 function catColorByName(type, name) {
+  const cache = _catColorCache[type];
+  if (cache && cache.has(name)) return cache.get(name);
   const found = (categories[type]||[]).find(c => catName(c) === name);
-  return found ? catColor(found) : (type === 'income' ? '#0FA974' : '#E84545');
+  const color = found ? catColor(found) : (type === 'income' ? '#0FA974' : '#E84545');
+  if (cache) cache.set(name, color);
+  return color;
 }
 
 function populateCategoryDropdowns() {
@@ -1492,6 +1524,24 @@ function renderCatLists() {
   renderAddPalette('income');
 }
 
+// ── RAF-batched render scheduler ─────────────────────────────────────────────
+// Coalesces burst renders (e.g. pending-writes then confirmed-write from
+// Firestore) into a single animation frame so the GPU is never asked to paint
+// twice in the same vsync interval.
+function _scheduleRender() {
+  if (_renderPending) return;
+  _renderPending = true;
+  requestAnimationFrame(() => {
+    _renderPending = false;
+    renderTxList();
+    renderStats();
+    renderQuickCats();
+    if (activeView === 'analytics') refreshCurrentPeriod();
+    populateTxCategoryFilter();
+    if (activeView === 'transactions') renderAllTxList();
+  });
+}
+
 function listenTransactions() {
   if (_unsubTransactions) { _unsubTransactions(); _unsubTransactions = null; }
   const q = window.query(
@@ -1514,6 +1564,7 @@ function listenTransactions() {
       else           _pendingTxIds.delete(d.id);
     });
     transactions = snap.docs.map(d => ({ id: d.id, ...d.data(), hasPendingWrites: d.metadata.hasPendingWrites }));
+    _txVersion++;  // invalidate txSorted + computeRunningBalances caches
 
     const _newMonthKey = transactions.map(t => {
       const d = toDate(t.selectedDate); return d ? `${d.getFullYear()}-${d.getMonth()}` : '';
@@ -1532,14 +1583,13 @@ function listenTransactions() {
     if (isFirstLoad) {
       isFirstLoad = false;
     }
-    renderTxList();
-    renderStats();
-    renderQuickCats();
-    setTimeout(() => { window._newTxIds = new Set(); }, 600);
-    if (activeView === 'analytics') refreshCurrentPeriod();
 
-    populateTxCategoryFilter();
-    if (activeView === 'transactions') renderAllTxList();
+    // Coalesce all render work that follows a Firestore snapshot into a
+    // single animation frame.  Multiple snapshot events that land in the
+    // same JS task (e.g. pending-writes + confirmed) will only trigger one
+    // DOM update, keeping the UI smooth and avoiding redundant Plotly calls.
+    _scheduleRender();
+    setTimeout(() => { window._newTxIds = new Set(); }, 600);
 
     if (_txFirstSnap && window._dataLoaded) {
       _txFirstSnap = false;
@@ -2386,7 +2436,12 @@ function wireAddTxForm() {
 }
 
 function txSorted(list) {
-  return list.slice().sort((a, b) => {
+  // Fast path: if called with the global transactions array and data hasn't
+  // changed since last call, return the cached sorted copy directly.
+  if (list === transactions && _txSortedCacheVer === _txVersion && _txSortedCache) {
+    return _txSortedCache;
+  }
+  const sorted = list.slice().sort((a, b) => {
     const da = toDate(a.selectedDate);
     const db = toDate(b.selectedDate);
     if (!da && !db) return 0;
@@ -2399,6 +2454,11 @@ function txSorted(list) {
     if (!b.createdAt) return 1;
     return toDate(b.createdAt) - toDate(a.createdAt);
   });
+  if (list === transactions) {
+    _txSortedCache    = sorted;
+    _txSortedCacheVer = _txVersion;
+  }
+  return sorted;
 }
 
 
@@ -2438,14 +2498,19 @@ function _animateTxPill(txId, hasPending) {
 // balance at that point in time.
 // Returns Map<txId, number>.
 function computeRunningBalances() {
+  if (_runBalCacheVer === _txVersion && _runBalCacheStart === startingBalance && _runBalCache) {
+    return _runBalCache;
+  }
   const balMap = new Map();
-  // Sort oldest-first so we can accumulate forward
   const chronological = txSorted(transactions).slice().reverse();
   let running = startingBalance;
   for (const tx of chronological) {
     running += tx.type === 'income' ? tx.amount : -tx.amount;
     balMap.set(tx.id, running);
   }
+  _runBalCache      = balMap;
+  _runBalCacheVer   = _txVersion;
+  _runBalCacheStart = startingBalance;
   return balMap;
 }
 
@@ -2519,38 +2584,53 @@ function renderTxList() {
 
   if (!sorted.length) {
     el.innerHTML = '<div class="empty">No transactions yet</div>';
+    renderTxList._fp = null;
     return;
   }
 
-  const balMap = window._allDataLoaded ? computeRunningBalances() : new Map();
+  const balMap  = window._allDataLoaded ? computeRunningBalances() : new Map();
+  const newIds  = window._newTxIds || new Set();
   const isFirstRender = el.children.length === 0 || el.querySelector('.empty') !== null || el.querySelector('.tx-skel') !== null;
-  const newIds = window._newTxIds || new Set();
+
+  // Skip entirely when nothing visible has changed and there are no new items.
+  if (!isFirstRender && newIds.size === 0) {
+    const fp = sorted.map(t => `${t.id}|${t.hasPendingWrites}|${balMap.get(t.id)}`).join(',');
+    if (fp === renderTxList._fp) return;
+    renderTxList._fp = fp;
+  } else {
+    renderTxList._fp = null;
+  }
 
   if (isFirstRender) {
-    el.innerHTML = '';
+    const frag = document.createDocumentFragment();
     sorted.forEach((tx, index) => {
       const div = buildTxDiv(tx, balMap.get(tx.id));
       div.style.opacity = '0';
       div.style.transition = 'opacity 0.3s ease';
-      el.appendChild(div);
+      frag.appendChild(div);
       setTimeout(() => { div.style.opacity = '1'; }, 600 + (index * 80));
     });
+    el.innerHTML = '';
+    el.appendChild(frag);
   } else if (newIds.size > 0) {
     _preserveRemovingRows(el, () => {
-      el.innerHTML = '';
+      const frag = document.createDocumentFragment();
       sorted.forEach(tx => {
         const div = buildTxDiv(tx, balMap.get(tx.id));
         if (newIds.has(tx.id)) div.classList.add('tx-adding');
-        el.appendChild(div);
+        frag.appendChild(div);
       });
+      el.innerHTML = '';
+      el.appendChild(frag);
     });
   } else {
     _preserveRemovingRows(el, () => {
+      const frag = document.createDocumentFragment();
+      sorted.forEach(tx => frag.appendChild(buildTxDiv(tx, balMap.get(tx.id))));
       el.innerHTML = '';
-      sorted.forEach(tx => el.appendChild(buildTxDiv(tx, balMap.get(tx.id))));
+      el.appendChild(frag);
     });
   }
-
 }
 
 function populateTxCategoryFilter() {
@@ -2577,12 +2657,18 @@ function renderAllTxList() {
   if (!transactions.length) {
     el.innerHTML = '<div class="empty">No transactions yet</div>';
     if (countEl) countEl.textContent = '0 transactions';
+    renderAllTxList._fp = null;
     return;
   }
 
   const searchQ    = (document.getElementById('txSearchInput')?.value || '').trim().toLowerCase();
   const catFilter  = document.getElementById('txCategoryFilter')?.value || '';
   const typeFilter = document.getElementById('txTypeFilter')?.value || '';
+
+  // Quick-exit if nothing that affects this list has changed.
+  const fp = `${_txVersion}|${_undoPendingId}|${searchQ}|${catFilter}|${typeFilter}|${startingBalance}`;
+  if (fp === renderAllTxList._fp) return;
+  renderAllTxList._fp = fp;
 
   let sorted = txSorted(transactions);
   if (_undoPendingId) sorted = sorted.filter(t => t.id !== _undoPendingId);
@@ -2608,9 +2694,36 @@ function renderAllTxList() {
   }
 
   const balMap = computeRunningBalances();
+
+  // Keyed reconciliation: reuse existing DOM rows when only content changed,
+  // instead of wiping and rebuilding hundreds of nodes on every snapshot.
   _preserveRemovingRows(el, () => {
-    el.innerHTML = '';
-    sorted.forEach(tx => el.appendChild(buildTxDiv(tx, balMap.get(tx.id))));
+    // Build an index of currently rendered rows keyed by tx id.
+    const existingById = new Map();
+    [...el.querySelectorAll('.tx-row[data-tx-id]')].forEach(row => {
+      existingById.set(row.getAttribute('data-tx-id'), row);
+    });
+
+    const fragment = document.createDocumentFragment();
+    sorted.forEach(tx => {
+      // If the row already exists AND its tx data hasn't changed (no
+      // pending-writes state flip, no amount/category mutation), keep it.
+      // We detect mutations via a cheap hash stored on the element.
+      const existing = existingById.get(tx.id);
+      const freshHash = `${tx.amount}|${tx.category}|${tx.type}|${tx.hasPendingWrites}|${balMap.get(tx.id)}`;
+      if (existing && existing.dataset.hash === freshHash) {
+        existingById.delete(tx.id); // mark as reused
+        fragment.appendChild(existing);
+      } else {
+        const newRow = buildTxDiv(tx, balMap.get(tx.id));
+        newRow.dataset.hash = freshHash;
+        fragment.appendChild(newRow);
+      }
+    });
+
+    // Remaining entries in existingById are rows no longer in the list — remove them.
+    existingById.forEach(row => row.remove());
+    el.appendChild(fragment);
   });
 }
 
@@ -2983,6 +3096,14 @@ window.saveEdit = async function() {
 function renderStats() {
   if (!window._allDataLoaded) return;
 
+  // Fast-exit: skip full recompute when nothing that affects stats has changed.
+  const _statsFp = transactions.length + '|' +
+    transactions.reduce((s, t) => s + t.amount, 0).toFixed(2) + '|' +
+    pendingAmounts.length + '|' + startingBalance;
+  const hasSpinners = document.getElementById('sIncome')?.querySelector('.loading-spinner') !== null;
+  if (!hasSpinners && renderStats._fp === _statsFp) return;
+  renderStats._fp = _statsFp;
+
   const tcEl = document.getElementById('profileTxCount');
   if (tcEl) tcEl.textContent = transactions.length;
   const now = new Date();
@@ -3010,9 +3131,9 @@ function renderStats() {
     [balanceEl, fmt(balance)], [pendingEl, fmt(pending)]
   ]);
 
-  const hasSpinners = incomeEl && incomeEl.querySelector('.loading-spinner') !== null;
+  const hasSpinners2 = incomeEl && incomeEl.querySelector('.loading-spinner') !== null;
 
-  if (hasSpinners) {
+  if (hasSpinners2) {
     elements.forEach(el => {
       el.style.transition = 'opacity 0.2s ease';
       el.style.opacity = '0';
@@ -3367,7 +3488,9 @@ function listenPending() {
   _unsubPending = window.onSnapshot(q, snap => {
     pendingAmounts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderPendingList();
-    renderStats();
+    // Use the shared scheduler so pending + transaction snapshots that land
+    // in the same frame only trigger one renderStats call between them.
+    if (!_renderPending) renderStats();
 
     if (_pendingFirstSnap && window._dataLoaded) {
       _pendingFirstSnap = false;
@@ -3869,10 +3992,11 @@ document.getElementById('monthlyDate').addEventListener('change', renderMonthly)
 let _txSearchDebounceTimer = null;
 document.getElementById('txSearchInput').addEventListener('input', () => {
   clearTimeout(_txSearchDebounceTimer);
+  renderAllTxList._fp = null;
   _txSearchDebounceTimer = setTimeout(renderAllTxList, 200);
 });
-document.getElementById('txCategoryFilter').addEventListener('change', renderAllTxList);
-document.getElementById('txTypeFilter').addEventListener('change', renderAllTxList);
+document.getElementById('txCategoryFilter').addEventListener('change', () => { renderAllTxList._fp = null; renderAllTxList(); });
+document.getElementById('txTypeFilter').addEventListener('change', () => { renderAllTxList._fp = null; renderAllTxList(); });
 
 function renderYearly() {
   const year = parseInt(document.getElementById('yearlyYear').value);
@@ -3988,7 +4112,27 @@ function registerChartThemeCallback(key, cb) {
   _chartThemeCallbacks.set(key, cb);
 }
 
-function renderMonthlyLineChart(year, month, txList, type) {
+// ── Lazy Plotly loader ────────────────────────────────────────────────────────
+// Plotly is ~3 MB. We defer loading it until the user first opens the
+// Analytics tab. All chart functions that need it call _requirePlotly()
+// which returns a Promise that resolves once the library is ready.
+let _plotlyReady   = typeof Plotly !== 'undefined';
+let _plotlyPromise = _plotlyReady ? Promise.resolve() : null;
+
+function _requirePlotly() {
+  if (_plotlyReady) return Promise.resolve();
+  if (_plotlyPromise) return _plotlyPromise;
+  _plotlyPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.plot.ly/plotly-basic-2.27.0.min.js';
+    s.onload  = () => { _plotlyReady = true; resolve(); };
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return _plotlyPromise;
+}
+
+async function renderMonthlyLineChart(year, month, txList, type) {
   const wrap = document.getElementById('monthlyLineWrap');
   if (!wrap) return;
 
@@ -4007,6 +4151,8 @@ function renderMonthlyLineChart(year, month, txList, type) {
     wrap.innerHTML = '<div class="empty">No daily data for this month</div>';
     return;
   }
+
+  await _requirePlotly();
 
   const xLabels = Array.from({length: daysInMonth}, (_, i) => {
     const d = new Date(year, month - 1, i + 1);
@@ -4168,7 +4314,7 @@ function renderMonthlyLineChart(year, month, txList, type) {
   document.head.appendChild(s);
 })();
 
-function renderPieChart(wrapId, txList, type) {
+async function renderPieChart(wrapId, txList, type) {
   const wrap = document.getElementById(wrapId);
   if (wrap._pieResizeObserver) { wrap._pieResizeObserver.disconnect(); delete wrap._pieResizeObserver; }
 
@@ -4193,6 +4339,8 @@ function renderPieChart(wrapId, txList, type) {
   const pull       = labels.map(() => 0.04);
 
   const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
+
+  await _requirePlotly();
 
   // Remove mobile hint — no longer needed (legend replaces it)
   const _prevHint = wrap.previousElementSibling;
@@ -4487,6 +4635,14 @@ async function switchAccount(id) {
   isFirstLoad    = true;
   window._allDataLoaded = false;
 
+  // Bust all render caches so the new account starts clean.
+  _txVersion++;
+  _txSortedCache    = null;
+  _txSortedCacheVer = -1;
+  _runBalCache      = null;
+  _runBalCacheVer   = -1;
+  renderStats._fp   = null;
+
   activeAccountId = id;
   localStorage.setItem('activeAccountId_' + uid, id);
   updateAccountBadge();
@@ -4508,8 +4664,7 @@ async function switchAccount(id) {
     }
   };
 
-  await loadCategories();
-  await loadSettings();
+  await Promise.all([loadCategories(), loadSettings()]);
   listenPending();
   listenTransactions();
 }
