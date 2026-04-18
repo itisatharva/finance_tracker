@@ -220,7 +220,7 @@ window.firebaseReady.then(() => {
       new Date(ts).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
 
     const today = new Date();
-    document.getElementById('txDate').valueAsDate  = today;
+    document.getElementById('txDate').value         = toInputDate(today);
     document.getElementById('dailyDate').value     = toInputDate(today);
     initMonthDropdown(today);
     document.getElementById('yearlyYear').value    = today.getFullYear();
@@ -2412,7 +2412,7 @@ function wireAddTxForm() {
       document.getElementById('txAmount').value = '';
       document.getElementById('txNote').value   = '';
       document.getElementById('txCategory').value = '';
-      document.getElementById('txDate').valueAsDate = new Date();
+      document.getElementById('txDate').value = toInputDate(new Date());
       _txSuccessMode = true;
       _autoCloseTimer = setTimeout(() => {
         _autoCloseTimer = null;
