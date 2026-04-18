@@ -155,12 +155,11 @@ window.firebaseReady.then(() => {
 
     window._checkAllDataLoaded = function() {
       const d = window._dataLoaded;
-      if (d.categories && d.settings && d.transactions && d.pending) {
-        console.log('[App] All data loaded, hiding loader');
+      if (d.categories && d.settings && d.transactions) {
         window._allDataLoaded = true;
         renderStats();
         renderTxList();
-        setTimeout(hideLoader, 300);
+        setTimeout(hideLoader, 80);
       }
     };
 
@@ -2608,7 +2607,7 @@ function renderTxList() {
       div.style.opacity = '0';
       div.style.transition = 'opacity 0.3s ease';
       frag.appendChild(div);
-      setTimeout(() => { div.style.opacity = '1'; }, 600 + (index * 80));
+      setTimeout(() => { div.style.opacity = '1'; }, index * 60);
     });
     el.innerHTML = '';
     el.appendChild(frag);
@@ -3135,17 +3134,13 @@ function renderStats() {
 
   if (hasSpinners2) {
     elements.forEach(el => {
-      el.style.transition = 'opacity 0.2s ease';
+      el.style.transition = 'opacity 0.15s ease';
       el.style.opacity = '0';
+      el.innerHTML = valueMap.get(el);
     });
-    setTimeout(() => {
-      elements.forEach(el => {
-        el.innerHTML = valueMap.get(el);
-      });
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        elements.forEach(el => { el.style.opacity = '1'; });
-      }));
-    }, 200);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      elements.forEach(el => { el.style.opacity = '1'; });
+    }));
   } else {
     // Only write to the DOM when the displayed value actually changed.
     // Skipping no-op innerHTML assignments avoids style recalc + repaint
@@ -4648,9 +4643,6 @@ async function switchAccount(id) {
   updateAccountBadge();
 
   window._dataLoaded = { categories: false, settings: false, transactions: false, pending: false };
-
-  renderTxList();
-  renderStats();
 
   const _origCheck = window._checkAllDataLoaded;
   window._checkAllDataLoaded = function() {
