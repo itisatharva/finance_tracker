@@ -128,6 +128,12 @@
     }
   `;
 
+  // Don't show the offline badge on public/auth pages — it has no anchor there
+  // and falls back to a fixed position that covers the nav CTA.
+  const _BADGE_SKIP_PAGES = /\/(login|landing)(\.html)?(\?.*)?$/i;
+  const _skipBadge = _BADGE_SKIP_PAGES.test(window.location.pathname)
+    || window.location.pathname === '/' && document.title.includes('Finance Tracker — Know');
+
   let _badgeInjected   = false;
   let _isOffline       = false;
   let _hideTimer       = null;
@@ -265,25 +271,27 @@
 
   const _run = fn => document.body ? fn() : document.addEventListener('DOMContentLoaded', fn);
 
-  if (!navigator.onLine) {
-    _run(() => setTimeout(async () => {
-      if (await _confirmOffline()) _showOfflineBadge();
-    }, 400));
+  if (!_skipBadge) {
+    if (!navigator.onLine) {
+      _run(() => setTimeout(async () => {
+        if (await _confirmOffline()) _showOfflineBadge();
+      }, 400));
+    }
+
+    window.addEventListener('offline', () => {
+      clearTimeout(_offlineDebounce);
+      clearTimeout(_onlineDebounce);
+      _offlineDebounce = setTimeout(async () => {
+        if (await _confirmOffline()) _run(_showOfflineBadge);
+      }, 600);
+    });
+
+    window.addEventListener('online', () => {
+      clearTimeout(_onlineDebounce);
+      clearTimeout(_offlineDebounce);
+      _onlineDebounce = setTimeout(() => _run(_showOnlineBadge), 400);
+    });
   }
-
-  window.addEventListener('offline', () => {
-    clearTimeout(_offlineDebounce);
-    clearTimeout(_onlineDebounce);
-    _offlineDebounce = setTimeout(async () => {
-      if (await _confirmOffline()) _run(_showOfflineBadge);
-    }, 600);
-  });
-
-  window.addEventListener('online', () => {
-    clearTimeout(_onlineDebounce);
-    clearTimeout(_offlineDebounce);
-    _onlineDebounce = setTimeout(() => _run(_showOnlineBadge), 400);
-  });
 
   // ── 3. Install prompt ────────────────────────────────────────────────────────
 
