@@ -133,13 +133,42 @@ const _snack = {
   }
 };
 
-window.firebaseReady.then(() => {
+window.firebaseReady.then(async () => {
   if (window.NLP) NLP.preload();
+
+  // ── Auth-state guard ────────────────────────────────────────────────────────
+  // Firebase initialises synchronously but restores a persisted session from
+  // IndexedDB *asynchronously*.  Without an explicit wait, onAuthStateChanged
+  // can fire null before that restore completes — redirecting a logged-in user
+  // to the landing page as if they had been signed out.
+  //
+  // Fix (two-layer):
+  //   1. auth.authStateReady()  — Firebase 9.22+ promise that resolves once
+  //      the initial auth state is fully determined from persistence.
+  //   2. localStorage ft_uid fallback — for older SDK builds: if null arrives
+  //      but we recorded a prior session, wait one tick and retry before acting.
+  if (typeof window.auth.authStateReady === 'function') {
+    await window.auth.authStateReady();
+  }
+
+  let _authSettled = false;
+
   window.onAuthStateChanged(window.auth, async user => {
     if (!user) {
+      // If authStateReady isn't available and this is the very first emission,
+      // give the SDK one extra tick to finish reading from IndexedDB before
+      // treating the null as a real sign-out.
+      if (!_authSettled && localStorage.getItem('ft_uid')) {
+        _authSettled = true;
+        await new Promise(r => setTimeout(r, 600));
+        if (window.auth.currentUser) return; // session was restored — proceed normally
+      }
+      localStorage.removeItem('ft_uid');
       window.location.replace('landing.html');
       return;
     }
+    _authSettled = true;
+    localStorage.setItem('ft_uid', user.uid); // record active session
     uid = user.uid;
     document.body.classList.remove('auth-pending');
     // Tear down any previous account listener from a prior auth session
@@ -572,6 +601,7 @@ function wireSettingsDrawer() {
   _signOutConfirmBtn.addEventListener('click', async () => {
     _hideSignOutToast();
     localStorage.removeItem('skipDeleteConfirm');
+    localStorage.removeItem('ft_uid'); // clear session flag so the auth guard doesn't retry
     await window.fbSignOut(window.auth).catch(console.error);
     window.location.replace('login.html');
   });
